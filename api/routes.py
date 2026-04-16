@@ -452,6 +452,10 @@ def handle_get(handler, parsed) -> bool:
     if parsed.path == "/api/onboarding/status":
         return j(handler, get_onboarding_status())
 
+        
+ if parsed.path == "/api/media":
+ return _serve_media_file(handler, parsed)
+
     if parsed.path.startswith("/static/"):
         return _serve_static(handler, parsed)
 
@@ -1309,6 +1313,65 @@ def handle_post(handler, parsed) -> bool:
         return True
 
     return False  # 404
+
+
+# ── GET route helpers ─────────────────────────────────────────────────────────
+
+
+def _serve_media_file(handler, parsed):
+    """Serve media files from arbitrary paths (with safety checks)."""
+    from pathlib import Path
+    from urllib.parse import parse_qs
+    from api.config import IMAGE_EXTS, MIME_MAP
+    import mimetypes
+
+    qs = parse_qs(parsed.query if parsed.query else '')
+    path = qs.get("path", [""])[0]
+    if not path:
+        handler.send_response(400)
+        handler.send_header("Content-Type", "application/json")
+        handler.end_headers()
+        handler.wfile.write(b'{"error": "path param required"}')
+        return True
+
+    # Resolve with safety check (no directory traversal)
+    root = Path("/")
+    media_path = Path(path).resolve()
+    try:
+        media_path.relative_to(root)
+    except ValueError:
+        handler.send_response(403)
+        handler.send_header("Content-Type", "application/json")
+        handler.end_headers()
+        handler.wfile.write(b'{"error": "access denied"}')
+        return True
+
+    if not media_path.exists() or not media_path.is_file():
+        handler.send_response(404)
+        handler.send_header("Content-Type", "application/json")
+        handler.end_headers()
+        handler.wfile.write(b'{"error": "file not found"}')
+        return True
+
+    # Check if it's an allowed media type
+    ext = media_path.suffix.lower()
+    if ext not in IMAGE_EXTS:
+        handler.send_response(403)
+        handler.send_header("Content-Type", "application/json")
+        handler.end_headers()
+        handler.wfile.write(b'{"error": "not an image file"}')
+        return True
+
+    # Serve the file
+    mime_type = MIME_MAP.get(ext, mimetypes.guess_type(str(media_path))[0] or "application/octet-stream")
+    content = media_path.read_bytes()
+    handler.send_response(200)
+    handler.send_header("Content-Type", mime_type)
+    handler.send_header("Content-Length", str(len(content)))
+    handler.send_header("Cache-Control", "public, max-age=86400")
+    handler.end_headers()
+    handler.wfile.write(content)
+    return True
 
 
 # ── GET route helpers ─────────────────────────────────────────────────────────

@@ -55,7 +55,7 @@ def _get_agent_sessions_from_db() -> list:
         return []
 
     try:
-        with sqlite3.connect(str(db_path)) as conn:
+        with sqlite3.connect(str(db_path), check_same_thread=False) as conn:
             conn.row_factory = sqlite3.Row
             cur = conn.cursor()
             cur.execute("""
