@@ -121,7 +121,7 @@ async function cmdUsage(){
 }
 
 async function cmdTheme(args){
-  const themes=['system','dark','light','slate','solarized','monokai','nord','oled'];
+  const themes=['oled'];
   if(!args||!themes.includes(args.toLowerCase())){
     showToast(t('theme_usage')+themes.join('|'));
     return;

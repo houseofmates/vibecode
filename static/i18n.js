@@ -66,7 +66,7 @@ const LOCALES = {
     cmd_workspace: 'Switch workspace by name',
     cmd_new: 'Start a new chat session',
     cmd_usage: 'Toggle token usage display on/off',
-    cmd_theme: 'Switch theme (system/dark/light/slate/solarized/monokai/nord/oled)',
+    cmd_theme: 'Switch theme (oled)',
     cmd_personality: 'Switch agent personality',
     cmd_skills: 'List available Hermes skills',
     available_commands: 'Available commands:',
