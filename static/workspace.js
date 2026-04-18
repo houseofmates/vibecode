@@ -201,6 +201,14 @@ async function openFile(path){
   $('previewArea').classList.add('visible');
   $('fileTree').style.display='none';
 
+  // Add right-click context menu to preview path
+  const previewPathEl=$('previewPath');
+  previewPathEl.oncontextmenu=(e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    _showPreviewPathContextMenu(e,path);
+  };
+
   _previewCurrentPath = path;
   renderFileBreadcrumb(path);
   if(IMAGE_EXTS.has(ext)){
@@ -247,6 +255,68 @@ function downloadFile(path){
   document.body.appendChild(a);a.click();
   setTimeout(()=>document.body.removeChild(a),100);
   showToast(t('downloading',filename),2000);
+}
+
+function _showPreviewPathContextMenu(event,path){
+  const menu=document.createElement('div');
+  menu.className='preview-context-menu';
+  menu.style.cssText='position:fixed;background:#0a0a0a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.6);z-index:1000;min-width:160px;overflow:hidden;';
+  menu.style.left=event.clientX+'px';
+  menu.style.top=event.clientY+'px';
+
+  const filename=path.split('/').pop();
+
+  // Rename option
+  const renameOpt=document.createElement('div');
+  renameOpt.style.cssText='padding:8px 14px;font-size:12px;color:var(--text);cursor:pointer;transition:background .12s;text-transform:lowercase;';
+  renameOpt.textContent='rename';
+  renameOpt.onmouseover=()=>renameOpt.style.background='rgba(255,255,255,.05)';
+  renameOpt.onmouseout=()=>renameOpt.style.background='';
+  renameOpt.onclick=()=>{
+    document.body.removeChild(menu);
+    _startRenameFromPreview(path,filename);
+  };
+  menu.appendChild(renameOpt);
+
+  // Delete option
+  const deleteOpt=document.createElement('div');
+  deleteOpt.style.cssText='padding:8px 14px;font-size:12px;color:#f87171;cursor:pointer;transition:background .12s;text-transform:lowercase;border-top:1px solid rgba(255,255,255,0.05);';
+  deleteOpt.textContent='delete';
+  deleteOpt.onmouseover=()=>deleteOpt.style.background='rgba(248,113,113,.08)';
+  deleteOpt.onmouseout=()=>deleteOpt.style.background='';
+  deleteOpt.onclick=()=>{
+    document.body.removeChild(menu);
+    deleteWorkspaceFile(path,filename);
+  };
+  menu.appendChild(deleteOpt);
+
+  document.body.appendChild(menu);
+
+  const closeMenu=()=>{if(menu.parentNode) document.body.removeChild(menu);};
+  const handleClickOutside=(e)=>{if(!menu.contains(e.target)) closeMenu(); document.removeEventListener('click',handleClickOutside);};
+  setTimeout(()=>document.addEventListener('click',handleClickOutside),10);
+}
+
+async function _startRenameFromPreview(path,oldName){
+  const newName=await showPromptDialog({
+    title:'rename file',
+    message:'enter new name:',
+    confirmLabel:'rename',
+    cancelLabel:'cancel',
+    placeholder:oldName,
+    value:oldName
+  });
+
+  if(!newName||!newName.trim()||newName.trim()===oldName)return;
+
+  try{
+    await api('/api/file/rename',{method:'POST',body:JSON.stringify({
+      session_id:S.session.session_id,path:path,new_name:newName.trim()
+    })});
+    showToast('renamed to '+newName.trim());
+    clearPreview();
+    await loadDir(S.currentDir);
+  }catch(err){showToast('rename failed: '+err.message);}
 }
 
 

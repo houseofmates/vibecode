@@ -570,7 +570,7 @@ window.addEventListener('resize',()=>{
   }
 
   // Run after DOM ready (called from boot)
-  window._initResizePanels = function(){ return; // disabled
+  window._initResizePanels = function(){
     const sidebar    = document.querySelector('.sidebar');
     const rightpanel = document.querySelector('.rightpanel');
     initResize('sidebarResize',    sidebar,    'right', SIDEBAR_MIN, SIDEBAR_MAX, 'hermes-sidebar-w');
@@ -682,7 +682,7 @@ function applyBotName(){
   // Pre-load workspace list so sidebar name is correct from first render
   await loadWorkspaceList();
   await loadOnboardingWizard();
-  // _initResizePanels(); disabled
+  _initResizePanels();
   // Workspace panel restore happens AFTER loadSession so we know if
   // the session has a workspace — prevents the snap-open-then-closed flash (#576).
   const saved=localStorage.getItem('hermes-webui-session');

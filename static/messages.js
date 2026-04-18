@@ -204,7 +204,9 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
     assistantBody=document.createElement('div');assistantBody.className='msg-body';
     const role=document.createElement('div');role.className='msg-role assistant';
     const _bn=window._botName||'Hermes';
-    const icon=document.createElement('div');icon.className='role-icon assistant';icon.textContent=_bn.charAt(0).toUpperCase();
+    const icon=document.createElement('div');icon.className='role-icon assistant';
+    // Use hermes.png as avatar with circle cutout
+    icon.innerHTML='<img src="static/hermes.png" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;" alt="'+_bn+'">';
     const lbl=document.createElement('span');lbl.style.fontSize='12px';lbl.textContent=_bn;
     role.appendChild(icon);role.appendChild(lbl);
     assistantRow.appendChild(role);assistantRow.appendChild(assistantBody);

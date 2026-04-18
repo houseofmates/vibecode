@@ -407,6 +407,8 @@ textarea#msg {
     pointer-events: auto !important;
     display: flex !important;
     position: relative !important;
+    background: #000000 !important;
+    border-left-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 .rightpanel.workspace-panel-collapsed {
@@ -585,8 +587,8 @@ body {
 }
 
 .sidebar {
-  background: #0a0a0a !important;
-  border-right-color: rgba(246, 176, 18, 0.08) !important;
+  background: #000000 !important;
+  border-right-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 .sidebar-header {
@@ -740,9 +742,10 @@ body, .main, .sidebar, .messages, .messages-inner {
   background: var(--bg) !important;
 }
 
-/* Ensure no gradient on empty state */
+/* Ensure no gradient on empty state - remove glow */
 .empty-state {
-  background: transparent !important;
+  background: #050505 !important;
+  background-image: none !important;
 }
 
 /* Ensure no gradient on panels */
@@ -768,18 +771,22 @@ body, .main, .sidebar, .messages, .messages-inner {
 }
 
 .role-icon.assistant {
- background-color: transparent !important;
- border: 1px solid rgba(201,168,76,0.25) !important;
- overflow: hidden;
- padding: 0;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  overflow: hidden;
+  padding: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
 }
 
 .role-icon.assistant img {
- display: block;
- width: 100%;
- height: 100%;
- border-radius: 50%;
- object-fit: cover;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 
@@ -961,6 +968,12 @@ body {
   background: #050505 !important;
   color: #ffffff !important;
   font-family: 'Varela Round', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+/* Override empty-state glow in style.css */
+.empty-state {
+  background: #050505 !important;
+  background-image: none !important;
 }
 
 /* Force all root variables regardless of theme */
@@ -1540,66 +1553,6 @@ html body *:not(input):not(textarea):not(.message-content):not(.msg-text):not(.m
   .wb-grid { grid-template-columns: 1fr; }
 }
 
-
-
-/* Machine cards in Spaces panel */
-.ws-machine-card {
-  margin-bottom: 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(246, 176, 18, 0.15);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.ws-machine-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  transition: background 0.15s ease;
-}
-
-.ws-machine-header:hover {
-  background: rgba(246, 176, 18, 0.1);
-}
-
-.ws-machine-icon {
-  color: var(--muted);
-}
-
-.ws-machine-label {
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 500;
-  flex: 1;
-}
-
-.ws-machine-ip {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.ws-machine-children {
-  padding: 8px;
-}
-
-.ws-machine-children .ws-row {
-  margin-bottom: 4px;
-}
-
-.ws-machine-children .ws-row:last-child {
-  margin-bottom: 0;
-}
-
-/* Machine context menu */
-.machine-context-menu {
-  min-width: 160px;
-  z-index: 1000;
-}
-
 /* ══ Wiki/Memory Context Menu ══ */
 .wb-ctx-menu {
   position: fixed;
@@ -1724,8 +1677,8 @@ html body *:not(input):not(textarea):not(.message-content):not(.msg-text):not(.m
 .ws-machine-card {
   margin-bottom: 12px;
   background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(246,176,18,0.15);
-  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
   overflow: hidden;
 }
 .ws-machine-header {
@@ -1737,7 +1690,7 @@ html body *:not(input):not(textarea):not(.message-content):not(.msg-text):not(.m
   background: rgba(255,255,255,0.05);
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
-.ws-machine-header:hover { background: rgba(246,176,18,0.1); }
+.ws-machine-header:hover { background: rgba(255,255,255,0.08); }
 .ws-machine-icon { color: var(--muted); }
 .ws-machine-label { color: var(--text); font-size: 13px; font-weight: 500; flex: 1; }
 .ws-machine-ip { color: var(--muted); font-size: 11px; }
@@ -1747,11 +1700,17 @@ html body *:not(input):not(textarea):not(.message-content):not(.msg-text):not(.m
 .machine-context-menu { min-width: 160px; z-index: 1000; }
 
 
+/* Path cards inside machine cards - rounded corners */
+.ws-machine-children .ws-row,
+.ws-machine-children [style*="cursor:pointer"] {
+  border-radius: 10px !important;
+}
+
 /* Session context menu */
 .session-context-menu {
-  background: var(--bg-secondary, #181818);
-  border: 1px solid var(--border, #333);
-  border-radius: 6px;
+  background: #0a0a0a;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.4);
   min-width: 120px;
   padding: 4px 0;
@@ -1761,9 +1720,10 @@ html body *:not(input):not(textarea):not(.message-content):not(.msg-text):not(.m
   cursor: pointer;
   font-size: 14px;
   color: var(--text, #eee);
+  text-transform: lowercase;
 }
 .session-context-menu .ctx-item:hover {
-  background: var(--hover, #282828);
+  background: rgba(255,255,255,0.05);
 }
 .session-context-menu .ctx-item.danger {
   color: #f87171;

@@ -682,20 +682,289 @@ async function loadWorkspacesPanel(){
   renderWorkspacesPanel(data.workspaces);
 }
 
+// ── Remote computer cards (Ubuntu, Pop! OS) with sub-paths ───────────────────
+const REMOTE_COMPUTERS=[
+  {id:'ubuntu',name:'ubuntu home',color:'rgba(59,130,246,0.08)',border:'rgba(59,130,246,0.3)',ip:'192.168.4.250',home:'/home/house'},
+  {id:'popos',name:'pop! os home',color:'rgba(244,174,17,0.08)',border:'rgba(244,174,17,0.3)',ip:'192.168.4.233',home:'/home/house'},
+];
+
+function _getRemotePaths(){
+  try{
+    const raw=localStorage.getItem('hermes-remote-paths');
+    return raw?JSON.parse(raw):{ubuntu:[],popos:[]};
+  }catch(e){return {ubuntu:[],popos:[]};}
+}
+
+function _saveRemotePaths(data){
+  try{
+    localStorage.setItem('hermes-remote-paths',JSON.stringify(data));
+  }catch(e){}
+}
+
+function _addRemotePath(computerId,path){
+  const data=_getRemotePaths();
+  if(!data[computerId]) data[computerId]=[];
+  if(!data[computerId].includes(path)){
+    data[computerId].push(path);
+    _saveRemotePaths(data);
+  }
+}
+
+function _removeRemotePath(computerId,path){
+  const data=_getRemotePaths();
+  if(!data[computerId]) return;
+  data[computerId]=data[computerId].filter(p=>p!==path);
+  _saveRemotePaths(data);
+}
+
+function _showRemotePathModal(computerId){
+  const computer=REMOTE_COMPUTERS.find(c=>c.id===computerId);
+  if(!computer) return;
+  showPromptDialog({
+    title:'Add path for '+computer.name,
+    message:'Enter the path to add:',
+    confirmLabel:'Add',
+    cancelLabel:'Cancel',
+    placeholder:'/path/to/workspace',
+    value:''
+  }).then((path)=>{
+    if(!path||!path.trim()) return;
+    path=path.trim();
+    _addRemotePath(computerId,path);
+    loadWorkspacesPanel();
+    showToast('Path added for '+computer.name);
+  });
+}
+
+function _showRemotePathContextMenu(event,computerId,path){
+  event.preventDefault();
+  event.stopPropagation();
+  const computer=REMOTE_COMPUTERS.find(c=>c.id===computerId);
+  if(!computer) return;
+
+  const menu=document.createElement('div');
+  menu.className='machine-context-menu';
+  menu.style.cssText='position:fixed;background:#0a0a0a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.6);z-index:1000;min-width:160px;overflow:hidden;';
+  menu.style.left=event.clientX+'px';
+  menu.style.top=event.clientY+'px';
+
+  // Rename option
+  const renameOpt=document.createElement('div');
+  renameOpt.style.cssText='padding:8px 14px;font-size:12px;color:var(--text);cursor:pointer;transition:background .12s;text-transform:lowercase;';
+  renameOpt.textContent='rename';
+  renameOpt.onmouseover=()=>renameOpt.style.background='rgba(255,255,255,.05)';
+  renameOpt.onmouseout=()=>renameOpt.style.background='';
+  renameOpt.onclick=()=>{
+    document.body.removeChild(menu);
+    _showRenamePathModal(computerId,path);
+  };
+
+  // Remove option
+  const deleteOpt=document.createElement('div');
+  deleteOpt.style.cssText='padding:8px 14px;font-size:12px;color:#f87171;cursor:pointer;transition:background .12s;text-transform:lowercase;border-top:1px solid rgba(255,255,255,0.05);';
+  deleteOpt.textContent='remove';
+  deleteOpt.onmouseover=()=>deleteOpt.style.background='rgba(248,113,113,.08)';
+  deleteOpt.onmouseout=()=>deleteOpt.style.background='';
+  deleteOpt.onclick=()=>{
+    _removeRemotePath(computerId,path);
+    loadWorkspacesPanel();
+    document.body.removeChild(menu);
+    showToast('Path removed');
+  };
+
+  menu.appendChild(renameOpt);
+  menu.appendChild(deleteOpt);
+  document.body.appendChild(menu);
+
+  const closeMenu=()=>{if(menu.parentNode) document.body.removeChild(menu);};
+  const handleClickOutside=(e)=>{if(!menu.contains(e.target)) closeMenu(); document.removeEventListener('click',handleClickOutside);};
+  setTimeout(()=>document.addEventListener('click',handleClickOutside),10);
+}
+
+function _showRenamePathModal(computerId,oldPath){
+  const computer=REMOTE_COMPUTERS.find(c=>c.id===computerId);
+  if(!computer) return;
+  showPromptDialog({
+    title:'rename path',
+    message:'enter new path:',
+    confirmLabel:'rename',
+    cancelLabel:'cancel',
+    placeholder:oldPath,
+    value:oldPath
+  }).then((newPath)=>{
+    if(!newPath||!newPath.trim()||newPath.trim()===oldPath) return;
+    newPath=newPath.trim();
+    // Remove old path and add new one
+    _removeRemotePath(computerId,oldPath);
+    _addRemotePath(computerId,newPath);
+    loadWorkspacesPanel();
+    showToast('path renamed');
+  });
+}
+
+function _showLocalWorkspaceContextMenu(event,path,name){
+  event.preventDefault();
+  event.stopPropagation();
+
+  const menu=document.createElement('div');
+  menu.className='machine-context-menu';
+  menu.style.cssText='position:fixed;background:#0a0a0a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.6);z-index:1000;min-width:160px;overflow:hidden;';
+  menu.style.left=event.clientX+'px';
+  menu.style.top=event.clientY+'px';
+
+  // Switch option
+  const switchOpt=document.createElement('div');
+  switchOpt.style.cssText='padding:8px 14px;font-size:12px;color:var(--text);cursor:pointer;transition:background .12s;text-transform:lowercase;';
+  switchOpt.textContent='switch to workspace';
+  switchOpt.onmouseover=()=>switchOpt.style.background='rgba(255,255,255,.05)';
+  switchOpt.onmouseout=()=>switchOpt.style.background='';
+  switchOpt.onclick=()=>{
+    document.body.removeChild(menu);
+    switchToWorkspace(path,name);
+  };
+
+  // Remove option (with confirmation dialog - but we can make it a simpler inline confirm)
+  const removeOpt=document.createElement('div');
+  removeOpt.style.cssText='padding:8px 14px;font-size:12px;color:#f87171;cursor:pointer;transition:background .12s;text-transform:lowercase;border-top:1px solid rgba(255,255,255,0.05);';
+  removeOpt.textContent='remove';
+  removeOpt.onmouseover=()=>removeOpt.style.background='rgba(248,113,113,.08)';
+  removeOpt.onmouseout=()=>removeOpt.style.background='';
+  removeOpt.onclick=()=>{
+    document.body.removeChild(menu);
+    _removeLocalWorkspace(path);
+  };
+
+  menu.appendChild(switchOpt);
+  menu.appendChild(removeOpt);
+  document.body.appendChild(menu);
+
+  const closeMenu=()=>{if(menu.parentNode) document.body.removeChild(menu);};
+  const handleClickOutside=(e)=>{if(!menu.contains(e.target)) closeMenu(); document.removeEventListener('click',handleClickOutside);};
+  setTimeout(()=>document.addEventListener('click',handleClickOutside),10);
+}
+
+async function _removeLocalWorkspace(path){
+  try{
+    const data=await api('/api/workspaces/remove',{method:'POST',body:JSON.stringify({path})});
+    _workspaceList=data.workspaces;
+    renderWorkspacesPanel(data.workspaces);
+    showToast(t('workspace_removed'));
+  }catch(e){setStatus(t('remove_failed')+e.message);}
+}
+
+function _renderComputerCard(computer){
+  const paths=_getRemotePaths();
+  const computerPaths=paths[computer.id]||[];
+
+  const card=document.createElement('div');
+  card.className='ws-machine-card';
+  card.style.cssText='margin-bottom:12px;border:1px solid '+computer.border+';border-radius:12px;background:'+computer.color+';overflow:hidden;';
+  
+  const header=document.createElement('div');
+  header.style.cssText='padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;';
+  header.onclick=(e)=>{
+    if(e.button===2) return;
+    switchToWorkspace(computer.home,computer.name+' (remote)');
+  };
+  header.oncontextmenu=(e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    const menu=document.createElement('div');
+    menu.className='machine-context-menu';
+    menu.style.cssText='position:fixed;background:#0a0a0a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.6);z-index:1000;min-width:160px;overflow:hidden;';
+    menu.style.left=e.clientX+'px';
+    menu.style.top=e.clientY+'px';
+
+    const addOpt=document.createElement('div');
+    addOpt.style.cssText='padding:8px 14px;font-size:12px;color:var(--text);cursor:pointer;transition:background .12s;text-transform:lowercase;background:transparent;';
+    addOpt.textContent='add path';
+    addOpt.onmouseover=()=>addOpt.style.background='rgba(255,255,255,.05)';
+    addOpt.onmouseout=()=>addOpt.style.background='transparent';
+    addOpt.onclick=()=>{
+      _showRemotePathModal(computer.id);
+      document.body.removeChild(menu);
+    };
+
+    menu.appendChild(addOpt);
+    document.body.appendChild(menu);
+
+    const closeMenu=()=>{if(menu.parentNode) document.body.removeChild(menu);};
+    const handleClickOutside=(ev)=>{if(!menu.contains(ev.target)) closeMenu(); document.removeEventListener('click',handleClickOutside);};
+    setTimeout(()=>document.addEventListener('click',handleClickOutside),10);
+  };
+  
+  const nameSpan=document.createElement('span');
+  nameSpan.style.cssText='font-size:13px;font-weight:600;color:var(--text);';
+  nameSpan.textContent=computer.name;
+  
+  const ipSpan=document.createElement('span');
+  ipSpan.style.cssText='font-size:11px;color:var(--muted);';
+  ipSpan.textContent=computer.ip;
+  
+  header.appendChild(nameSpan);
+  header.appendChild(ipSpan);
+  
+  card.appendChild(header);
+  
+  if(computerPaths.length>0){
+    const body=document.createElement('div');
+    body.style.cssText='padding:0 14px 12px 14px;';
+    
+    for(const p of computerPaths){
+      const pathCard=document.createElement('div');
+      pathCard.style.cssText='padding:8px 10px;margin-top:6px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;';
+      pathCard.onclick=(e)=>{
+        if(e.button===2) return;
+        e.stopPropagation();
+        switchToWorkspace(p,computer.name);
+      };
+      pathCard.oncontextmenu=(e)=>_showRemotePathContextMenu(e,computer.id,p);
+
+      const pathText=document.createElement('span');
+      pathText.style.cssText='font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;';
+      pathText.textContent=p;
+
+      pathCard.appendChild(pathText);
+      body.appendChild(pathCard);
+    }
+    
+    card.appendChild(body);
+  }
+  
+  return card;
+}
+
 function renderWorkspacesPanel(workspaces){
   const panel=$('workspacesPanel');
   panel.innerHTML='';
+  
+  // Render remote computer cards first
+  for(const computer of REMOTE_COMPUTERS){
+    panel.appendChild(_renderComputerCard(computer));
+  }
+  
+  // Add separator if there are both remote cards and local workspaces
+  if(workspaces&&workspaces.length>0){
+    const sep=document.createElement('div');
+    sep.style.cssText='font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--muted);padding:8px 0 6px;margin-bottom:6px;text-transform:lowercase;';
+    sep.textContent='local workspaces';
+    panel.appendChild(sep);
+  }
+  
   for(const w of workspaces){
-    const row=document.createElement('div');row.className='ws-row';
-    row.innerHTML=`
-      <div class="ws-row-info">
-        <div class="ws-row-name">${esc(w.name)}</div>
-        <div class="ws-row-path">${esc(w.path)}</div>
-      </div>
-      <div class="ws-row-actions">
-        <button class="ws-action-btn" title="${esc(t('workspace_use_title'))}" onclick="switchToWorkspace('${esc(w.path)}','${esc(w.name)}')">${li('arrow-right',12)} ${esc(t('workspace_use'))}</button>
-        <button class="ws-action-btn danger" title="${esc(t('remove'))}" onclick="removeWorkspace('${esc(w.path)}')">${li('x',12)}</button>
-      </div>`;
+    const row=document.createElement('div');
+    row.className='ws-row';
+    row.style.cssText='padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);cursor:pointer;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px;';
+    row.innerHTML=`<div style="flex:1;min-width:0;"><div style="font-size:13px;color:var(--text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(w.name)}</div><div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(w.path)}</div></div>`;
+    row.onclick=(e)=>{
+      if(e.button===2) return;
+      switchToWorkspace(w.path,w.name);
+    };
+    row.oncontextmenu=(e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      _showLocalWorkspaceContextMenu(e,w.path,w.name);
+    };
     panel.appendChild(row);
   }
   const addRow=document.createElement('div');addRow.className='ws-add-row';
@@ -723,8 +992,7 @@ async function addWorkspace(){
 }
 
 async function removeWorkspace(path){
-  const _rmWs=await showConfirmDialog({title:t('workspace_remove_confirm_title'),message:t('workspace_remove_confirm_message',path),confirmLabel:t('remove'),danger:true,focusCancel:true});
-  if(!_rmWs) return;
+  // Remove without showing fullscreen modal - use direct removal
   try{
     const data=await api('/api/workspaces/remove',{method:'POST',body:JSON.stringify({path})});
     _workspaceList=data.workspaces;
@@ -777,7 +1045,7 @@ async function switchToWorkspace(path,name){
     if(typeof clearPreview==='function')clearPreview();
   }
   try{
-    closeWsDropdown();
+    if(typeof closeWsDropdown==='function')closeWsDropdown();
     await api('/api/session/update',{method:'POST',body:JSON.stringify({
       session_id:S.session.session_id, workspace:path, model:S.session.model
     })});

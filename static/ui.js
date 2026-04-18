@@ -1013,6 +1013,44 @@ async function checkInflightOnBoot(sid) {
   } catch(e) { clearInflight(); }
 }
 
+// ── Topbar title edit + right-click context menu ─────────────────────────────
+function editTopbarTitle(event){
+  if(event) event.preventDefault();
+  if(!S.session) return;
+  const titleEl=$('topbarTitle');
+  if(!titleEl) return;
+  const currentTitle=S.session.title||'untitled';
+  showPromptDialog({
+    title:'Rename conversation',
+    message:'Enter a new title for this conversation:',
+    confirmLabel:'Save',
+    cancelLabel:'Cancel',
+    value:currentTitle,
+    placeholder:'Conversation title'
+  }).then(async (newTitle)=>{
+    if(!newTitle||!newTitle.trim()) return;
+    newTitle=newTitle.trim();
+    try{
+      await api('/api/session/rename',{method:'POST',body:JSON.stringify({
+        session_id:S.session.session_id, title:newTitle
+      })});
+      S.session.title=newTitle;
+      syncTopbar();
+      renderSessionList();
+      showToast('Conversation renamed');
+    }catch(e){
+      showToast('Rename failed: '+e.message);
+    }
+  });
+}
+
+function handleTopbarRightClick(event){
+  if(event) event.preventDefault();
+  // Open browser context menu for new tab options
+  // This allows native browser right-click menu to show "Open in new tab", etc.
+  return false;
+}
+
 function syncTopbar(){
   if(!S.session){
     document.title=window._botName||'Hermes';
@@ -1066,6 +1104,12 @@ function syncTopbar(){
   // Update profile chip label
   const profileLabel=$('profileChipLabel');
   if(profileLabel) profileLabel.textContent=S.activeProfile||'default';
+  // Update right panel title with current workspace name
+  const rightPanelTitle=$('rightPanelTitle');
+  if(rightPanelTitle){
+    const wsName=S.session&&S.session.workspace?getWorkspaceFriendlyName(S.session.workspace):'workspace';
+    rightPanelTitle.textContent=wsName.toLowerCase();
+  }
 }
 
 function msgContent(m){
@@ -1150,7 +1194,9 @@ function renderMessages(){
     const tsVal=m._ts||m.timestamp;
     const tsTitle=tsVal?new Date(tsVal*1000).toLocaleString():'';
     const _bn=window._botName||'Hermes';
-    row.innerHTML=`<div class="msg-role ${m.role}" ${tsTitle?`title="${esc(tsTitle)}"`:''}><div class="role-icon ${m.role}">${isUser?'Y':esc(_bn.charAt(0).toUpperCase())}</div><span style="font-size:12px">${isUser?t('you'):esc(_bn)}</span>${tsTitle?`<span class="msg-time">${new Date(tsVal*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>`:''}<span class="msg-actions">${editBtn}<button class="msg-copy-btn msg-action-btn" title="${t('copy')}" onclick="copyMsg(this)">${li('copy',13)}</button>${retryBtn}</span></div>${filesHtml}<div class="msg-body">${bodyHtml}</div>`;
+    // Use hermes.png for assistant avatar, circle letter for user
+    const roleIconContent=isUser?'Y':'<img src="static/hermes.png" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;" alt="'+esc(_bn)+'">';
+    row.innerHTML=`<div class="msg-role ${m.role}" ${tsTitle?`title="${esc(tsTitle)}"`:''}><div class="role-icon ${m.role}">${roleIconContent}</div><span style="font-size:12px">${isUser?t('you'):esc(_bn)}</span>${tsTitle?`<span class="msg-time">${new Date(tsVal*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>`:''}<span class="msg-actions">${editBtn}<button class="msg-copy-btn msg-action-btn" title="${t('copy')}" onclick="copyMsg(this)">${li('copy',13)}</button>${retryBtn}</span></div>${filesHtml}<div class="msg-body">${bodyHtml}</div>`;
     row.dataset.rawText = String(content).trim();
     inner.appendChild(row);
   }
@@ -1741,13 +1787,12 @@ function _renderTreeItems(container, entries, depth){
       el.appendChild(sizeEl);
     }
 
-    // Delete button -- for files
-    if(item.type==='file'){
-      const del=document.createElement('button');
-      del.className='file-del-btn';del.title=t('delete_title');del.textContent='\u00d7';
-      del.onclick=async(e)=>{e.stopPropagation();await deleteWorkspaceFile(item.path,item.name);};
-      el.appendChild(del);
-    }
+    // Right-click context menu for all items
+    el.oncontextmenu=(e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      _showFileContextMenu(e,item);
+    };
 
     if(item.type==='dir'){
       // Single-click toggles expand/collapse
@@ -1803,6 +1848,97 @@ async function deleteWorkspaceFile(relPath, name){
     if($('previewPathText').textContent===relPath)$('btnClearPreview').onclick();
     await loadDir(S.currentDir);
   }catch(e){setStatus(t('delete_failed')+e.message);}
+}
+
+function _showFileContextMenu(event,item){
+  const menu=document.createElement('div');
+  menu.className='file-context-menu';
+  menu.style.cssText='position:fixed;background:#0a0a0a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.6);z-index:1000;min-width:160px;overflow:hidden;';
+  menu.style.left=event.clientX+'px';
+  menu.style.top=event.clientY+'px';
+
+  // Rename option
+  const renameOpt=document.createElement('div');
+  renameOpt.style.cssText='padding:8px 14px;font-size:12px;color:var(--text);cursor:pointer;transition:background .12s;text-transform:lowercase;';
+  renameOpt.textContent='rename';
+  renameOpt.onmouseover=()=>renameOpt.style.background='rgba(255,255,255,.05)';
+  renameOpt.onmouseout=()=>renameOpt.style.background='';
+  renameOpt.onclick=()=>{
+    document.body.removeChild(menu);
+    _startRenameFile(item);
+  };
+  menu.appendChild(renameOpt);
+
+  // Delete option
+  const deleteOpt=document.createElement('div');
+  deleteOpt.style.cssText='padding:8px 14px;font-size:12px;color:#f87171;cursor:pointer;transition:background .12s;text-transform:lowercase;border-top:1px solid rgba(255,255,255,0.05);';
+  deleteOpt.textContent='delete';
+  deleteOpt.onmouseover=()=>deleteOpt.style.background='rgba(248,113,113,.08)';
+  deleteOpt.onmouseout=()=>deleteOpt.style.background='';
+  deleteOpt.onclick=()=>{
+    document.body.removeChild(menu);
+    deleteWorkspaceFile(item.path,item.name);
+  };
+  menu.appendChild(deleteOpt);
+
+  document.body.appendChild(menu);
+
+  const closeMenu=()=>{if(menu.parentNode) document.body.removeChild(menu);};
+  const handleClickOutside=(e)=>{if(!menu.contains(e.target)) closeMenu(); document.removeEventListener('click',handleClickOutside);};
+  setTimeout(()=>document.addEventListener('click',handleClickOutside),10);
+}
+
+async function _startRenameFile(item){
+  // Find the file item element
+  const fileItems=document.querySelectorAll('.file-item');
+  let el=null;
+  for(const fi of fileItems){
+    const nameEl=fi.querySelector('.file-name');
+    if(nameEl&&nameEl.textContent===item.name){
+      el=fi;
+      break;
+    }
+  }
+  if(!el)return;
+
+  const nameEl=el.querySelector('.file-name');
+  if(!nameEl)return;
+
+  const inp=document.createElement('input');
+  inp.className='file-rename-input';
+  inp.value=item.name;
+  inp.onclick=(e2)=>e2.stopPropagation();
+
+  const finish=async(save)=>{
+    inp.onblur=null;
+    if(save){
+      const newName=inp.value.trim();
+      if(newName&&newName!==item.name){
+        try{
+          await api('/api/file/rename',{method:'POST',body:JSON.stringify({
+            session_id:S.session.session_id,path:item.path,new_name:newName
+          })});
+          showToast(t('renamed_to')+newName);
+          delete S._dirCache[S.currentDir];
+          await loadDir(S.currentDir);
+        }catch(err){showToast(t('rename_failed')+err.message);}
+      }
+    }
+    inp.replaceWith(nameEl);
+  };
+
+  inp.onkeydown=(e2)=>{
+    if(e2.key==='Enter'){
+      if(e2.isComposing)return;
+      e2.preventDefault();
+      finish(true);
+    }
+    if(e2.key==='Escape'){e2.preventDefault();finish(false);}
+  };
+  inp.onblur=()=>finish(false);
+
+  nameEl.replaceWith(inp);
+  setTimeout(()=>{inp.focus();inp.select();},10);
 }
 
 async function promptNewFile(){
