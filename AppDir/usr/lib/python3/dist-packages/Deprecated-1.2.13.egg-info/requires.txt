@@ -1,0 +1,20 @@
+
+[dev]
+bump2version<1
+sphinx<2
+tox
+
+[dev:python_version < "3"]
+configparser<5
+importlib-metadata<3
+importlib-resources<4
+sphinxcontrib-websupport<2
+zipp<2
+
+[dev:python_version < "3.6"]
+PyTest-Cov<2.6
+PyTest<5
+
+[dev:python_version >= "3.6"]
+PyTest
+PyTest-Cov

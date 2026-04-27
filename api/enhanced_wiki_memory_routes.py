@@ -11,29 +11,34 @@ from typing import Optional, List, Dict, Any
 
 # Configuration
 MEMSTER_HOST = '192.168.4.250'
+MEMSTER_HOST_LEGACY = '192.168.4.233'
 MEMSTER_USER = 'house'
 MEMSTER_DB = '/home/house/.memster/memster.db'
 WIKI_DB = '/home/house/.hermes/wiki/wiki.db'
 SSH_KEY_PATH = '/home/house/.ssh/id_ed25519'
+REMOTE_SESSIONS_DIR = '/home/house/.hermes/sessions'
 
 class MemsterClient:
     """Client for SSH-based memster/wiki queries on .250"""
     
     _ssh_cache = None
+    _ssh_cache_legacy = None
     
     @classmethod
-    def _get_ssh(cls):
+    def _get_ssh(cls, host=None):
         """Get cached SSH connection or create new one"""
-        if cls._ssh_cache is None:
+        target_host = host or MEMSTER_HOST
+        cache_key = '_ssh_cache' if target_host == MEMSTER_HOST else '_ssh_cache_legacy'
+        
+        if getattr(cls, cache_key) is None:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             try:
-                ssh.connect(MEMSTER_HOST, username=MEMSTER_USER, key_filename=SSH_KEY_PATH)
+                ssh.connect(target_host, username=MEMSTER_USER, key_filename=SSH_KEY_PATH)
             except:
-                # fallback to passwordless key
-                ssh.connect(MEMSTER_HOST, username=MEMSTER_USER)
-            cls._ssh_cache = ssh
-        return cls._ssh_cache
+                ssh.connect(target_host, username=MEMSTER_USER)
+            setattr(cls, cache_key, ssh)
+        return getattr(cls, cache_key)
     
     @classmethod
     def query(cls, sql: str, db: str) -> str:
@@ -67,6 +72,155 @@ class MemsterClient:
         if cls._ssh_cache:
             cls._ssh_cache.close()
             cls._ssh_cache = None
+        if cls._ssh_cache_legacy:
+            cls._ssh_cache_legacy.close()
+            cls._ssh_cache_legacy = None
+
+    @classmethod
+    def list_remote_sessions(cls, sessions_dir: str = REMOTE_SESSIONS_DIR) -> List[Dict[str, Any]]:
+        """List session files from remote .250 machine via SSH, with .233 as fallback"""
+        all_sessions = {}
+        
+        # Primary: .250
+        try:
+            ssh = cls._get_ssh(MEMSTER_HOST)
+            cmd = f'ls -la {sessions_dir}/ 2>/dev/null | grep -E "\\.(json|jsonl)$" || echo ""'
+            stdin, stdout, stderr = ssh.exec_command(cmd)
+            out = stdout.read().decode().strip()
+            
+            if out:
+                for line in out.split('\n'):
+                    if not line.strip():
+                        continue
+                    parts = line.split()
+                    if len(parts) < 9:
+                        continue
+                    filename = parts[-1]
+                    if filename.startswith('.') or not (filename.endswith('.json') or filename.endswith('.jsonl')):
+                        continue
+                    
+                    session_id = filename.replace('.json', '').replace('.jsonl', '')
+                    session_data = {"session_id": session_id, "filename": filename, "title": session_id, "source": "192.168.4.250"}
+                    try:
+                        cmd2 = f'cat {sessions_dir}/{filename} 2>/dev/null | head -c 10000'
+                        stdin2, stdout2, stderr2 = ssh.exec_command(cmd2)
+                        content = stdout2.read().decode().strip()
+                        if content:
+                            data = json.loads(content)
+                            if isinstance(data, list) and len(data) > 0:
+                                data = data[0]
+                            if isinstance(data, dict):
+                                if 'title' in data:
+                                    session_data['title'] = data['title']
+                                elif 'session_title' in data:
+                                    session_data['title'] = data['session_title']
+                                if 'created_at' in data:
+                                    session_data['created_at'] = data['created_at']
+                                if 'updated_at' in data:
+                                    session_data['updated_at'] = data['updated_at']
+                    except:
+                        pass
+                    
+                    all_sessions[session_id] = session_data
+        except:
+            pass
+        
+        # Legacy: .233 (add sessions that don't exist in .250)
+        try:
+            ssh = cls._get_ssh(MEMSTER_HOST_LEGACY)
+            cmd = f'ls -la {sessions_dir}/ 2>/dev/null | grep -E "\\.(json|jsonl)$" || echo ""'
+            stdin, stdout, stderr = ssh.exec_command(cmd)
+            out = stdout.read().decode().strip()
+            
+            if out:
+                for line in out.split('\n'):
+                    if not line.strip():
+                        continue
+                    parts = line.split()
+                    if len(parts) < 9:
+                        continue
+                    filename = parts[-1]
+                    if filename.startswith('.') or not (filename.endswith('.json') or filename.endswith('.jsonl')):
+                        continue
+                    
+                    session_id = filename.replace('.json', '').replace('.jsonl', '')
+                    
+                    session_data = {"session_id": session_id, "filename": filename, "title": session_id, "source": "192.168.4.233"}
+                    try:
+                        cmd2 = f'cat {sessions_dir}/{filename} 2>/dev/null | head -c 10000'
+                        stdin2, stdout2, stderr2 = ssh.exec_command(cmd2)
+                        content = stdout2.read().decode().strip()
+                        if content:
+                            data = json.loads(content)
+                            if isinstance(data, list) and len(data) > 0:
+                                data = data[0]
+                            if isinstance(data, dict):
+                                if 'title' in data:
+                                    session_data['title'] = data['title']
+                                elif 'session_title' in data:
+                                    session_data['title'] = data['session_title']
+                                if 'created_at' in data:
+                                    session_data['created_at'] = data['created_at']
+                                if 'updated_at' in data:
+                                    session_data['updated_at'] = data['updated_at']
+                    except:
+                        pass
+                    
+                    all_sessions[session_id] = session_data
+        except:
+            pass
+        
+        sessions = list(all_sessions.values())
+        sessions.sort(key=lambda x: x.get('filename', ''), reverse=True)
+        return sessions[:100]
+
+    @classmethod
+    def get_remote_session(cls, session_id: str, sessions_dir: str = REMOTE_SESSIONS_DIR) -> Optional[Dict[str, Any]]:
+        """Get a specific session from remote machine"""
+        
+        # Try .250 first
+        try:
+            ssh = cls._get_ssh(MEMSTER_HOST)
+            for ext in ['.json', '.jsonl']:
+                filepath = f"{sessions_dir}/{session_id}{ext}"
+                cmd = f'cat {filepath} 2>/dev/null || echo ""'
+                stdin, stdout, stderr = ssh.exec_command(cmd)
+                content = stdout.read().decode().strip()
+                
+                if content:
+                    data = json.loads(content)
+                    if isinstance(data, list):
+                        return {"session_id": session_id, "messages": data, "title": session_id, "_remote_source": f"{MEMSTER_HOST}:{filepath}"}
+                    elif isinstance(data, dict):
+                        data["_remote_source"] = f"{MEMSTER_HOST}:{filepath}"
+                        if "session_id" not in data:
+                            data["session_id"] = session_id
+                        return data
+        except:
+            pass
+        
+        # Try .233 if not found on .250
+        try:
+            ssh = cls._get_ssh(MEMSTER_HOST_LEGACY)
+            for ext in ['.json', '.jsonl']:
+                filepath = f"{sessions_dir}/{session_id}{ext}"
+                cmd = f'cat {filepath} 2>/dev/null || echo ""'
+                stdin, stdout, stderr = ssh.exec_command(cmd)
+                content = stdout.read().decode().strip()
+                
+                if content:
+                    data = json.loads(content)
+                    if isinstance(data, list):
+                        return {"session_id": session_id, "messages": data, "title": session_id, "_remote_source": f"{MEMSTER_HOST_LEGACY}:{filepath}"}
+                    elif isinstance(data, dict):
+                        data["_remote_source"] = f"{MEMSTER_HOST_LEGACY}:{filepath}"
+                        if "session_id" not in data:
+                            data["session_id"] = session_id
+                        return data
+        except:
+            pass
+        
+        return None
 
 
 def register_enhanced_wiki_memory_routes(app):

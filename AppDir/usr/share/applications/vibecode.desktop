@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=VibeCode
+Comment=Browser-based interface for the Hermes AI agent
+Exec=vibecode
+Icon=vibecode
+Terminal=false
+Type=Application
+Categories=Development;AI;Utility;
+StartupNotify=true
+Keywords=hermes;ai;agent;webui;browse;

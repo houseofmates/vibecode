@@ -64,39 +64,14 @@ function _applyModelToDropdown(modelId, sel){
 async function populateModelDropdown(){
   const sel=$('modelSelect');
   if(!sel) return;
-  try{
-    const data=await fetch(new URL('api/models',location.href).href,{credentials:'include'}).then(r=>r.json());
-    if(!data.groups||!data.groups.length) return; // keep HTML defaults
-    // Store active provider globally so the send path can warn on mismatch
-    window._activeProvider=data.active_provider||null;
-    // Clear existing options
-    sel.innerHTML='';
-    _dynamicModelLabels={};
-    for(const g of data.groups){
-      const og=document.createElement('optgroup');
-      og.label=g.provider;
-      for(const m of g.models){
-        const opt=document.createElement('option');
-        opt.value=m.id;
-        opt.textContent=m.label;
-        og.appendChild(opt);
-        _dynamicModelLabels[m.id]=m.label;
-      }
-      sel.appendChild(og);
-    }
-    // Set default model from server if no localStorage preference
-    if(data.default_model && !localStorage.getItem('hermes-webui-model')){
-      _applyModelToDropdown(data.default_model, sel);
-    }
-    if(typeof syncModelChip==='function') syncModelChip();
-    // Kick off a background live-model fetch for the active provider.
-    // This runs after the static list is already shown (no blocking flicker).
-    if(data.active_provider) _fetchLiveModels(data.active_provider, sel);
-  }catch(e){
-    // API unavailable -- keep the hardcoded HTML options as fallback
-    console.warn('Failed to load models from server:',e.message);
-    if(typeof syncModelChip==='function') syncModelChip();
+  // Skip dynamic population - use hardcoded HTML options only
+  // This ensures only the models defined in index.html are available
+  
+  // Select first model by default if nothing selected
+  if(!sel.value && sel.options.length > 0){
+    sel.selectedIndex = 0;
   }
+  if(typeof syncModelChip==='function') syncModelChip();
 }
 
 // Cache so we don't re-fetch on every page load
@@ -186,11 +161,13 @@ function _selectedModelOption(){
 }
 
 function syncModelChip(){
+  console.log('[syncModelChip] called');
   const sel=$('modelSelect');
   const chip=$('composerModelChip');
   const label=$('composerModelLabel');
   const dd=$('composerModelDropdown');
-  if(!sel||!chip||!label) return;
+  if(!sel||!chip||!label) { console.log('[syncModelChip] missing elements'); return; }
+  console.log('[syncModelChip] sel:', sel ? sel.value : 'null');
   const opt=_selectedModelOption();
   label.textContent=opt?opt.textContent:getModelLabel(sel.value||'');
   chip.title=sel.value||'Conversation model';
@@ -336,18 +313,16 @@ function _syncCtxIndicator(usage){
   if(wrap) wrap.style.display='';
   const hasCtxWindow=!!(promptTok&&ctxWindow);
   const pct=hasCtxWindow?Math.min(100,Math.round((promptTok/ctxWindow)*100)):0;
-  const ring=$('ctxRingValue');
   const center=$('ctxPercent');
   const usageLine=$('ctxTooltipUsage');
   const tokensLine=$('ctxTooltipTokens');
   const thresholdLine=$('ctxTooltipThreshold');
   const costLine=$('ctxTooltipCost');
-  if(ring){
-    const circumference=61.261056745;
-    ring.style.strokeDasharray=String(circumference);
-    ring.style.strokeDashoffset=String(circumference*(1-pct/100));
+  const bar=$('ctxBarValue');
+  if(bar){
+    bar.style.width=String(pct)+'%';
   }
-  if(center) center.textContent=hasCtxWindow?String(pct):'\u00b7';
+  if(center) center.textContent=hasCtxWindow?String(pct)+'%':'0%';
   el.classList.toggle('ctx-mid',pct>50&&pct<=75);
   el.classList.toggle('ctx-high',pct>75);
   let label=hasCtxWindow?`Context window ${pct}% used`:`${_fmtTokens(totalTok)} tokens used`;
@@ -697,7 +672,7 @@ function updateQueueBadge(sessionId){
     badge.remove();
   }
 }
-function showToast(msg,ms){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),ms||2800);}
+function showToast(msg,ms){const el=$('toast');if(!el)return;el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),ms||2800);}
 
 // ── Shared app dialogs ───────────────────────────────────────────────────────
 // showConfirmDialog(opts) and showPromptDialog(opts) replace browser-native dialog calls
@@ -1030,15 +1005,24 @@ function editTopbarTitle(event){
   }).then(async (newTitle)=>{
     if(!newTitle||!newTitle.trim()) return;
     newTitle=newTitle.trim();
+    // Optimistic update: update UI immediately
+    const oldTitle = S.session.title;
+    S.session.title = newTitle;
+    syncTopbar();
+    const cached = (typeof _allSessions !== 'undefined') ? _allSessions.find(s => s.session_id === S.session.session_id) : null;
+    if (cached) cached.title = newTitle;
+    if (typeof renderSessionListFromCache === 'function') renderSessionListFromCache();
+    showToast('Conversation renamed');
     try{
       await api('/api/session/rename',{method:'POST',body:JSON.stringify({
         session_id:S.session.session_id, title:newTitle
       })});
-      S.session.title=newTitle;
-      syncTopbar();
-      renderSessionList();
-      showToast('Conversation renamed');
     }catch(e){
+      // Revert on failure
+      S.session.title = oldTitle;
+      if (cached) cached.title = oldTitle;
+      syncTopbar();
+      if (typeof renderSessionListFromCache === 'function') renderSessionListFromCache();
       showToast('Rename failed: '+e.message);
     }
   });
@@ -1049,6 +1033,41 @@ function handleTopbarRightClick(event){
   // Open browser context menu for new tab options
   // This allows native browser right-click menu to show "Open in new tab", etc.
   return false;
+}
+
+function handleTopbarClick(event){
+  // Click on topbar title to rename conversation
+  if(!S.session) return;
+  const titleEl = document.getElementById('topbarTitle');
+  if(!titleEl) return;
+
+  const currentTitle = titleEl.textContent;
+  const newTitle = prompt('Rename conversation:', currentTitle);
+  if(newTitle && newTitle.trim() && newTitle !== currentTitle){
+    const trimmedTitle = newTitle.trim();
+    const oldTitle = S.session.title;
+    // Optimistic update: update UI immediately
+    S.session.title = trimmedTitle;
+    titleEl.textContent = trimmedTitle;
+    saveSessions();
+    const cached = (typeof _allSessions !== 'undefined') ? _allSessions.find(s => s.session_id === S.session.session_id) : null;
+    if (cached) cached.title = trimmedTitle;
+    if (typeof renderSessionListFromCache === 'function') renderSessionListFromCache();
+    else if (typeof renderSessionList === 'function') renderSessionList();
+    showToast('Conversation renamed');
+    // Call API to persist
+    api('/api/session/rename',{method:'POST',body:JSON.stringify({
+      session_id:S.session.session_id, title:trimmedTitle
+    })}).catch(e => {
+      // Revert on failure
+      S.session.title = oldTitle;
+      titleEl.textContent = oldTitle;
+      if (cached) cached.title = oldTitle;
+      syncTopbar();
+      if (typeof renderSessionListFromCache === 'function') renderSessionListFromCache();
+      showToast('Rename failed: '+e.message);
+    });
+  }
 }
 
 function syncTopbar(){
@@ -1110,6 +1129,34 @@ function syncTopbar(){
     const wsName=S.session&&S.session.workspace?getWorkspaceFriendlyName(S.session.workspace):'workspace';
     rightPanelTitle.textContent=wsName.toLowerCase();
   }
+}
+
+// Load an existing session by ID
+async function loadSession(sessionId){
+  if(!sessionId) return;
+  const data=await api(`/api/session?session_id=${encodeURIComponent(sessionId)}`);
+  S.session=data.session;
+  S.messages=data.session?.messages||[];
+  if(typeof syncTopbar==='function') syncTopbar();
+  if(typeof syncWorkspaceDisplays==='function') syncWorkspaceDisplays();
+  if(typeof renderMessages==='function') renderMessages();
+  return data.session;
+}
+
+// Create a new session
+async function newSession(focus=true){
+  const model=$('modelSelect')?.value||'openai/gpt-4o';
+  // Use current session's workspace if available, otherwise default to ubuntu /home/house
+  const currentWs=S.session?.workspace;
+  const defaultWs=currentWs||'/home/house';
+  const body={model,workspace:defaultWs};
+  const data=await api('/api/session/new',{method:'POST',body:JSON.stringify(body)});
+  S.session=data.session||data;
+  S.messages=[];
+  if(typeof syncTopbar==='function') syncTopbar();
+  if(typeof syncWorkspaceDisplays==='function') syncWorkspaceDisplays();
+  if(focus && $('msg')) $('msg').focus();
+  return S.session;
 }
 
 function msgContent(m){
@@ -1196,7 +1243,11 @@ function renderMessages(){
     const _bn=window._botName||'Hermes';
     // Use hermes.png for assistant avatar, circle letter for user
     const roleIconContent=isUser?'Y':'<img src="static/hermes.png" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;" alt="'+esc(_bn)+'">';
-    row.innerHTML=`<div class="msg-role ${m.role}" ${tsTitle?`title="${esc(tsTitle)}"`:''}><div class="role-icon ${m.role}">${roleIconContent}</div><span style="font-size:12px">${isUser?t('you'):esc(_bn)}</span>${tsTitle?`<span class="msg-time">${new Date(tsVal*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>`:''}<span class="msg-actions">${editBtn}<button class="msg-copy-btn msg-action-btn" title="${t('copy')}" onclick="copyMsg(this)">${li('copy',13)}</button>${retryBtn}</span></div>${filesHtml}<div class="msg-body">${bodyHtml}</div>`;
+    // Tool indicator badge for assistant messages with tool calls
+    const hasToolCalls = m.tool_calls?.length || (Array.isArray(m.content) && m.content.some(p=>p?.type==='tool_use'));
+    const toolCount = m.tool_calls?.length || 0;
+    const toolBtn = (!isUser && hasToolCalls) ? `<button class="msg-tool-badge" data-msg-idx="${rawIdx}" onclick="toggleToolCardsForMessage(${rawIdx})" title="show tool calls">${li('paperclip',10)} tool (${toolCount||'1+'})</button>` : '';
+    row.innerHTML=`<div class="msg-role ${m.role}" ${tsTitle?`title="${esc(tsTitle)}"`:''}><div class="role-icon ${m.role}">${roleIconContent}</div><span style="font-size:12px">${isUser?t('you'):esc(_bn)}</span>${tsTitle?`<span class="msg-time">${new Date(tsVal*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>`:''}<span class="msg-actions">${editBtn}<button class="msg-copy-btn msg-action-btn" title="${t('copy')}" onclick="copyMsg(this)">${li('copy',13)}</button>${retryBtn}</span></div>${toolBtn}${filesHtml}<div class="msg-body">${bodyHtml}</div>`;
     row.dataset.rawText = String(content).trim();
     inner.appendChild(row);
   }
@@ -1266,7 +1317,11 @@ function renderMessages(){
         }
       }
       const frag=document.createDocumentFragment();
-      for(const tc of cards){frag.appendChild(buildToolCard(tc));}
+      for(const tc of cards){
+        const card=buildToolCard(tc);
+        card.dataset.msgIdx=aIdx;
+        frag.appendChild(card);
+      }
       // Add expand/collapse toggle for groups with 2+ cards
       if(cards.length>=2){
         const toggle=document.createElement('div');
@@ -1343,9 +1398,29 @@ function toolIcon(name){
   return icons[name]||li('wrench');
 }
 
+function toggleToolCardsForMessage(msgIdx){
+  const inner=$('msgInner');
+  if(!inner)return;
+  // Find all tool cards associated with this message
+  const toolRows=inner.querySelectorAll(`.tool-card-row[data-msg-idx="${msgIdx}"]`);
+  if(toolRows.length===0)return;
+  // Check if any are currently visible (open)
+  const anyOpen=Array.from(toolRows).some(r=>r.style.display!=='none');
+  // Toggle visibility - show if any are hidden, hide if all are visible
+  const shouldShow=!anyOpen;
+  toolRows.forEach(r=>{r.style.display=shouldShow?'':''; if(!shouldShow)r.style.display='none';});
+  // Update button text/icon
+  const btn=inner.querySelector(`.msg-tool-badge[data-msg-idx="${msgIdx}"]`);
+  if(btn){
+    const count=toolRows.length;
+    btn.innerHTML=shouldShow?`${li('paperclip',10)} hide`:`${li('paperclip',10)} tool (${count})`;
+  }
+}
+
 function buildToolCard(tc){
   const row=document.createElement('div');
   row.className='msg-row tool-card-row';
+  row.style.display='none';  // Hidden by default, shown when tool button clicked
   const icon=toolIcon(tc.name);
   const hasDetail=tc.snippet||(tc.args&&Object.keys(tc.args).length>0);
   let displaySnippet='';
@@ -1633,7 +1708,7 @@ function _thinkingMarkup(text=''){
   const icon=esc(_bn.charAt(0).toUpperCase());
   const label=esc(_bn);
   const body=(text&&String(text).trim())
-    ? `<div class="thinking-card open"><div class="thinking-card-header"><span class="thinking-card-icon">${li('lightbulb',14)}</span><span class="thinking-card-label">${t('thinking')}</span></div><div class="thinking-card-body"><pre>${esc(String(text).trim())}</pre></div></div>`
+    ? `<div class="thinking-card"><div class="thinking-card-header" onclick="this.parentElement.classList.toggle('open')"><span class="thinking-card-icon">${li('lightbulb',14)}</span><span class="thinking-card-label">${t('thinking')}</span><span class="thinking-card-toggle">${li('chevron-right',12)}</span></div><div class="thinking-card-body"><pre>${esc(String(text).trim())}</pre></div></div>`
     : `<div class="thinking"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
   return `<div class="msg-role assistant"><div class="role-icon assistant">${icon}</div>${label}</div>${body}`;
 }
@@ -1704,6 +1779,28 @@ function renderBreadcrumb(){
     }
     bar.appendChild(seg);
   }
+  // Edit icon to trigger path input
+  const editIcon=document.createElement('span');
+  editIcon.className='breadcrumb-seg';
+  editIcon.style.cssText='margin-left:auto;cursor:pointer;opacity:.5;font-size:11px;';
+  editIcon.innerHTML='✎';
+  editIcon.title='Type path (Ctrl+L)';
+  editIcon.onclick=()=>{
+    const pathBar=$('pathInputBar');
+    const input=$('dirPathInput');
+    if(pathBar&&input){
+      const isVisible=pathBar.style.display!=='none';
+      if(isVisible){
+        pathBar.style.display='none';
+      } else {
+        pathBar.style.display='block';
+        input.focus();
+        if(S.session) input.value=S.session.workspace+'/';
+        input.setSelectionRange(input.value.length,input.value.length);
+      }
+    }
+  };
+  bar.appendChild(editIcon);
 }
 
 // Track expanded directories for tree view

@@ -7,8 +7,9 @@
 <!-- base href enables subpath mount support; all static paths must stay relative (no leading slash) -->
 <script>(function(){var p=location.pathname.endsWith('/')?location.pathname:(location.pathname.replace(/\/[^\/]*$/,'/')||'/');document.write('<base href="'+location.origin+p+'">');})()</script>
 <script>(function(){var t=localStorage.getItem('hermes-theme');if(t==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';}if(t&&t!=='dark')document.documentElement.dataset.theme=t;})()</script>
-<link rel="stylesheet" href="static/style.css">
-<link rel="stylesheet" href="static/custom_workspace.css">
+<link rel="stylesheet" href="static/style.css?v=6">
+<link rel="stylesheet" href="static/custom.css?v=8">
+<link rel="stylesheet" href="static/custom_workspace.css?v=5">
   <!-- KaTeX math rendering CSS (loaded eagerly to prevent layout shift) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css" integrity="sha384-5TcZemv2l/9On385z///+d7MSYlvIEw9FuZTIdZ14vJLqWphw7e7ZPuOiCHJcFCP" crossorigin="anonymous">
   <!-- Prism.js syntax highlighting (loaded async, non-blocking) -->
@@ -21,145 +22,180 @@
   <aside class="sidebar">
 
     <div class="sidebar-nav">
-      <button class="nav-tab active" data-panel="chat" data-label="Chat" onclick="switchPanel('chat')" title="Chat" data-i18n-title="tab_chat"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
-      <button class="nav-tab" data-panel="tasks" data-label="Tasks" onclick="switchPanel('tasks')" title="Tasks" data-i18n-title="tab_tasks"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
-      <button class="nav-tab" data-panel="skills" data-label="Skills" onclick="switchPanel('skills')" title="Skills" data-i18n-title="tab_skills"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></button>
-      <button class="nav-tab" data-panel="memory" data-label="Memory" onclick="switchPanel('memory')" title="Memory" data-i18n-title="tab_memory"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a7 7 0 0 1 7 7c0 2.5-1.3 4.7-3.2 6H8.2C6.3 13.7 5 11.5 5 9a7 7 0 0 1 7-7z"/><line x1="9" y1="17" x2="15" y2="17"/><line x1="10" y1="20" x2="14" y2="20"/></svg></button>
-      <button class="nav-tab" data-panel="workspaces" data-label="Spaces" onclick="switchPanel('workspaces')" title="Spaces" data-i18n-title="tab_workspaces"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
-      <button class="nav-tab" data-panel="profiles" data-label="Profiles" onclick="switchPanel('profiles')" title="Agent profiles" data-i18n-title="tab_profiles"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></button>
-      <button class="nav-tab" data-panel="todos" data-label="Todos" onclick="switchPanel('todos')" title="Current task list" data-i18n-title="tab_todos"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="6" height="6" rx="1"/><path d="m3 17 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg></button>
+      <button class="nav-tab active" data-panel="chat" data-label="chats" onclick="switchPanel('chat')" title="chats" data-i18n-title="tab_chats"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+      <button class="nav-tab" data-panel="tasks" data-label="tasks" onclick="switchPanel('tasks')" title="tasks" data-i18n-title="tab_tasks"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
+      <button class="nav-tab" data-panel="skills" data-label="skills" onclick="switchPanel('skills')" title="skills" data-i18n-title="tab_skills"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg></button>
+      <button class="nav-tab" data-panel="memory" data-label="memory" onclick="switchPanel('memory')" title="memory" data-i18n-title="tab_memory"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></svg></button>
+      <button class="nav-tab" data-panel="workspaces" data-label="spaces" onclick="switchPanel('workspaces')" title="spaces" data-i18n-title="tab_workspaces"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
+      <button class="nav-tab" data-panel="profiles" data-label="profiles" onclick="switchPanel('profiles')" title="agent profiles" data-i18n-title="tab_profiles"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></button>
+      <button class="nav-tab" data-panel="todos" data-label="todos" onclick="switchPanel('todos')" title="current task list" data-i18n-title="tab_todos"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="6" height="6" rx="1"/><path d="m3 17 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg></button>
     </div>
     <!-- Chat panel -->
     <div class="panel-view active" id="panelChat">
-      <div class="sidebar-section">
-        <button class="new-chat-btn" id="btnNewChat">
+      <div class="sidebar-section" style="display:flex;gap:4px;align-items:center">
+        <button class="new-chat-btn" id="btnNewChat" style="flex:1">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          <span data-i18n="new_conversation">New conversation</span> <span style="font-size:10px;opacity:.5;margin-left:4px">Cmd+K</span>
+          <span data-i18n="new_conversation">new conversation</span> <span style="font-size:10px;opacity:.5;margin-left:4px">Cmd+K</span>
+        </button>
+        <button id="btnDeleteCronSessions" class="cron-delete-btn" title="Delete all cron sessions">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+        <button id="btnRefreshRemote" class="cron-delete-btn" title="Refresh remote sessions (.250)" onclick="window.Sessions && window.Sessions.forceRefresh()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
       </div>
-      <div class="session-search"><input id="sessionSearch" placeholder="Filter conversations..." data-i18n-placeholder="filter_conversations" oninput="filterSessions()"></div>
+      <div class="session-search"><input id="sessionSearch" placeholder="filter conversations..." data-i18n-placeholder="filter_conversations" oninput="filterSessions()"></div>
       <div class="session-list" id="sessionList"></div>
     </div>
     <!-- Tasks (cron) panel -->
     <div class="panel-view" id="panelTasks">
-      <div class="sidebar-section" style="padding-bottom:4px;display:flex;align-items:center;justify-content:space-between">
-        <div style="font-size:11px;color:var(--muted)" data-i18n="scheduled_jobs">Scheduled jobs</div>
-        <button class="cron-btn run" style="padding:3px 8px;font-size:10px" onclick="toggleCronForm()">+ <span data-i18n="new_job">New job</span></button>
+      <div class="sidebar-section" style="padding:8px 12px 4px;display:flex;align-items:center;justify-content:flex-end;position:relative;z-index:2">
+        <button class="cron-btn run" style="padding:3px 8px;font-size:10px" onclick="toggleCronForm()">+ <span data-i18n="new_job">new job</span></button>
       </div>
       <!-- Create job form (hidden by default) -->
       <div id="cronCreateForm" style="display:none;padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0">
-        <input id="cronFormName" placeholder="Job name (optional)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px">
-        <input id="cronFormSchedule" placeholder="Schedule: '0 9 * * *' or 'every 1h'" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px">
-        <textarea id="cronFormPrompt" rows="3" placeholder="Prompt (must be self-contained)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;resize:none;font-family:inherit;margin-bottom:6px"></textarea>
+        <input id="cronFormName" placeholder="job name (optional)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px">
+        <input id="cronFormSchedule" placeholder="schedule: '0 9 * * *' or 'every 1h'" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px">
+        <textarea id="cronFormPrompt" rows="3" placeholder="prompt (must be self-contained)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;resize:none;font-family:inherit;margin-bottom:6px"></textarea>
         <select id="cronFormDeliver" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px">
-          <option value="local">Local (save output only)</option>
-          <option value="discord">Discord</option>
-          <option value="telegram">Telegram</option>
+          <option value="local">local (save output only)</option>
+          <option value="discord">discord</option>
+          <option value="telegram">telegram</option>
         </select>
         <div class="skill-picker-wrap" style="margin-bottom:8px">
-          <input id="cronFormSkillSearch" placeholder="Add skills (optional)..." style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none" autocomplete="off">
+          <input id="cronFormSkillSearch" placeholder="add skills (optional)..." style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none" autocomplete="off">
           <div id="cronFormSkillDropdown" class="skill-picker-dropdown" style="display:none"></div>
           <div id="cronFormSkillTags" class="skill-picker-tags"></div>
         </div>
         <div style="display:flex;gap:6px">
-          <button class="cron-btn run" style="flex:1" onclick="submitCronCreate()" data-i18n="create_job">Create job</button>
-          <button class="cron-btn" style="flex:1" onclick="toggleCronForm()" data-i18n="cancel">Cancel</button>
+          <button class="cron-btn run" style="flex:1" onclick="submitCronCreate()" data-i18n="create_job">create job</button>
+          <button class="cron-btn" style="flex:1" onclick="toggleCronForm()" data-i18n="cancel">cancel</button>
         </div>
         <div id="cronFormError" style="font-size:11px;color:var(--accent);margin-top:6px;display:none"></div>
       </div>
-      <div class="cron-list" id="cronList"><div style="padding:12px;color:var(--muted);font-size:12px" data-i18n="loading">Loading...</div></div>
+      <div class="cron-list" id="cronList" style="padding-top:0;margin-top:-30px;position:relative;z-index:1"><div style="padding:12px;color:var(--muted);font-size:12px" data-i18n="loading">loading...</div></div>
     </div>
     <!-- Skills panel -->
     <div class="panel-view" id="panelSkills">
-      <div class="sidebar-section" style="padding-bottom:4px;display:flex;align-items:center;justify-content:space-between">
-        <div class="skills-search" style="flex:1;padding:0"><input id="skillsSearch" placeholder="Search skills..." data-i18n-placeholder="search_skills" oninput="filterSkills()"></div>
-        <button class="cron-btn run" style="padding:3px 8px;font-size:10px;flex-shrink:0;margin-left:6px" onclick="toggleSkillForm()">+ <span data-i18n="new_skill">New skill</span></button>
+      <div class="sidebar-section" style="padding:8px 12px 4px;display:flex;align-items:center;justify-content:space-between;position:relative;z-index:2">
+        <div class="skills-search" style="flex:1;padding:0"><input id="skillsSearch" placeholder="search skills..." data-i18n-placeholder="search_skills" oninput="filterSkills()"></div>
+        <button class="cron-btn run" style="padding:3px 8px;font-size:10px;flex-shrink:0;margin-left:6px" onclick="toggleSkillForm()">+ <span data-i18n="new_skill">new skill</span></button>
       </div>
       <!-- Skill create/edit form (hidden by default) -->
       <div id="skillCreateForm" style="display:none;padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0">
-        <input id="skillFormName" placeholder="Skill name (e.g. my-skill)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px;box-sizing:border-box">
-        <input id="skillFormCategory" placeholder="Category (optional, e.g. devops)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px;box-sizing:border-box">
-        <textarea id="skillFormContent" rows="6" placeholder="SKILL.md content (YAML frontmatter + markdown body)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;resize:vertical;font-family:'SF Mono',ui-monospace,monospace;margin-bottom:6px;box-sizing:border-box"></textarea>
+        <input id="skillFormName" placeholder="skill name (e.g. my-skill)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px;box-sizing:border-box">
+        <input id="skillFormCategory" placeholder="category (optional, e.g. devops)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px;box-sizing:border-box">
+        <textarea id="skillFormContent" rows="6" placeholder="skill.md content (yaml frontmatter + markdown body)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;resize:vertical;font-family:'SF Mono',ui-monospace,monospace;margin-bottom:6px;box-sizing:border-box"></textarea>
         <div style="display:flex;gap:6px">
-          <button class="cron-btn run" style="flex:1" onclick="submitSkillSave()" data-i18n="save_skill">Save skill</button>
-          <button class="cron-btn" style="flex:1" onclick="toggleSkillForm()" data-i18n="cancel">Cancel</button>
+          <button class="cron-btn run" style="flex:1" onclick="submitSkillSave()" data-i18n="save_skill">save skill</button>
+          <button class="cron-btn" style="flex:1" onclick="toggleSkillForm()" data-i18n="cancel">cancel</button>
         </div>
         <div id="skillFormError" style="font-size:11px;color:var(--accent);margin-top:6px;display:none"></div>
       </div>
-      <div class="skills-list" id="skillsList"><div style="padding:12px;color:var(--muted);font-size:12px" data-i18n="loading">Loading...</div></div>
-    </div>
-    <!-- Memory panel -->
-    <div class="panel-view" id="panelMemory">
-      <div style="padding:8px 12px 4px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-        <span style="font-size:11px;color:var(--muted)" data-i18n="personal_memory">Personal memory</span>
-        <button class="cron-btn run" id="memEditBtn" style="padding:3px 8px;font-size:10px" onclick="toggleMemoryEdit()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg> <span data-i18n="edit">Edit</span></button>
-      </div>
-      <div class="memory-panel" id="memoryPanel"><div style="color:var(--muted);font-size:12px" data-i18n="loading">Loading...</div></div>
-      <!-- Memory edit form (hidden by default) -->
-      <div id="memoryEditForm" style="display:none;padding:8px 12px;border-top:1px solid var(--border);flex-shrink:0">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:4px"><span data-i18n="editing">Editing</span>: <span id="memEditSection">memory</span></div>
-        <textarea id="memEditContent" rows="10" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:11px;outline:none;resize:vertical;font-family:'SF Mono',ui-monospace,monospace;box-sizing:border-box;margin-bottom:6px;line-height:1.5"></textarea>
-        <div style="display:flex;gap:6px">
-          <button class="cron-btn run" style="flex:1" onclick="submitMemorySave()" data-i18n="save">Save</button>
-          <button class="cron-btn" style="flex:1" onclick="closeMemoryEdit()" data-i18n="cancel">Cancel</button>
+      <div class="skills-list" id="skillsList"><div style="padding:12px;color:var(--muted);font-size:12px" data-i18n="loading">loading...</div></div>
+      <!-- Skill WYSIWYG Editor (hidden by default) -->
+      <div id="skillEditor" style="display:none;flex-direction:column;height:50%;border-top:1px solid var(--border);flex-shrink:0;">
+        <div class="skill-editor-header" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);">
+          <span id="skillEditorName" style="font-size:12px;font-weight:500;color:var(--text);"></span>
+          <div style="display:flex;gap:6px;">
+            <button class="cron-btn" onclick="closeSkillEditor()" data-i18n="close">close</button>
+            <button class="cron-btn run" onclick="saveSkillEditor()" data-i18n="save">save</button>
+          </div>
         </div>
-        <div id="memEditError" style="font-size:11px;color:var(--accent);margin-top:6px;display:none"></div>
+        <div class="skill-editor-toolbar" style="display:flex;gap:4px;padding:6px 12px;background:var(--hover-bg);border-bottom:1px solid var(--border);">
+          <button onclick="formatSkillText('bold')" title="bold" style="padding:4px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;"><b>B</b></button>
+          <button onclick="formatSkillText('italic')" title="italic" style="padding:4px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;"><i>I</i></button>
+          <button onclick="formatSkillText('h1')" title="heading 1" style="padding:4px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;">H1</button>
+          <button onclick="formatSkillText('h2')" title="heading 2" style="padding:4px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;">H2</button>
+          <button onclick="formatSkillText('ul')" title="bullet list" style="padding:4px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;">• list</button>
+          <button onclick="formatSkillText('ol')" title="numbered list" style="padding:4px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;">1. list</button>
+          <button onclick="formatSkillText('code')" title="code" style="padding:4px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;">&lt;/&gt;</button>
+          <button onclick="formatSkillText('link')" title="link" style="padding:4px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;">link</button>
+        </div>
+        <textarea id="skillEditorContent" style="flex:1;width:100%;background:var(--bg);border:none;color:var(--text);padding:12px;font-size:13px;resize:none;outline:none;font-family:'SF Mono',ui-monospace,monospace;" placeholder="skill content..."></textarea>
+        <div id="skillEditorError" style="display:none;padding:8px 12px;font-size:11px;color:var(--accent);background:var(--surface);"></div>
+      </div>
+    </div>
+    <!-- Memory panel - Enhanced Wiki/Memory Browser -->
+    <div class="panel-view" id="panelMemory">
+      <div class="wiki-memory-browser" id="wikiMemoryBrowser">
+        <div class="wmb-header">
+          <div class="wmb-tabs">
+            <button class="wmb-tab active" data-tab="wiki" title="Wiki pages from memster">wiki</button>
+            <button class="wmb-tab" data-tab="memories" title="Memories from memster">memories</button>
+          </div>
+          <div class="wmb-actions">
+            <button class="wmb-refresh" id="wmbRefresh" title="Refresh"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg></button>
+          </div>
+        </div>
+        <div class="wmb-toolbar">
+          <input type="text" class="wmb-search" id="wmbSearch" placeholder="search wiki..." />
+          <select class="wmb-filter" id="wmbFilter">
+            <option value="all">all</option>
+          </select>
+        </div>
+        <div class="wmb-content" id="wmbContent"></div>
+        <div class="wmb-empty" id="wmbEmpty" style="display:none">no items found</div>
+        <div class="wmb-loading" id="wmbLoading" style="display:none">
+          <div class="wmb-spinner"></div>
+        </div>
+      </div>
+      <!-- Wiki Page Editor Modal -->
+      <div class="wmb-modal" id="wmbModal" style="display:none">
+        <div class="wmb-modal-overlay" onclick="closeWikiModal()"></div>
+        <div class="wmb-modal-content">
+          <div class="wmb-modal-header">
+            <input type="text" class="wmb-modal-title" id="wmbModalTitle" placeholder="Page title..." />
+            <button class="wmb-modal-close" onclick="closeWikiModal()">&times;</button>
+          </div>
+          <div class="wmb-modal-body">
+            <textarea class="wmb-modal-editor" id="wmbModalEditor" rows="20" placeholder="Wiki content... Markdown supported. Use [[page-name]] for links."></textarea>
+          </div>
+          <div class="wmb-modal-footer">
+            <div class="wmb-modal-meta" id="wmbModalMeta"></div>
+            <div class="wmb-modal-actions">
+              <button class="wmb-btn wmb-btn-secondary" onclick="closeWikiModal()">cancel</button>
+              <button class="wmb-btn wmb-btn-primary" onclick="saveWikiPage()">save</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <!-- Todo panel -->
     <div class="panel-view" id="panelTodos">
-      <div style="padding:10px 12px 4px;font-size:11px;color:var(--muted);flex-shrink:0" data-i18n="current_task_list">Current task list</div>
       <div id="todoPanel" style="flex:1;overflow-y:auto;padding:8px 12px"></div>
     </div>
     <!-- Workspaces panel -->
     <div class="panel-view" id="panelWorkspaces">
-      <div style="padding:10px 12px 4px;font-size:11px;color:var(--muted)" data-i18n="workspace_desc">Add and switch workspaces for your sessions.</div>
-      <div style="flex:1;overflow-y:auto;padding:0 12px 12px" id="workspacesPanel"><div style="color:var(--muted);font-size:12px" data-i18n="loading">Loading...</div></div>
+      <div style="flex:1;overflow-y:auto;padding:8px 12px 12px" id="workspacesPanel"><div style="color:var(--muted);font-size:12px">loading...</div></div>
     </div>
     <!-- Profiles panel -->
     <div class="panel-view" id="panelProfiles">
-      <div class="sidebar-section" style="padding-bottom:4px;display:flex;align-items:center;justify-content:space-between">
-        <div style="font-size:11px;color:var(--muted)" data-i18n="tab_profiles">Agent profiles</div>
-        <button class="cron-btn run" style="padding:3px 8px;font-size:10px" onclick="toggleProfileForm()">+ <span data-i18n="new_profile">New profile</span></button>
+      <div class="sidebar-section" style="padding:8px 12px 4px;display:flex;align-items:center;justify-content:flex-end;position:relative;z-index:2">
+        <button class="cron-btn run" style="padding:3px 8px;font-size:10px" onclick="toggleProfileForm()">+ <span data-i18n="new_profile">new profile</span></button>
       </div>
       <!-- Profile create form (hidden by default) -->
       <div id="profileCreateForm" style="display:none;padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0">
-        <input id="profileFormName" placeholder="Profile name (lowercase, a-z 0-9 hyphens)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px;box-sizing:border-box">
+        <input id="profileFormName" placeholder="profile name (lowercase, a-z 0-9 hyphens)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px;box-sizing:border-box">
         <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-bottom:8px;cursor:pointer">
-          <input type="checkbox" id="profileFormClone" style="accent-color:var(--accent)"> Clone config from active profile
+          <input type="checkbox" id="profileFormClone" style="accent-color:var(--accent)"> clone config from active profile
         </label>
-        <input id="profileFormBaseUrl" placeholder="Base URL (optional, e.g. http://localhost:11434)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px;box-sizing:border-box">
-        <input id="profileFormApiKey" type="password" placeholder="API key (optional)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px;box-sizing:border-box">
+        <input id="profileFormBaseUrl" placeholder="base url (optional, e.g. http://localhost:11434)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px;box-sizing:border-box">
+        <input id="profileFormApiKey" type="password" placeholder="api key (optional)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px;box-sizing:border-box">
         <div style="display:flex;gap:6px">
-          <button class="cron-btn run" style="flex:1" onclick="submitProfileCreate()">Create</button>
-          <button class="cron-btn" style="flex:1" onclick="toggleProfileForm()">Cancel</button>
+          <button class="cron-btn run" style="flex:1" onclick="submitProfileCreate()">create</button>
+          <button class="cron-btn" style="flex:1" onclick="toggleProfileForm()">cancel</button>
         </div>
         <div id="profileFormError" style="font-size:11px;color:var(--accent);margin-top:6px;display:none"></div>
       </div>
-      <div style="flex:1;overflow-y:auto;padding:0 12px 12px" id="profilesPanel"><div style="color:var(--muted);font-size:12px">Loading...</div></div>
+      <div style="flex:1;overflow-y:auto;padding:0 12px 12px;margin-top:-34px;position:relative;z-index:1" id="profilesPanel"><div style="color:var(--muted);font-size:12px">loading...</div></div>
     </div>
     <div class="sidebar-bottom">
-      <button class="hermes-launch-btn" id="btnHermesPanel" onclick="toggleSettings()" title="Open Hermes control center">
-        <span class="hermes-launch-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-          <defs>
-            <linearGradient id="hermes-gold-sidebar" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" style="stop-color:#F5C542;stop-opacity:1"/>
-              <stop offset="100%" style="stop-color:#D4961C;stop-opacity:1"/>
-            </linearGradient>
-          </defs>
-          <rect x="30" y="10" width="4" height="46" rx="2" fill="url(#hermes-gold-sidebar)"/>
-          <path d="M30 18 C24 14, 14 14, 10 18 C14 16, 22 16, 28 20" fill="#F5C542" opacity="0.9"/>
-          <path d="M30 22 C26 19, 18 19, 14 22 C18 20, 24 20, 28 24" fill="#D4961C" opacity="0.8"/>
-          <path d="M34 18 C40 14, 50 14, 54 18 C50 16, 42 16, 36 20" fill="#F5C542" opacity="0.9"/>
-          <path d="M34 22 C38 19, 46 19, 50 22 C46 20, 40 20, 36 24" fill="#D4961C" opacity="0.8"/>
-          <path d="M32 48 C22 44, 20 38, 26 34 C20 36, 18 42, 24 46 C18 40, 22 30, 30 28 C24 32, 22 38, 28 42" fill="none" stroke="#F5C542" stroke-width="2.5" stroke-linecap="round"/>
-          <path d="M32 48 C42 44, 44 38, 38 34 C44 36, 46 42, 40 46 C46 40, 42 30, 34 28 C40 32, 42 38, 36 42" fill="none" stroke="#D4961C" stroke-width="2.5" stroke-linecap="round"/>
-          <circle cx="32" cy="10" r="4" fill="#F5C542"/>
-          <circle cx="32" cy="10" r="2" fill="#FFF8E1" opacity="0.7"/>
-        </svg></span>
+      <button class="hermes-launch-btn" id="btnHermesPanel" onclick="toggleSettings()" title="open hermes control center">
+        <span class="hermes-launch-icon" aria-hidden="true"><img src="static/hermes.png" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;" alt="Hermes"></span>
         <span class="hermes-launch-copy">
           <span class="hermes-launch-title">hermes webui</span>
-          <span class="hermes-launch-meta">preferences, imports, exports</span>
+          <span class="hermes-launch-meta">preferences, conversation tools, api keys, and system controls.</span>
         </span>
         <span class="hermes-launch-chevron" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
       </button>
@@ -168,24 +204,19 @@
   </aside>
   <main class="main">
     <div class="topbar">
-      <button class="mobile-hamburger" id="btnHamburger" onclick="toggleMobileSidebar()" title="Menu">
+      <button class="mobile-hamburger" id="btnHamburger" onclick="toggleMobileSidebar()" title="menu">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
-      <div style="flex:1;min-width:0;overflow:hidden"><div class="topbar-title" id="topbarTitle" title="Click to rename, right-click for options" style="cursor:pointer;" onclick="editTopbarTitle(event)" oncontextmenu="handleTopbarRightClick(event)">Hermes</div><div class="topbar-meta" id="topbarMeta" data-i18n="new_conversation">Start a new conversation</div></div>
+      <div class="topbar-header" id="topbarHeader" style="flex:1;min-width:0;overflow:hidden;position:relative;" onclick="handleTopbarClick(event)" oncontextmenu="handleTopbarRightClick(event)"><span class="topbar-title" id="topbarTitle" title="click to rename">hermes</span><div class="topbar-meta" id="topbarMeta" data-i18n="new_conversation">start a new conversation</div></div>
       <div class="topbar-chips">
-        <button class="chip workspace-toggle-btn" id="btnWorkspacePanelToggle" onclick="toggleWorkspacePanel()" title="Show workspace panel" aria-pressed="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span class="workspace-toggle-label">files</span></button>
+        <button class="chip workspace-toggle-btn" id="btnWorkspacePanelToggle" onclick="toggleWorkspacePanel()" title="show workspace panel" aria-pressed="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span class="workspace-toggle-label">files</span></button>
       </div>
     </div>
     <div class="messages" id="messages">
       <div class="empty-state" id="emptyState">
         <div class="empty-logo"><img src="static/hermes.png" alt="Hermes" style="width:80px;height:80px;border-radius:50%;object-fit:cover;display:block;"></div>
-        <h2 data-i18n="empty_title">What can I help with?</h2>
-        <p data-i18n="empty_subtitle">Ask anything, run commands, explore files, or manage your scheduled tasks.</p>
-        <div class="suggestion-grid">
-          <button class="suggestion" data-msg="What files are in this workspace?"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> <span data-i18n="suggest_files">What files are in this workspace?</span></button>
-          <button class="suggestion" data-msg="What's on my schedule today?"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg> <span data-i18n="suggest_schedule">What's on my schedule today?</span></button>
-          <button class="suggestion" data-msg="Help me plan a small project."><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg> <span data-i18n="suggest_plan">Help me plan a small project.</span></button>
-        </div>
+        <h2 data-i18n="empty_title">what can i help with?</h2>
+        <p data-i18n="empty_subtitle">ask anything, run commands, explore files, or manage your scheduled tasks.</p>
       </div>
       <div class="messages-inner" id="msgInner"></div>
       <div id="liveToolCards" style="display:none;max-width:800px;margin:0 auto;width:100%;padding:0 24px;"></div>
@@ -193,22 +224,22 @@
     <div class="update-banner" id="updateBanner">
       <span id="updateMsg"></span>
       <div style="display:flex;gap:8px;flex-shrink:0">
-        <button class="update-btn" onclick="dismissUpdate()">Later</button>
-        <button class="update-btn update-primary" id="btnApplyUpdate" onclick="applyUpdates()">Update Now</button>
+        <button class="update-btn" onclick="dismissUpdate()">later</button>
+        <button class="update-btn update-primary" id="btnApplyUpdate" onclick="applyUpdates()">update now</button>
       </div>
     </div>
     <div class="reconnect-banner" id="reconnectBanner">
       <span id="reconnectMsg"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-1px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> A response may have been in progress when you last left. Reload messages?</span>
       <div style="display:flex;gap:8px;flex-shrink:0">
-        <button class="reconnect-btn" onclick="dismissReconnect()">Dismiss</button>
-        <button class="reconnect-btn" onclick="refreshSession()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-1px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Reload</button>
+        <button class="reconnect-btn" onclick="dismissReconnect()">dismiss</button>
+        <button class="reconnect-btn" onclick="refreshSession()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-1px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> reload</button>
       </div>
     </div>
     <div class="approval-card" id="approvalCard" role="alertdialog" aria-labelledby="approvalHeading" aria-describedby="approvalDesc">
       <div class="approval-inner">
         <div class="approval-header">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          <span id="approvalHeading" data-i18n="approval_heading">Approval required</span>
+          <span id="approvalHeading" data-i18n="approval_heading">approval required</span>
         </div>
         <div class="approval-desc" id="approvalDesc"></div>
         <div class="approval-cmd" id="approvalCmd"></div>
@@ -216,20 +247,20 @@
         <div class="approval-btns">
           <button class="approval-btn once" id="approvalBtnOnce" onclick="respondApproval('once')" title="Allow this one command (Enter)" data-i18n-title="approval_btn_once_title">
             <span class="approval-btn-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
-            <span class="approval-btn-label" data-i18n="approval_btn_once">Allow once</span>
+            <span class="approval-btn-label" data-i18n="approval_btn_once">allow once</span>
             <kbd class="approval-kbd">↵</kbd>
           </button>
           <button class="approval-btn session" id="approvalBtnSession" onclick="respondApproval('session')" title="Allow for this session">
             <span class="approval-btn-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
-            <span class="approval-btn-label" data-i18n="approval_btn_session">Allow session</span>
+            <span class="approval-btn-label" data-i18n="approval_btn_session">allow session</span>
           </button>
           <button class="approval-btn always" id="approvalBtnAlways" onclick="respondApproval('always')" title="Always allow this command pattern">
             <span class="approval-btn-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
-            <span class="approval-btn-label" data-i18n="approval_btn_always">Always allow</span>
+            <span class="approval-btn-label" data-i18n="approval_btn_always">always allow</span>
           </button>
           <button class="approval-btn deny" id="approvalBtnDeny" onclick="respondApproval('deny')" title="Deny — do not run this command">
             <span class="approval-btn-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
-            <span class="approval-btn-label" data-i18n="approval_btn_deny">Deny</span>
+            <span class="approval-btn-label" data-i18n="approval_btn_deny">deny</span>
           </button>
         </div>
       </div>
@@ -237,35 +268,35 @@
     <div class="clarify-card" id="clarifyCard" role="dialog" aria-labelledby="clarifyHeading" aria-describedby="clarifyQuestion clarifyHint">
       <div class="clarify-inner">
         <div class="clarify-header">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 17h.01"/><path d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 2-3 4"/><circle cx="12" cy="12" r="10"/></svg>
-          <span id="clarifyHeading" data-i18n="clarify_heading">Clarification needed</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 17h.01"/><path d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 4-3 4h-8a3 3 0 0 1-3-3V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          <span id="clarifyHeading" data-i18n="clarify_heading">clarification needed</span>
         </div>
         <div class="clarify-question" id="clarifyQuestion"></div>
         <div class="clarify-choices" id="clarifyChoices"></div>
         <div class="clarify-response">
-          <input class="clarify-input" id="clarifyInput" type="text" data-i18n-placeholder="clarify_input_placeholder" placeholder="Type your response…">
-          <button class="clarify-submit" id="clarifySubmit" onclick="respondClarify()" data-i18n="clarify_send">Send</button>
+          <input class="clarify-input" id="clarifyInput" type="text" data-i18n-placeholder="clarify_input_placeholder" placeholder="type your response…">
+          <button class="clarify-submit" id="clarifySubmit" onclick="respondClarify()" data-i18n="clarify_send">send</button>
         </div>
-        <div class="clarify-hint" id="clarifyHint" data-i18n="clarify_hint">Pick a choice, or type your own answer below.</div>
+        <div class="clarify-hint" id="clarifyHint" data-i18n="clarify_hint">pick a choice, or type your own answer below.</div>
       </div>
     </div>
     <div class="composer-wrap" id="composerWrap">
       <div class="cmd-dropdown" id="cmdDropdown"></div>
       <div class="composer-box" id="composerBox">
         <div class="drop-hint" id="dropHint">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Drop files to upload to workspace
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21.44 11.05-9.19 9.19a6 6 0 0 0-8.49 8.49l8.57-8.57A2.12 2.12 0 0 1 16.1 8.84l-4.24 4.24z"/></svg>
+          drop files to upload to workspace
         </div>
         <div class="attach-tray" id="attachTray"></div>
-        <div class="mic-status" id="micStatus" style="display:none"><span class="mic-dot"></span> Listening…</div>
-        <textarea id="msg" rows="1" placeholder="Message Hermes…"></textarea>
+        <div class="mic-status" id="micStatus" style="display:none"><span class="mic-dot"></span> listening…</div>
+        <div class="input-ghost-wrap"><div class="ghost-text" id="ghostText"></div><textarea id="msg" rows="1" placeholder="message hermes…"></textarea></div>
         <div class="composer-footer">
           <div class="composer-left">
             <input type="file" id="fileInput" multiple accept="image/*,text/*,application/pdf,application/json,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.md,.py,.js,.ts,.yaml,.yml,.toml,.csv,.sh,.txt,.log,.env,.xls,.xlsx,.doc,.docx" style="display:none">
-            <button class="icon-btn" id="btnAttach" title="Attach files">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            <button class="icon-btn" id="btnAttach" title="attach files">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18.1 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             </button>
-            <button class="icon-btn mic-btn" id="btnMic" title="Voice input" style="display:none">
+            <button class="icon-btn mic-btn" id="btnMic" title="voice input" style="display:none">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="9" y="1" width="6" height="12" rx="3"/>
                 <path d="M5 10a7 7 0 0 0 14 0"/>
@@ -275,41 +306,33 @@
             </button>
             <div class="composer-divider" aria-hidden="true"></div>
             <div id="profileChipWrap" class="composer-profile-wrap">
-              <button class="composer-profile-chip profile-chip" id="profileChip" type="button" onclick="toggleProfileDropdown()" title="Switch profile">
+              <button class="composer-profile-chip profile-chip" id="profileChip" type="button" onclick="toggleProfileDropdown()" title="switch profile">
                 <span class="composer-profile-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
                 <span class="composer-profile-label" id="profileChipLabel">default</span>
                 <span class="composer-profile-chevron" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
               </button>
             </div>
             <div class="composer-ws-wrap">
-              <button class="composer-workspace-chip ws-chip" id="composerWorkspaceChip" type="button" onclick="toggleComposerWsDropdown()" title="Switch workspace" disabled>
+              <button class="composer-workspace-chip ws-chip" id="composerWorkspaceChip" type="button" onclick="toggleComposerWsDropdown();event.stopPropagation();" title="switch workspace" style="pointer-events:auto;cursor:pointer;opacity:1;">
                 <span class="composer-workspace-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
-                <span class="composer-workspace-label" id="composerWorkspaceLabel">Workspace</span>
+                <span class="composer-workspace-label" id="composerWorkspaceLabel">workspace</span>
                 <span class="composer-workspace-chevron" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
               </button>
             </div>
             <div class="composer-model-wrap">
-              <button class="composer-model-chip" id="composerModelChip" type="button" onclick="toggleModelDropdown()" title="Conversation model">
+              <button class="composer-model-chip" id="composerModelChip" type="button" onclick="toggleModelDropdown()" title="conversation model">
                 <span class="composer-model-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg></span>
-                <span class="composer-model-label" id="composerModelLabel">Model</span>
+                <span class="composer-model-label" id="composerModelLabel">model</span>
                 <span class="composer-model-chevron" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
               </button>
-              <select id="modelSelect" class="composer-model-select" title="Conversation model" aria-hidden="true" tabindex="-1">
-              <optgroup label="OpenAI">
-                <option value="openai/gpt-5.4-mini">GPT-5.4 Mini</option>
-                <option value="openai/gpt-4o">GPT-4o</option>
-                <option value="openai/o3">o3</option>
-                <option value="openai/o4-mini">o4-mini</option>
+              <select id="modelSelect" class="composer-model-select" title="conversation model" aria-hidden="true" tabindex="-1">
+              <optgroup label="nvidia NIM">
+                <option value="moonshotai/kimi-k2.5">kimi</option>
+                <option value="z-ai/glm-5.1">glm</option>
+                <option value="minimaxai/minimax-m2.7">minimax</option>
               </optgroup>
-              <optgroup label="Anthropic">
-                <option value="anthropic/claude-sonnet-4.6">Claude Sonnet 4.6</option>
-                <option value="anthropic/claude-sonnet-4-5">Claude Sonnet 4.5</option>
-                <option value="anthropic/claude-haiku-3-5">Claude Haiku 3.5</option>
-              </optgroup>
-              <optgroup label="Other">
-                <option value="google/gemini-2.5-pro">Gemini 2.5 Pro</option>
-                <option value="deepseek/deepseek-chat-v3-0324">DeepSeek V3</option>
-                <option value="meta-llama/llama-4-scout">Llama 4 Scout</option>
+              <optgroup label="kilo/kilocode">
+                <option value="nvidia/nemotron-3-super-120b-a12b:free">nemotron</option>
               </optgroup>
             </select>
             </div>
@@ -317,28 +340,27 @@
           <div class="composer-right">
             <span class="composer-status" id="composerStatus" style="display:none"></span>
             <div class="ctx-indicator-wrap" id="ctxIndicatorWrap" style="display:none">
-              <button class="ctx-indicator" id="ctxIndicator" type="button" aria-label="Context window usage" aria-describedby="ctxTooltip">
-                <span class="ctx-ring">
-                  <svg class="ctx-ring-svg" viewBox="0 0 24 24" aria-hidden="true">
-                    <circle class="ctx-ring-track" cx="12" cy="12" r="9.75"></circle>
-                    <circle class="ctx-ring-value" id="ctxRingValue" cx="12" cy="12" r="9.75"></circle>
-                  </svg>
-                  <span class="ctx-ring-center" id="ctxPercent">0</span>
-                </span>
+              <button class="ctx-indicator" id="ctxIndicator" type="button" aria-label="context window usage" aria-describedby="ctxTooltip">
+                <div class="ctx-bar">
+                  <div class="ctx-bar-track">
+                    <div class="ctx-bar-value" id="ctxBarValue"></div>
+                  </div>
+                  <span class="ctx-bar-text" id="ctxPercent">0%</span>
+                </div>
               </button>
               <div class="ctx-tooltip" id="ctxTooltip" role="tooltip" aria-hidden="true">
-                <div class="ctx-tooltip-title">Context window</div>
+                <div class="ctx-tooltip-title">context window</div>
                 <div class="ctx-tooltip-line" id="ctxTooltipUsage"></div>
                 <div class="ctx-tooltip-line" id="ctxTooltipTokens"></div>
                 <div class="ctx-tooltip-line" id="ctxTooltipThreshold"></div>
                 <div class="ctx-tooltip-line" id="ctxTooltipCost" style="display:none"></div>
               </div>
             </div>
-            <button class="cancel-btn" id="btnCancel" onclick="cancelStream()" style="display:none" title="Stop generation" aria-label="Stop generation">
+            <button class="cancel-btn" id="btnCancel" onclick="cancelStream()" style="display:none" title="stop generation" aria-label="stop generation">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg>
             </button>
-            <button class="send-btn" id="btnSend" title="Send message" disabled>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+            <button class="send-btn" id="btnSend" title="send message">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="7 12 12 7 17 12"/></svg>
             </button>
           </div>
           <div class="profile-dropdown" id="profileDropdown"></div>
@@ -355,23 +377,23 @@
       <span id="rightPanelTitle" style="text-transform: lowercase;">workspace</span>
       <span class="git-badge" id="gitBadge" style="display:none"></span>
       <div class="panel-actions">
-        <button class="panel-icon-btn" id="btnCollapseWorkspacePanel" title="Hide workspace panel" onclick="toggleWorkspacePanel(false)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg></button>
-        <button class="panel-icon-btn" id="btnUpDir" title="Parent directory" onclick="navigateUp()" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></button>
-        <button class="panel-icon-btn" id="btnNewFile" title="New file" onclick="promptNewFile()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-        <button class="panel-icon-btn" id="btnNewFolder" title="New folder" onclick="promptNewFolder()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
-        <button class="panel-icon-btn" id="btnRefreshPanel" title="Refresh" onclick="if(S.session)loadDir(S.currentDir)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
-        <button class="panel-icon-btn close-preview" id="btnClearPreview" title="Close preview"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-        <button class="panel-icon-btn mobile-close-btn" onclick="handleWorkspaceClose()" title="Close" aria-label="Close workspace panel">×</button>
+        <button class="panel-icon-btn" id="btnUpDir" title="parent directory" onclick="navigateUp()" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="7 12 12 7 17 12"/></svg></button>
+        <button class="panel-icon-btn" id="btnNewFile" title="new file" onclick="promptNewFile()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+        <button class="panel-icon-btn" id="btnNewFolder" title="new folder" onclick="promptNewFolder()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
+        <button class="panel-icon-btn" id="btnRefreshPanel" title="refresh" onclick="if(S.session)loadDir(S.currentDir)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
       </div>
     </div>
     <div class="breadcrumb-bar" id="breadcrumbBar" style="display:none"></div>
+    <div class="path-input-bar" id="pathInputBar" style="display:none;padding:6px 12px;border-bottom:1px solid var(--border);">
+      <input type="text" id="dirPathInput" placeholder="/absolute/path or ~/relative..." style="width:100%;background:var(--panel-bg);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;font-size:12px;color:var(--text);outline:none;" autocomplete="off">
+    </div>
     <div class="file-tree" id="fileTree"></div>
     <div class="preview-area" id="previewArea">
       <div class="preview-path" id="previewPath">
         <span id="previewPathText"></span>
         <span class="preview-badge" id="previewBadge"></span>
-        <button id="btnDownloadFile" class="panel-icon-btn" style="margin-left:auto;font-size:12px;width:auto;padding:2px 8px;display:inline-flex;align-items:center;gap:4px" onclick="downloadFile(_previewCurrentPath)" title="Download file to your computer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download</button>
-        <button id="btnEditFile" class="panel-icon-btn" style="font-size:12px;width:auto;padding:2px 8px;display:none;align-items:center;gap:4px" onclick="toggleEditMode()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg> Edit</button>
+        <button id="btnDownloadFile" class="panel-icon-btn" style="margin-left:auto;font-size:12px;width:auto;padding:2px 8px;display:inline-flex;align-items:center;gap:4px" onclick="downloadFile(_previewCurrentPath)" title="download file to your computer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> download</button>
+        <button id="btnEditFile" class="panel-icon-btn" style="font-size:12px;width:auto;padding:2px 8px;display:none;align-items:center;gap:4px" onclick="toggleEditMode()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> edit</button>
       </div>
       <pre class="preview-code" id="previewCode"></pre>
       <div class="preview-img-wrap" id="previewImgWrap" style="display:none"><img class="preview-img" id="previewImg" src="" alt=""></div>
@@ -384,20 +406,36 @@
   <div class="onboarding-card">
     <div class="onboarding-shell">
       <div class="onboarding-sidebar">
-        <div class="onboarding-badge" data-i18n="onboarding_badge">FIRST RUN</div>
-        <h2 id="onboardingTitle" data-i18n="onboarding_title">Welcome to Hermes Web UI</h2>
-        <p id="onboardingLead" data-i18n="onboarding_lead">A quick guided setup will check your Hermes install, choose a workspace and model, and optionally protect the app with a password.</p>
+        <div class="onboarding-badge" data-i18n="onboarding_badge">first run</div>
+        <h2 id="onboardingTitle" data-i18n="onboarding_title">welcome to hermes web ui</h2>
+        <p id="onboardingLead" data-i18n="onboarding_lead">a quick guided setup will check your hermes install, choose a workspace and model, and optionally protect the app with a password.</p>
         <div class="onboarding-steps" id="onboardingSteps"></div>
       </div>
       <div class="onboarding-main">
         <div class="onboarding-status" id="onboardingNotice"></div>
         <div class="onboarding-body" id="onboardingBody"></div>
         <div class="onboarding-actions">
-          <button class="sm-btn" id="onboardingBackBtn" onclick="prevOnboardingStep()" style="display:none" data-i18n="onboarding_back">Back</button>
-          <button class="sm-btn" id="onboardingSkipBtn" onclick="skipOnboarding()" style="margin-right:auto;opacity:.7" data-i18n="onboarding_skip">Skip setup</button>
-          <button class="sm-btn" id="onboardingNextBtn" onclick="nextOnboardingStep()" style="font-weight:700;color:var(--blue);border-color:rgba(124,185,255,.32)" data-i18n="onboarding_continue">Continue</button>
+          <button class="sm-btn" id="onboardingBackBtn" onclick="prevOnboardingStep()" style="display:none" data-i18n="onboarding_back">back</button>
+          <button class="sm-btn" id="onboardingSkipBtn" onclick="skipOnboarding()" style="margin-right:auto;opacity:.7" data-i18n="onboarding_skip">skip setup</button>
+          <button class="sm-btn" id="onboardingNextBtn" onclick="nextOnboardingStep()" style="font-weight:700;color:var(--blue);border-color:rgba(124,185,255,.32)" data-i18n="onboarding_continue">continue</button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+<div class="app-dialog-overlay" id="appDialogOverlay" style="display:none" aria-hidden="true">
+  <div class="app-dialog" role="dialog" aria-modal="true">
+    <div class="app-dialog-header">
+      <div class="app-dialog-title" id="appDialogTitle">Confirm</div>
+      <button class="app-dialog-close" id="appDialogClose" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="app-dialog-desc" id="appDialogDesc"></div>
+    <input type="text" class="app-dialog-input" id="appDialogInput" style="display:none">
+    <div class="app-dialog-actions">
+      <button class="app-dialog-btn" id="appDialogCancel">Cancel</button>
+      <button class="app-dialog-btn confirm" id="appDialogConfirm">Confirm</button>
     </div>
   </div>
 </div>
@@ -405,185 +443,343 @@
   <div class="settings-panel">
     <div class="settings-header">
       <div class="settings-heading">
-        <div class="settings-kicker">Hermes WebUI</div>
-        <h3 style="margin:0;font-size:18px">Control Center</h3>
-        <div class="settings-subtitle">Preferences, conversation tools, and system controls.</div>
+        <h3 style="margin:0;font-size:18px">control center</h3>
+        <div class="settings-subtitle">preferences, conversation tools, api keys, and system controls.</div>
       </div>
-      <button class="panel-icon-btn" onclick="_closeSettingsPanel()" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <button class="panel-icon-btn" onclick="_closeSettingsPanel()" title="close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="settings-body">
       <div class="settings-shell">
         <div class="settings-tabs" role="tablist" aria-label="Hermes control center sections">
           <button class="settings-tab active" id="settingsTabConversation" type="button" role="tab" aria-selected="true" aria-controls="settingsPaneConversation" onclick="switchSettingsSection('conversation')">
             <svg class="settings-tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            <span class="settings-tab-title">Conversation</span>
+            <span class="settings-tab-title">conversation</span>
           </button>
           <button class="settings-tab" id="settingsTabPreferences" type="button" role="tab" aria-selected="false" aria-controls="settingsPanePreferences" onclick="switchSettingsSection('preferences')">
             <svg class="settings-tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
-            <span class="settings-tab-title">Preferences</span>
+            <span class="settings-tab-title">preferences</span>
           </button>
           <button class="settings-tab" id="settingsTabSystem" type="button" role="tab" aria-selected="false" aria-controls="settingsPaneSystem" onclick="switchSettingsSection('system')">
             <svg class="settings-tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><line x1="6" y1="7" x2="6.01" y2="7"/><line x1="6" y1="17" x2="6.01" y2="17"/></svg>
-            <span class="settings-tab-title">System</span>
+            <span class="settings-tab-title">system</span>
+          </button>
+          <button class="settings-tab" id="settingsTabApiKeys" type="button" role="tab" aria-selected="false" aria-controls="settingsPaneApiKeys" onclick="switchSettingsSection('apikeys')">
+            <svg class="settings-tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+            <span class="settings-tab-title">api keys</span>
+          </button>
+          <button class="settings-tab" id="settingsTabConfig" type="button" role="tab" aria-selected="false" aria-controls="settingsPaneConfig" onclick="switchSettingsSection('config')">
+            <svg class="settings-tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+            <span class="settings-tab-title">config editor</span>
           </button>
         </div>
         <div class="settings-main">
           <div class="settings-pane active" id="settingsPaneConversation" role="tabpanel" aria-labelledby="settingsTabConversation">
             <div class="settings-section-head">
               <div>
-                <div class="settings-section-title">Conversation</div>
-                <div class="settings-section-meta" id="hermesSessionMeta">No active conversation selected.</div>
+                <div class="settings-section-title">conversation</div>
+                <div class="settings-section-meta" id="hermesSessionMeta">no active conversation selected.</div>
               </div>
             </div>
             <div class="hermes-action-grid">
-              <button class="settings-action-btn" id="btnDownload" title="Download as Markdown" data-i18n-title="download_transcript"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> <span data-i18n="transcript">Transcript</span></button>
-              <button class="settings-action-btn" id="btnExportJSON" title="Export full session as JSON"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/><path d="M16 3h1a2 2 0 0 1 2 2v5a2 2 0 0 0 2 2 2 2 0 0 0-2 2v5a2 2 0 0 1-2 2h-1"/></svg> JSON</button>
-              <button class="settings-action-btn" id="btnImportJSON" title="Import session from JSON"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> <span data-i18n="import">Import</span></button>
-              <button class="settings-action-btn danger" id="btnClearConvModal" onclick="clearConversation()" title="Clear all messages in this conversation"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 1 2 2 2v2"/></svg> Clear</button>
+              <button class="settings-action-btn" id="btnDownload" title="download as markdown" data-i18n-title="download_transcript"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> <span data-i18n="transcript">transcript</span></button>
+              <button class="settings-action-btn" id="btnExportJSON" title="export full session as json"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg> JSON</button>
+              <button class="settings-action-btn" id="btnImportJSON" title="import session from json"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> <span data-i18n="import">import</span></button>
+              <button class="settings-action-btn danger" id="btnClearConvModal" onclick="clearConversation()" title="clear all messages in this conversation"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2h-8a3 3 0 0 1-3-3V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 1 2 2 2v2"/></svg> Clear</button>
             </div>
             <input type="file" id="importFileInput" accept=".json" style="display:none">
           </div>
           <div class="settings-pane" id="settingsPanePreferences" role="tabpanel" aria-labelledby="settingsTabPreferences">
             <div class="settings-section-head">
               <div>
-                <div class="settings-section-title">Preferences</div>
-                <div class="settings-section-meta">Defaults and UI behavior for Hermes Web UI.</div>
+                <div class="settings-section-title">preferences</div>
+                <div class="settings-section-meta">defaults and ui behavior for hermes web ui.</div>
               </div>
             </div>
             <div class="settings-field">
-              <label for="settingsModel" data-i18n="settings_label_model">Default Model</label>
+              <label for="settingsModel" data-i18n="settings_label_model">default model</label>
               <select id="settingsModel" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px"></select>
             </div>
             <div class="settings-field">
-              <label for="settingsSendKey" data-i18n="settings_label_send_key">Send Key</label>
+              <label for="settingsSendKey" data-i18n="settings_label_send_key">send key</label>
               <select id="settingsSendKey" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px">
-                <option value="enter">Enter (Shift+Enter for newline)</option>
-                <option value="ctrl+enter">Ctrl+Enter (Enter for newline)</option>
+                <option value="enter">enter to send, ctrl+enter for newline</option>
               </select>
             </div>
             <div class="settings-field">
-              <label for="settingsTheme" data-i18n="settings_label_theme">Theme</label>
+              <label for="settingsTheme" data-i18n="settings_label_theme">theme</label>
               <select id="settingsTheme" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px" onchange="_applyTheme(this.value)">
-                <option value="system">System (auto)</option>
-                <option value="dark">Dark (default)</option>
-                <option value="light">Light</option>
-                <option value="slate">Slate (charcoal)</option>
-                <option value="solarized">Solarized Dark</option>
-                <option value="monokai">Monokai</option>
-                <option value="nord">Nord</option>
-                <option value="oled">OLED</option>
+                <option value="system">system (auto)</option>
+                <option value="dark">dark (default)</option>
+                <option value="light">light</option>
+                <option value="slate">slate (charcoal)</option>
+                <option value="solarized">solarized dark</option>
+                <option value="monokai">monokai</option>
+                <option value="nord">nord</option>
+                <option value="oled">oled</option>
               </select>
             </div>
             <div class="settings-field">
-              <label for="settingsLanguage" data-i18n="settings_label_language">Language</label>
+              <label for="settingsLanguage" data-i18n="settings_label_language">language</label>
               <select id="settingsLanguage" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px"></select>
             </div>
             <div class="settings-field">
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
                 <input type="checkbox" id="settingsSoundEnabled" style="width:15px;height:15px;accent-color:var(--accent)">
-                <span data-i18n="settings_label_sound">Notification sound</span>
+                <span data-i18n="settings_label_sound">notification sound</span>
               </label>
-              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_sound">Play a sound when the assistant finishes a response.</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_sound">play a sound when the assistant finishes a response.</div>
             </div>
             <div class="settings-field">
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
                 <input type="checkbox" id="settingsNotificationsEnabled" style="width:15px;height:15px;accent-color:var(--accent)">
-                <span data-i18n="settings_label_notifications">Browser notifications</span>
+                <span data-i18n="settings_label_notifications">browser notifications</span>
               </label>
-              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_notifications">Show a system notification when a response completes while the tab is in the background.</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_notifications">show a system notification when a response completes while the tab is in the background.</div>
             </div>
             <div class="settings-field">
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
                 <input type="checkbox" id="settingsShowTokenUsage" style="width:15px;height:15px;accent-color:var(--accent)">
-                <span data-i18n="settings_label_token_usage">Show token usage after responses</span>
+                <span data-i18n="settings_label_token_usage">show token usage after responses</span>
               </label>
-              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_token_usage">Displays input/output token count below each assistant reply. Also toggled with <code>/usage</code>.</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_token_usage">displays input/output token count below each assistant reply. also toggled with <code>/usage</code>.</div>
             </div>
             <div class="settings-field">
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
                 <input type="checkbox" id="settingsBubbleLayout" style="width:15px;height:15px;accent-color:var(--accent)">
-                <span data-i18n="settings_label_bubble_layout">Chat bubble layout</span>
+                <span data-i18n="settings_label_bubble_layout">chat bubble layout</span>
               </label>
-              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_bubble_layout">Right-align user messages and left-align assistant replies. Off by default to keep code blocks and tool output full-width.</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_bubble_layout">right-align user messages and left-align assistant replies. off by default to keep code blocks and tool output full-width.</div>
             </div>
             <div class="settings-field">
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
                 <input type="checkbox" id="settingsShowCliSessions" style="width:15px;height:15px;accent-color:var(--accent)">
-                <span data-i18n="settings_label_cli_sessions">Show CLI sessions in sidebar</span>
+                <span data-i18n="settings_label_cli_sessions">show cli sessions in sidebar</span>
               </label>
-              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_cli_sessions">Merges sessions from the Hermes CLI (state.db) into the session list. Click a CLI session to import it and continue the conversation.</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_cli_sessions">merges sessions from the hermes cli (state.db) into the session list. click a cli session to import it and continue the conversation.</div>
             </div>
             <div class="settings-field">
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
                 <input type="checkbox" id="settingsSyncInsights" style="width:15px;height:15px;accent-color:var(--accent)">
-                <span data-i18n="settings_label_sync_insights">Sync usage to /insights</span>
+                <span data-i18n="settings_label_sync_insights">sync usage to /insights</span>
               </label>
-              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_sync_insights">Mirrors WebUI token usage to state.db so <code>hermes /insights</code> includes browser session data. Off by default.</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_sync_insights">mirrors webui token usage to state.db so <code>hermes /insights</code> includes browser session data. off by default.</div>
             </div>
             <div class="settings-field">
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
                 <input type="checkbox" id="settingsCheckUpdates" style="width:15px;height:15px;accent-color:var(--accent)">
-                <span data-i18n="settings_label_check_updates">Check for updates</span>
+                <span data-i18n="settings_label_check_updates">check for updates</span>
               </label>
-              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_check_updates">Show a banner when newer versions of the WebUI or Agent are available. Runs a background git fetch periodically.</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_check_updates">show a banner when newer versions of the webui or agent are available. runs a background git fetch periodically.</div>
             </div>
             <div class="settings-field">
-              <label for="settingsBotName" data-i18n="settings_label_bot_name">Assistant Name</label>
-              <div style="font-size:11px;color:var(--muted);margin-bottom:6px" data-i18n="settings_desc_bot_name">Display name for the assistant throughout the UI. Defaults to Hermes.</div>
-              <input type="text" id="settingsBotName" placeholder="Hermes" maxlength="64" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px">
+              <label for="settingsBotName" data-i18n="settings_label_bot_name">assistant name</label>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:6px" data-i18n="settings_desc_bot_name">display name for the assistant throughout the ui. defaults to hermes.</div>
+              <input type="text" id="settingsBotName" placeholder="hermes" maxlength="64" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px">
             </div>
-            <button class="sm-btn" onclick="saveSettings()" style="margin-top:12px;width:100%;padding:8px;font-weight:600" data-i18n="settings_save_btn">Save Settings</button>
+            <button class="sm-btn" onclick="saveSettings()" style="margin-top:12px;width:100%;padding:8px;font-weight:600" data-i18n="settings_save_btn">save settings</button>
+          </div>
+          <div class="settings-pane" id="settingsPaneApiKeys" role="tabpanel" aria-labelledby="settingsTabApiKeys">
+            <div class="settings-section-head">
+              <div>
+                <div class="settings-section-title">nvidia api keys</div>
+                <div class="settings-section-meta">manage api key rotation for nvidia models. keys are cycled in order.</div>
+              </div>
+            </div>
+            <div class="api-keys-container">
+              <div class="api-key-input-wrap">
+                <input type="password" id="apiKeyInput" class="api-key-input" placeholder="enter nvidia api key..." onkeydown="if(event.key==='enter')addApiKey()">
+                <button class="api-key-add-btn" id="apiKeyAddBtn" onclick="addApiKey()" title="add api key">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#050505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><line x1="12" y1="5" x2="12" y2="19"/></svg>
+                </button>
+              </div>
+              <div class="api-keys-list" id="apiKeysList"></div>
+              <div class="api-keys-meta">
+                <div style="font-size:11px;color:var(--muted);margin-top:8px;">
+                  • press enter to add • hold and drag to reorder • keys cycle automatically
+                </div>
+              </div>
+            </div>
           </div>
           <div class="settings-pane" id="settingsPaneSystem" role="tabpanel" aria-labelledby="settingsTabSystem">
             <div class="settings-section-head">
               <div>
-                <div class="settings-section-title">System</div>
-                <div class="settings-section-meta">Instance version and access controls.</div>
+                <div class="settings-section-title">system</div>
+                <div class="settings-section-meta">instance version and access controls.</div>
               </div>
               <span class="settings-version-badge">v0.50.68</span>
             </div>
             <div class="settings-field" style="border-top:1px solid var(--border);padding-top:12px;margin-top:8px">
-              <label for="settingsPassword" data-i18n="settings_label_password">Access Password</label>
-              <div style="font-size:11px;color:var(--muted);margin-bottom:6px" data-i18n="settings_desc_password">Enter a new password to set or change it. Leave blank to keep current setting.</div>
-              <input type="password" id="settingsPassword" placeholder="Enter new password…" data-i18n-placeholder="password_placeholder" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px">
+              <label for="settingsPassword" data-i18n="settings_label_password">access password</label>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:6px" data-i18n="settings_desc_password">enter a new password to set or change it. leave blank to keep current setting.</div>
+              <input type="password" id="settingsPassword" placeholder="enter new password…" data-i18n-placeholder="password_placeholder" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px">
             </div>
-            <button class="sm-btn" id="btnDisableAuth" onclick="disableAuth()" style="margin-top:6px;width:100%;padding:8px;font-weight:600;color:#e8a030;border-color:rgba(232,160,48,.3);display:none" data-i18n="disable_auth">Disable Auth</button>
-            <button class="sm-btn" id="btnSignOut" onclick="signOut()" style="margin-top:6px;width:100%;padding:8px;font-weight:600;color:var(--accent);border-color:rgba(233,69,96,.3);display:none" data-i18n="sign_out">Sign Out</button>
+            <button class="sm-btn" id="btnDisableAuth" onclick="disableAuth()" style="margin-top:6px;width:100%;padding:8px;font-weight:600;color:#e8a030;border-color:rgba(232,160,48,.3);display:none" data-i18n="disable_auth">disable auth</button>
+            <button class="sm-btn" id="btnSignOut" onclick="signOut()" style="margin-top:6px;width:100%;padding:8px;font-weight:600;color:var(--accent);border-color:rgba(233,69,96,.3);display:none" data-i18n="sign_out">sign out</button>
+          </div>
+          <div class="settings-pane" id="settingsPaneConfig" role="tabpanel" aria-labelledby="settingsTabConfig">
+            <div class="settings-section-head">
+              <div>
+                <div class="settings-section-title">config editor</div>
+                <div class="settings-section-meta">edit hermes configuration directly. connects to 192.168.4.250.</div>
+              </div>
+            </div>
+            <div class="config-editor-container">
+              <div class="config-editor-actions">
+                <button class="sm-btn primary" id="btnLoadConfig" onclick="loadHermesConfig()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  load config
+                </button>
+                <button class="sm-btn primary" id="btnSaveConfig" onclick="saveHermesConfig()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2 2 2 2 0 0 1 2 2h11a2 2 0 0 1 2-2 2 2 0 0 1-2-2h-11a2 2 0 0 1 2 2 2 2 0 0 1 2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="17 3 17 8 7 8"/></svg>
+                  save config
+                </button>
+              </div>
+              <div class="config-editor-status" id="configEditorStatus"></div>
+              <div class="config-editor-wrapper">
+                <textarea id="configEditor" class="config-editor-textarea" placeholder="# hermes config.yaml will appear here..." spellcheck="false"></textarea>
+              </div>
+              <div class="config-editor-help">
+                <div style="font-size:11px;color:var(--muted);margin-top:8px;">
+                  • edits config.yaml on 192.168.4.250 at /home/house/.hermes/ • restart hermes after changes
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
       </div>
     </div>
-  </div>
-</div>
-<div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileSidebar()"></div>
-<div class="app-dialog-overlay" id="appDialogOverlay" style="display:none" aria-hidden="true">
-  <div class="app-dialog" id="appDialog" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle" aria-describedby="appDialogDesc">
-    <div class="app-dialog-header">
-      <div class="app-dialog-title" id="appDialogTitle">Confirm action</div>
-      <button class="app-dialog-close" id="appDialogClose" type="button" aria-label="Close dialog">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div class="app-dialog-desc" id="appDialogDesc"></div>
-    <input class="app-dialog-input" id="appDialogInput" type="text" style="display:none">
-    <div class="app-dialog-actions">
-      <button class="app-dialog-btn" id="appDialogCancel" type="button" data-i18n="cancel">Cancel</button>
-      <button class="app-dialog-btn confirm" id="appDialogConfirm" type="button">Confirm</button>
-    </div>
-  </div>
-</div>
-<div class="toast" id="toast"></div>
-<script src="static/i18n.js"></script>
-<script src="static/icons.js"></script>
-<script src="static/ui.js"></script>
-<script src="static/workspace.js"></script>
-<script src="static/sessions.js"></script>
-<script src="static/commands.js"></script>
-<script src="static/messages.js"></script>
-<script src="static/panels.js"></script>
-<script src="static/onboarding.js"></script>
-<script src="static/boot.js"></script>
+    <!-- icons.js inlined -->
+<script>// Permanent sidebar AND rightpanel resize fix - inline at end to ensure it runs
+(function(){
+  const SIDEBAR_MIN=180, SIDEBAR_MAX=420;
+  const RIGHTPANEL_MIN=180, RIGHTPANEL_MAX=1200;
+  let _sidebarInitialized = false;
+  let _rightpanelInitialized = false;
+  
+  function _initSidebarResize(){
+    const handle = document.getElementById('sidebarResize');
+    const sidebar = document.querySelector('.sidebar');
+    if(!handle || !sidebar) return;
+    if(_sidebarInitialized) return;
+    _sidebarInitialized = true;
+    console.log('[resize-fix] initializing sidebar resize');
+    let startX=0, startW=0, dragging=false;
+    handle.addEventListener('mousedown', function(e){
+      console.log('[resize-fix] sidebar mousedown!');
+      e.preventDefault();
+      e.stopPropagation();
+      dragging = true;
+      startX = e.clientX;
+      startW = sidebar.getBoundingClientRect().width;
+      handle.classList.add('dragging');
+      document.body.classList.add('resizing');
+      function onMove(ev){
+        if(!dragging) return;
+        const delta = ev.clientX - startX;
+        const newW = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, startW + delta));
+        sidebar.style.width = newW + 'px';
+      }
+      function onUp(){
+        console.log('[resize-fix] sidebar mouseup! dragging='+dragging);
+        if(!dragging) return;
+        dragging = false;
+        handle.classList.remove('dragging');
+        document.body.classList.remove('resizing');
+        localStorage.setItem('hermes-sidebar-w', parseInt(sidebar.style.width));
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+    // Restore saved width
+    const saved = localStorage.getItem('hermes-sidebar-w');
+    if(saved) sidebar.style.width = saved + 'px';
+  }
+  
+  function _initRightpanelResize(){
+    const handle = document.getElementById('rightpanelResize');
+    const rightpanel = document.querySelector('.rightpanel');
+    const layout = document.querySelector('.layout');
+    if(!handle || !rightpanel) return;
+    if(_rightpanelInitialized) return;
+    _rightpanelInitialized = true;
+    console.log('[resize-fix] initializing rightpanel resize');
+    let startX=0, startW=0, dragging=false;
+    handle.addEventListener('mousedown', function(e){
+      console.log('[resize-fix] rightpanel mousedown!');
+      e.preventDefault();
+      e.stopPropagation();
+      dragging = true;
+      startX = e.clientX;
+      startW = rightpanel.getBoundingClientRect().width;
+      handle.classList.add('dragging');
+      document.body.classList.add('resizing');
+      function onMove(ev){
+        if(!dragging) return;
+        // For rightpanel, moving left decreases width (negative delta)
+        const delta = startX - ev.clientX;
+        const newW = Math.min(RIGHTPANEL_MAX, Math.max(RIGHTPANEL_MIN, startW + delta));
+        rightpanel.style.width = newW + 'px';
+        rightpanel.style.flex = 'none';
+      }
+      function onUp(){
+        console.log('[resize-fix] rightpanel mouseup! dragging='+dragging);
+        if(!dragging) return;
+        dragging = false;
+        handle.classList.remove('dragging');
+        document.body.classList.remove('resizing');
+        localStorage.setItem('hermes-rightpanel-w', parseInt(rightpanel.style.width));
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+    // Restore saved width
+    const saved = localStorage.getItem('hermes-rightpanel-w');
+    if(saved){
+      rightpanel.style.width = saved + 'px';
+      rightpanel.style.flex = 'none';
+    }
+  }
+  
+  // Try immediately
+  setTimeout(function(){
+    _initSidebarResize();
+    _initRightpanelResize();
+  }, 100);
+  
+  // Watch for sidebar/rightpanel replacement
+  let _lastSidebar = null;
+  let _lastRightpanel = null;
+  setInterval(function(){
+    const curSidebar = document.querySelector('.sidebar');
+    const curRightpanel = document.querySelector('.rightpanel');
+    if(curSidebar !== _lastSidebar){
+      _lastSidebar = curSidebar;
+      _sidebarInitialized = false;
+      _initSidebarResize();
+    }
+    if(curRightpanel !== _lastRightpanel){
+      _lastRightpanel = curRightpanel;
+      _rightpanelInitialized = false;
+      _initRightpanelResize();
+    }
+  }, 500);
+})();</script>
+<script src="static/i18n.js?v=5"></script>
+<script src="static/ui.js?v=5"></script>
+<script src="static/workspace.js?v=7"></script>
+<script src="static/commands.js?v=5"></script>
+<script src="static/messages.js?v=5"></script>
+<script src="static/panels.js?v=121"></script>
+<script src="static/onboarding.js?v=1"></script>
+<script src="static/sessions.js?v=14"></script>
+<script src="static/boot.js?v=124"></script>
+<script src="static/remote_sessions.js?v=13"></script>
+<script src="static/workspace_layer.js?v=5"></script>
+<script>function li(n,s=16){const i={'clock':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 16 10 12 14"/></svg>`,'calendar':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,'check':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`,'x':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,'plus':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,'trash':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,'settings':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82.33 1.65 1.65 0 0 0-1 1H3a2 2 0 0 1-2 2 2 2 0 0 1 2 2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,'copy':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2 2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,'terminal':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>`,'folder':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,'file':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`,'search':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,'book':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`,'book-open':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,'brain':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4c-2 0-3.5 1.5-4 3.5-.5 0-1 .2-1.5.5C5.5 8.5 5 9.5 5 10.5c0 1 .3 1.8 1 2.5-.5.7-.8 1.5-.8 2.3 0 2 1.3 3.7 3 4.3V20c0 1.7 1.3 3 3 3s3-1.3 3-3v-.4c1.7-.6 3-2.3 3-4.3 0-.8-.3-1.6-.8-2.3.7-.7 1-1.5 1-2.5 0-1-.5-2-1.5-2.5-.5-.3-1-.5-1.5-.5-.5-2-2-3.5-4-3.5z"/><path d="M8 10h8"/><path d="M8 13h8"/><path d="M8 16h8"/></svg>`,'list':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,'list-todo':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="6" height="6" rx="1"/><path d="m3 17 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>`,'message':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,'message-square':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,'play':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>`,'rotate-ccw':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>`,'pencil':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`,'trash-2':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 1 2 2 2v2"/></svg>`,'chevron-right':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>`,'chevron-down':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>`,'chevron-left':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>`,'paperclip':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18.1 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`,'wrench':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,'folder-tree':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 10h7a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1h-2.5a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2"/><path d="M13 16h-2a1 1 0 0 1-1-1v-2a1 1 0 0 0-1-1H6a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 1 1 1v2a1 1 0 0 0 1 1h2"/><path d="M6 7h2a1 1 0 0 1 1 1v2"/></svg>`,'user':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,'loader':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>`,'square':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>`,'hash':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>`,'layers':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`,'zap':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,'lightbulb':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>`};return i[n]||i['square']}</script>
 </body>
 </html>
-<script src=/static/workspace_layer.js></script>

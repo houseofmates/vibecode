@@ -2,17 +2,30 @@ async function api(path,opts={}){
   // Strip leading slash so URL resolves relative to location.href (supports subpath mounts)
   const rel = path.startsWith('/') ? path.slice(1) : path;
   const url=new URL(rel,location.href);
+  console.log('[api] Calling:', path, opts.method||'GET');
   const res=await fetch(url.href,{credentials:'include',headers:{'Content-Type':'application/json'},...opts});
   if(!res.ok){
     const text=await res.text();
+    console.log('[api] Error response:', res.status, text);
     // Parse JSON error body and surface the human-readable message,
     // rather than showing raw JSON like {"error":"Profile 'x' does not exist."}
     try{const j=JSON.parse(text);throw new Error(j.error||j.message||text);}
     catch(e){if(e instanceof SyntaxError)throw new Error(text);throw e;}
   }
   const ct=res.headers.get('content-type')||'';
-  return ct.includes('application/json')?res.json():res.text();
+  const result = ct.includes('application/json')?await res.json():await res.text();
+  console.log('[api] Response:', result);
+  return result;
 }
+
+// File extension helper
+function fileExt(p){ const i=p.lastIndexOf('.'); return i>=0?p.slice(i).toLowerCase():''; }
+
+// Expose api globally for cross-script access
+window.api = api;
+
+// Image extensions for preview
+const IMAGE_EXTS=new Set(['.png','.jpg','.jpeg','.gif','.svg','.webp','.ico','.bmp']);
 
 // Persist/restore expanded directory state per workspace in localStorage
 function _wsExpandKey(){
@@ -40,8 +53,28 @@ async function loadDir(path){
       _restoreExpandedDirs();  // restore per-workspace expanded state on root load
     }
     S.currentDir=path||'.';
+
+    // Show cached entries instantly while fetching fresh data
+    const cacheKey = 'hermes-dircache:' + S.session.session_id + ':' + (path || '.');
+    const cached = localStorage.getItem(cacheKey);
+    if (cached && !S._dirCache[path || '.']) {
+      try {
+        const parsed = JSON.parse(cached);
+        S.entries = parsed.entries || [];
+        S._dirCache[path || '.'] = S.entries;
+        renderBreadcrumb();
+        renderFileTree();
+      } catch (e) { /* ignore parse errors */ }
+    }
+
     const data=await api(`/api/list?session_id=${encodeURIComponent(S.session.session_id)}&path=${encodeURIComponent(path)}`);
     S.entries=data.entries||[];renderBreadcrumb();renderFileTree();
+
+    // Cache the directory contents
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify({entries: S.entries, ts: Date.now()}));
+    } catch (e) { /* ignore quota errors */ }
+
     // Pre-fetch contents of restored expanded dirs so they render without a second click
     if(!path||path==='.'){
       for(const dirPath of (S._expandedDirs||[])){
@@ -49,6 +82,10 @@ async function loadDir(path){
           try{
             const dc=await api(`/api/list?session_id=${encodeURIComponent(S.session.session_id)}&path=${encodeURIComponent(dirPath)}`);
             S._dirCache[dirPath]=dc.entries||[];
+            // Cache subdirectory
+            try {
+              localStorage.setItem('hermes-dircache:' + S.session.session_id + ':' + dirPath, JSON.stringify({entries: dc.entries || [], ts: Date.now()}));
+            } catch (e) {}
           }catch(e2){S._dirCache[dirPath]=[];}
         }
       }
@@ -95,7 +132,6 @@ function navigateUp(){
 }
 
 // File extension sets for preview routing (must match server-side sets)
-const IMAGE_EXTS  = new Set(['.png','.jpg','.jpeg','.gif','.svg','.webp','.ico','.bmp']);
 const MD_EXTS     = new Set(['.md','.markdown','.mdown']);
 // Binary formats that should download rather than preview
 const DOWNLOAD_EXTS = new Set([
@@ -106,8 +142,6 @@ const DOWNLOAD_EXTS = new Set([
   '.woff','.woff2','.ttf','.otf','.eot',
   '.bin','.dat','.db','.sqlite','.pyc','.class','.so','.dylib','.dll',
 ]);
-
-function fileExt(p){ const i=p.lastIndexOf('.'); return i>=0?p.slice(i).toLowerCase():''; }
 
 let _previewCurrentPath = '';  // relative path of currently previewed file
 let _previewCurrentMode = '';  // 'code' | 'md' | 'image'
@@ -355,5 +389,162 @@ function renderFileBreadcrumb(filePath) {
       seg.className = 'breadcrumb-seg breadcrumb-current';
     }
     bar.appendChild(seg);
+  }
+}
+
+// ── Real-time directory type-ahead ───────────────────────────────────────────
+let _dirInputDebounceTimer = null;
+let _lastValidPath = '';
+
+function initDirPathInput() {
+  const input = $('dirPathInput');
+  const pathBar = $('pathInputBar');
+  if (!input || !pathBar) return;
+
+  input.addEventListener('input', (e) => {
+    const value = e.target.value.trim();
+
+    if (_dirInputDebounceTimer) {
+      clearTimeout(_dirInputDebounceTimer);
+    }
+
+    if (!value) {
+      // Empty input - restore breadcrumb view
+      pathBar.style.display = 'none';
+      if (S.session) loadDir('.');
+      return;
+    }
+
+    pathBar.style.display = 'block';
+
+    _dirInputDebounceTimer = setTimeout(() => {
+      loadAbsoluteDir(value);
+    }, 200);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      if (_dirInputDebounceTimer) clearTimeout(_dirInputDebounceTimer);
+      const value = input.value.trim();
+      if (value) loadAbsoluteDir(value);
+    }
+    if (e.key === 'Escape') {
+      input.value = '';
+      pathBar.style.display = 'none';
+      if (S.session) loadDir('.');
+    }
+  });
+
+  // Focus input on Ctrl/Cmd+L
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+      e.preventDefault();
+      input.focus();
+      input.select();
+    }
+  });
+}
+
+async function loadAbsoluteDir(absPath) {
+  if (!S.session) return;
+  const input = $('dirPathInput');
+  const pathBar = $('pathInputBar');
+
+  try {
+    const data = await api(`/api/list-absolute?session_id=${encodeURIComponent(S.session.session_id)}&path=${encodeURIComponent(absPath)}`);
+    S.entries = data.entries || [];
+    S.currentDir = data.path || absPath;
+    _lastValidPath = absPath;
+
+    // Update breadcrumb to show current path
+    renderBreadcrumbFromAbsolute(data.path || absPath);
+    renderFileTree();
+
+    // Visual feedback on success
+    if (input) input.style.borderColor = 'var(--border2)';
+  } catch (err) {
+    // Path doesn't exist or is invalid - show empty state but keep trying
+    S.entries = [];
+    renderFileTree();
+    if (input) input.style.borderColor = '#e74c3c'; // Red border for invalid path
+  }
+}
+
+function renderBreadcrumbFromAbsolute(relPath) {
+  const bar = $('breadcrumbBar');
+  if (!bar) return;
+  bar.style.display = 'flex';
+  const upBtn = $('btnUpDir');
+  if (upBtn) upBtn.style.display = 'none'; // Hide up button for absolute paths
+
+  bar.innerHTML = '';
+
+  // Show full path segments
+  const parts = relPath.split('/').filter(p => p && p !== '.');
+  let accumulated = '';
+
+  for (let i = 0; i < parts.length; i++) {
+    if (i > 0) {
+      const sep = document.createElement('span');
+      sep.className = 'breadcrumb-sep';
+      sep.textContent = '/';
+      bar.appendChild(sep);
+    }
+
+    accumulated += (accumulated ? '/' : '') + parts[i];
+    const seg = document.createElement('span');
+    seg.textContent = parts[i];
+    if (i < parts.length - 1) {
+      seg.className = 'breadcrumb-seg breadcrumb-link';
+      const target = accumulated;
+      seg.onclick = () => loadAbsoluteDirFromWorkspace(target);
+    } else {
+      seg.className = 'breadcrumb-seg breadcrumb-current';
+    }
+    bar.appendChild(seg);
+  }
+}
+
+async function loadAbsoluteDirFromWorkspace(relPath) {
+  if (!S.session) return;
+  const workspace = S.session.workspace;
+  const absPath = workspace + '/' + relPath;
+  $('dirPathInput').value = absPath;
+  await loadAbsoluteDir(absPath);
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', initDirPathInput);
+
+// Try to render file tree from cache when session becomes available
+function _tryRenderFileTreeFromCache(attempt = 1) {
+  const MAX_ATTEMPTS = 50; // 5 seconds max
+
+  if (!S.session || !S.session.session_id) {
+    if (attempt < MAX_ATTEMPTS) {
+      setTimeout(() => _tryRenderFileTreeFromCache(attempt + 1), 100);
+    }
+    return;
+  }
+
+  // Try to load root directory from cache
+  const cacheKey = 'hermes-dircache:' + S.session.session_id + ':.';
+  const cached = localStorage.getItem(cacheKey);
+  if (cached && (!S.entries || S.entries.length === 0)) {
+    try {
+      const parsed = JSON.parse(cached);
+      if (parsed.entries && parsed.entries.length) {
+        S.currentDir = '.';
+        S.entries = parsed.entries;
+        S._dirCache = S._dirCache || {};
+        S._dirCache['.'] = parsed.entries;
+        _restoreExpandedDirs();
+        if (typeof renderBreadcrumb === 'function') renderBreadcrumb();
+        if (typeof renderFileTree === 'function') {
+          renderFileTree();
+          console.log('[workspace] File tree rendered from cache:', parsed.entries.length);
+        }
+      }
+    } catch (e) { /* ignore parse errors */ }
   }
 }

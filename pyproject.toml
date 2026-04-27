@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hermes-webui"
+version = "0.50.38"
+description = "Hermes Web UI - Browser-based interface for the Hermes agent"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Hermes Team", email = "hermes@example.com"}
+]
+keywords = ["hermes", "ai", "agent", "webui", "interface"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.scripts]
+hermes-webui = "server:main"
+
+[project.urls]
+Homepage = "https://github.com/anomalyco/hermes-webui"
+Repository = "https://github.com/anomalyco/hermes-webui"
+
+[tool.setuptools]
+packages = ["api"]
+
+[tool.setuptools.package-data]
+api = ["*.py"]
+static = ["*.html", "*.js", "*.css"]

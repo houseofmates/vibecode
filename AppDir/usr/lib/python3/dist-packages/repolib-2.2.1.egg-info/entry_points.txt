@@ -1,0 +1,3 @@
+[console_scripts]
+apt-manage = repolib.command:bin.apt_manage
+

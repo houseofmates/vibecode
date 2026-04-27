@@ -289,48 +289,93 @@ const EnhancedWikiMemoryPanel = (function() {
     // ============================================
     
     async function refreshAll() {
-        state.loading = true;
-        ui.loading.style.display = 'flex';
-        ui.content.style.display = 'none';
+        // First, load from cache and render immediately for instant display
+        const cachedMemories = localStorage.getItem('hermes-memories-cache');
+        const cachedWiki = localStorage.getItem('hermes-wiki-cache');
+        let hasCachedData = false;
+
+        if (cachedMemories && state.memories.length === 0) {
+            try {
+                state.memories = JSON.parse(cachedMemories);
+                hasCachedData = true;
+            } catch (e) {}
+        }
+        if (cachedWiki && state.wikiPages.length === 0) {
+            try {
+                state.wikiPages = JSON.parse(cachedWiki);
+                hasCachedData = true;
+            } catch (e) {}
+        }
+
+        // Render cached data immediately if available
+        if (hasCachedData) {
+            ui.loading.style.display = 'none';
+            ui.content.style.display = '';
+            renderContent();
+        } else {
+            // No cache, show loading
+            state.loading = true;
+            ui.loading.style.display = 'flex';
+            ui.content.style.display = 'none';
+        }
         ui.empty.style.display = 'none';
-        
+
+        // Fetch fresh data in background
         await Promise.all([
             loadMemories(),
             loadWikiPages(),
             loadHeadmates(),
             loadSPStatus()
         ]);
-        
+
         state.loading = false;
         state.lastRefresh = new Date();
-        
+
         ui.loading.style.display = 'none';
         ui.content.style.display = '';
-        
+
         updateFronter();
         renderContent();
         updateStatus();
     }
     
     async function loadMemories() {
+        // Load from cache instantly if available
+        const cached = localStorage.getItem('hermes-memories-cache');
+        if (cached && state.memories.length === 0) {
+            try {
+                state.memories = JSON.parse(cached);
+            } catch (e) { /* ignore parse errors */ }
+        }
         try {
             const resp = await fetch('/api/memories?limit=100');
             const data = await resp.json();
             state.memories = data.memories || [];
+            // Cache for instant load next time
+            try { localStorage.setItem('hermes-memories-cache', JSON.stringify(state.memories)); } catch (e) {}
         } catch (e) {
             console.error('[EWM] Failed to load memories:', e);
-            state.memories = [];
+            if (state.memories.length === 0) state.memories = [];
         }
     }
-    
+
     async function loadWikiPages() {
+        // Load from cache instantly if available
+        const cached = localStorage.getItem('hermes-wiki-cache');
+        if (cached && state.wikiPages.length === 0) {
+            try {
+                state.wikiPages = JSON.parse(cached);
+            } catch (e) { /* ignore parse errors */ }
+        }
         try {
             const resp = await fetch('/api/wiki/pages');
             const data = await resp.json();
             state.wikiPages = data.pages || [];
+            // Cache for instant load next time
+            try { localStorage.setItem('hermes-wiki-cache', JSON.stringify(state.wikiPages)); } catch (e) {}
         } catch (e) {
             console.error('[EWM] Failed to load wiki:', e);
-            state.wikiPages = [];
+            if (state.wikiPages.length === 0) state.wikiPages = [];
         }
     }
     

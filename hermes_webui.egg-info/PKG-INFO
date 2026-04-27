@@ -1,0 +1,92 @@
+Metadata-Version: 2.4
+Name: hermes-webui
+Version: 0.50.38
+Summary: Hermes Web UI - Browser-based interface for the Hermes agent
+Author-email: Hermes Team <hermes@example.com>
+License: MIT
+Project-URL: Homepage, https://github.com/anomalyco/hermes-webui
+Project-URL: Repository, https://github.com/anomalyco/hermes-webui
+Keywords: hermes,ai,agent,webui,interface
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+
+# Hermes Web UI
+
+Browser-based interface for the Hermes AI agent.
+
+## Quick Start
+
+```bash
+# Install
+pip install -e .
+
+# Run
+hermes-webui
+# or
+python server.py
+```
+
+Open http://127.0.0.1:8787 in your browser.
+
+## Configuration
+
+Copy `.env.example` to `.env` and customize:
+
+```bash
+cp .env.example .env
+# Edit .env with your settings
+```
+
+### Key Options
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HERMES_WEBUI_HOST` | `127.0.0.1` | Bind address |
+| `HERMES_WEBUI_PORT` | `8787` | Port |
+| `HERMES_WEBUI_PASSWORD` | (none) | Set for security |
+| `HERMES_WEBUI_AGENT_DIR` | auto | Path to hermes-agent |
+| `HERMES_WEBUI_DEFAULT_WORKSPACE` | `~/workspace` | Default workspace |
+
+## Development
+
+```bash
+make install   # Install in editable mode
+make dev       # Run with auto-reload
+make test      # Run tests
+make clean     # Clean artifacts
+```
+
+## Package
+
+```bash
+make build    # Build wheel
+make package # Create AppImage
+```
+
+## TLS/HTTPS
+
+Set certificate paths:
+
+```bash
+export HERMES_WEBUI_TLS_CERT=/path/to/cert.pem
+export HERMES_WEBUI_TLS_KEY=/path/to/key.pem
+```
+
+## Remote Access
+
+```bash
+ssh -N -L 8787:127.0.0.1:8787 user@your-server
+```
+
+Then open http://localhost:8787
+
+## License
+
+MIT

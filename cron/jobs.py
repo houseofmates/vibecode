@@ -21,6 +21,9 @@ STATE_DIR = Path(os.getenv("HERMES_WEBUI_STATE_DIR", str(HOME / ".hermes" / "web
 JOBS_FILE = STATE_DIR / "cron_jobs.json"
 JOB_RUNS_DIR = STATE_DIR / "cron_runs"
 
+# Alias for backwards compatibility with API routes
+OUTPUT_DIR = JOB_RUNS_DIR
+
 
 def _ensure_dirs():
     """Ensure required directories exist."""
@@ -33,7 +36,12 @@ def _load_jobs() -> list[dict]:
     _ensure_dirs()
     if JOBS_FILE.exists():
         try:
-            return json.loads(JOBS_FILE.read_text())
+            data = json.loads(JOBS_FILE.read_text())
+            if isinstance(data, dict) and 'jobs' in data:
+                return data['jobs']
+            if isinstance(data, list):
+                return data
+            return []
         except (json.JSONDecodeError, IOError):
             return []
     return []

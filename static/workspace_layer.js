@@ -20,16 +20,25 @@ const _origLoadWorkspacesPanel = window.loadWorkspacesPanel;
 window.loadWorkspacesPanel = async function() {
   const panel = document.getElementById('workspacesPanel');
   if (!panel) return;
+  // Clear cache to ensure fresh data
+  localStorage.removeItem('hermes-workspaces-cache');
+  // Always load workspaces regardless of session
   const data = await loadWorkspaceList();
   const workspaces = data.workspaces || [];
   const assignments = getWsMachines();
   for (const ws of workspaces) {
-    if (!assignments[ws.path]) setWsMachine(ws.path, 'pop_os');
+    if (!assignments[ws.path]) {
+      if (ws._machine) {
+        setWsMachine(ws.path, ws._machine);
+      } else {
+        setWsMachine(ws.path, 'ubuntu');
+      }
+    }
   }
   const updated = getWsMachines();
   const wsByMachine = {};
   for (const ws of workspaces) {
-    const mid = updated[ws.path] || 'pop_os';
+    const mid = updated[ws.path] || ws._machine || 'ubuntu';
     if (!wsByMachine[mid]) wsByMachine[mid] = [];
     wsByMachine[mid].push(ws);
   }
@@ -208,28 +217,18 @@ async function promptAddWorkspace(machine) {
   
   var cleanPath = result.trim();
   
+  // Clear all caches to ensure fresh data
+  localStorage.removeItem('hermes-workspaces-cache');
+  localStorage.removeItem('hermes_custom_workspaces');
+  
   try {
     var data = await api('/api/workspaces/add', { method: 'POST', body: JSON.stringify({ path: cleanPath }) });
     setWsMachine(cleanPath, machine.id);
     showToast('workspace added to ' + machine.label);
     await loadWorkspacesPanel();
   } catch(e) {
-    var wsList = (await loadWorkspaceList()).workspaces || [];
-    var exists = wsList.some(function(w) { return w.path === cleanPath; });
-    
-    if (!exists) {
-      setWsMachine(cleanPath, machine.id);
-      var customWs = JSON.parse(localStorage.getItem('hermes_custom_workspaces') || '[]');
-      if (!customWs.some(function(w) { return w.path === cleanPath; })) {
-        customWs.push({ path: cleanPath, name: cleanPath.split('/').filter(Boolean).pop() || cleanPath });
-        localStorage.setItem('hermes_custom_workspaces', JSON.stringify(customWs));
-      }
-      
-      showToast('workspace added to ' + machine.label + ' (remote)');
-      await loadWorkspacesPanel();
-    } else {
-      showToast('already exists: ' + cleanPath);
-    }
+    console.error('Failed to add workspace:', e);
+    showToast('failed to add workspace: ' + e.message);
   }
 }
 
@@ -238,7 +237,7 @@ function getCustomWorkspaces() {
 }
 
 async function deleteWorkspaceCard(path) {
-  // Remove without fullscreen modal - just do it
+  // Remove from localStorage
   var customWs = getCustomWorkspaces();
   customWs = customWs.filter(function(w) { return w.path !== path; });
   localStorage.setItem('hermes_custom_workspaces', JSON.stringify(customWs));
@@ -247,13 +246,26 @@ async function deleteWorkspaceCard(path) {
   delete machines[path];
   localStorage.setItem('hermes_ws_machines', JSON.stringify(machines));
 
+  // Clear workspace cache to prevent stale data
+  localStorage.removeItem('hermes-workspaces-cache');
+
+  // Also remove from backend workspace list
+  try {
+    await api('/api/workspaces/remove', { method: 'POST', body: JSON.stringify({ path: path }) });
+  } catch(e) {
+    console.warn('Failed to remove workspace from backend:', e);
+  }
+
   showToast('workspace removed');
   await loadWorkspacesPanel();
 }
 
 var _origSwitch = window.switchToWorkspace;
 window.switchToWorkspace = async function(path, name, machineId) {
-  if (!S || !S.session) return;
+  // If no session, let the original function handle creating one
+  if (!S || !S.session) {
+    return await _origSwitch(path, name, machineId);
+  }
 
   if (machineId) {
     var machine = MACHINES.find(function(m) { return m.id === machineId; });
@@ -269,6 +281,10 @@ window.switchToWorkspace = async function(path, name, machineId) {
   })});
   S.session.workspace = path;
   syncTopbar();
+  syncWorkspaceDisplays();
+  if (typeof openWorkspacePanel === 'function') {
+    openWorkspacePanel('browse');
+  }
   await loadDir('.');
   showToast('switched to ' + (name || path));
 };

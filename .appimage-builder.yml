@@ -1,0 +1,142 @@
+version: 1
+script:
+  # Ensure AppDir structure exists
+  - mkdir -p AppDir/usr/bin
+  - mkdir -p AppDir/usr/lib
+  - mkdir -p AppDir/usr/share/applications
+  - mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+
+  # Copy .desktop file and rename for vibecode
+  - cp AppDir/usr/share/applications/hermes-webui.desktop AppDir/usr/share/applications/vibecode.desktop 2>/dev/null || true
+  - sed -i 's/Name=Hermes Web UI/Name=VibeCode/g' AppDir/usr/share/applications/vibecode.desktop
+  - sed -i 's/Exec=hermes-webui/Exec=vibecode/g' AppDir/usr/share/applications/vibecode.desktop
+  - sed -i 's/Icon=hermes-webui/Icon=vibecode/g' AppDir/usr/share/applications/vibecode.desktop
+
+  # Copy icon as vibecode
+  - cp AppDir/hermes-webui.png AppDir/vibecode.png 2>/dev/null || cp static/hermes.png AppDir/vibecode.png
+  - cp AppDir/vibecode.png AppDir/usr/share/icons/hicolor/256x256/apps/vibecode.png 2>/dev/null || true
+
+  # Create the launcher script - runs from local or remote codebase
+  - |
+    cat > AppDir/usr/bin/vibecode << 'EOF'
+    #!/bin/bash
+    # VibeCode - AppImage launcher (runs from local or remote codebase)
+    SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+    APPDIR="$(dirname "$SELF")/.."
+    
+    # Cache directory for cloned repos
+    CACHE_DIR="$HOME/.vibecode-cache"
+    mkdir -p "$CACHE_DIR"
+    
+    # Detect vibecode codebase location
+    # Priority: VIBECODE_HOME (local or mounted path), VIBECODE_GIT (git repo), local ~/vibecode
+    if [ -n "$VIBECODE_HOME" ] && [ -d "$VIBECODE_HOME" ]; then
+        CODE_DIR="$VIBECODE_HOME"
+        echo "[vibecode] Using codebase from: $CODE_DIR"
+    elif [ -n "$VIBECODE_GIT" ]; then
+        # Clone or update git repo
+        REPO_NAME=$(basename "$VIBECODE_GIT" .git)
+        CLONE_DIR="$CACHE_DIR/$REPO_NAME"
+        
+        if [ -d "$CLONE_DIR/.git" ]; then
+            echo "[vibecode] Updating codebase from git..."
+            cd "$CLONE_DIR"
+            git pull
+        else
+            echo "[vibecode] Cloning codebase from git..."
+            git clone "$VIBECODE_GIT" "$CLONE_DIR"
+        fi
+        CODE_DIR="$CLONE_DIR"
+    elif [ -d "$HOME/vibecode" ]; then
+        CODE_DIR="$HOME/vibecode"
+        echo "[vibecode] Using codebase from: $CODE_DIR"
+    else
+        echo "ERROR: Cannot find vibecode codebase"
+        echo ""
+        echo "Set one of the following:"
+        echo "  VIBECODE_HOME=/path/to/vibecode      # Local or mounted directory"
+        echo "  VIBECODE_GIT=https://github.com/...  # Git repository URL"
+        echo ""
+        echo "For network access, mount the remote directory first:"
+        echo "  sshfs user@192.168.4.233:/home/user/vibecode ~/vibecode"
+        echo "  export VIBECODE_HOME=~/vibecode"
+        exit 1
+    fi
+    
+    export HERMES_WEBUI_HOST="192.168.4.233"
+    export HERMES_WEBUI_PORT="8786"
+    
+    cd "$CODE_DIR"
+    exec python3 server.py "$@"
+    EOF
+  - chmod +x AppDir/usr/bin/vibecode
+
+  # Ensure AppRun is executable and points to vibecode
+  - chmod +x AppDir/AppRun
+
+  # Create releases directory
+  - mkdir -p releases
+
+AppDir:
+  path: ./AppDir
+
+  app_info:
+    id: app.vibecode.desktop
+    name: VibeCode
+    icon: vibecode
+    version: latest
+
+  apt:
+    arch: amd64
+    sources:
+      - sourceline: 'deb http://archive.ubuntu.com/ubuntu/ jammy main restricted universe multiverse'
+        key_url: 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x871920D1991BC93C'
+    include:
+      - python3
+      - python3-pkg-resources
+      - python3-minimal
+      - git
+      - bash
+      - coreutils
+
+  files:
+    include:
+      - /usr/bin/python3*
+      - /usr/lib/python3*/**
+      - /usr/lib/x86_64-linux-gnu/libpython3*
+      - /usr/lib/x86_64-linux-gnu/libexpat*
+      - /usr/lib/x86_64-linux-gnu/libz*
+      - /usr/lib/x86_64-linux-gnu/libffi*
+      - /usr/lib/x86_64-linux-gnu/libssl*
+      - /usr/lib/x86_64-linux-gnu/libcrypto*
+    exclude:
+      - usr/share/man
+      - usr/share/doc/**/*.gz
+      - usr/share/doc/**/*.html
+      - usr/share/locale
+      - usr/share/icons/Adwaita
+      - usr/share/icons/hicolor/*/apps/*
+      - usr/lib/python3*/test/**
+      - usr/lib/python3*/lib2to3/**
+      - usr/lib/python3*/idlelib/**
+      - usr/lib/python3*/tkinter/**
+      - usr/lib/python3*/turtledemo/**
+      - usr/lib/python3*/ensurepip/**
+      - usr/lib/python3*/distutils/**
+      - usr/lib/python3*/config-*/**
+      - usr/lib/python3*/__pycache__/**
+      - "**/*.pyc"
+      - "**/*.pyo"
+      - "**/__pycache__/**"
+
+  runtime:
+    env:
+      PYTHONPATH: "$APPDIR/usr/share/hermes-webui:$APPDIR/usr/lib/python3/dist-packages"
+      HERMES_WEBUI_DEFAULT_WORKSPACE: "$HOME/workspace"
+      HERMES_WEBUI_HOST: "192.168.4.233"
+      HERMES_WEBUI_PORT: "8786"
+
+AppImage:
+  arch: x86_64
+  update-information: "gh-releases-zsync|anomalyco|vibecode|latest|vibecode-x86_64.AppImage.zsync"
+  sign-key: None

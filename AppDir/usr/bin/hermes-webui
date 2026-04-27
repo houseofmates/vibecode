@@ -1,0 +1,10 @@
+#!/bin/bash
+# Hermes Web UI - AppImage launcher
+
+# Resolve script location
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+APPDIR="$(dirname "$SELF")"
+
+# Run the server
+cd "$APPDIR/usr/share/hermes-webui"
+exec python3 server.py "$@"

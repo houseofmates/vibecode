@@ -357,6 +357,7 @@ window._micActive=window._micActive||false;
 window._micPendingSend=window._micPendingSend||false;
 $('fileInput').onchange=e=>{addFiles(Array.from(e.target.files));e.target.value='';};
 $('btnNewChat').onclick=async()=>{await newSession();await renderSessionList();closeMobileSidebar();$('msg').focus();};
+$('btnDeleteCronSessions').onclick=deleteAllCronSessions;
 $('btnDownload').onclick=()=>{
   if(!S.session)return;
   const blob=new Blob([transcript()],{type:'text/markdown'});
@@ -404,7 +405,7 @@ function clearPreview(){
   if(closePanelAfter)closeWorkspacePanel();
   else syncWorkspacePanelUI();
 }
-$('btnClearPreview').onclick=handleWorkspaceClose;
+const btnClearPreview=$('btnClearPreview');if(btnClearPreview)btnClearPreview.onclick=handleWorkspaceClose;
 // workspacePath click handler removed -- use topbar workspace chip dropdown instead
 $('modelSelect').onchange=async()=>{
   if(!S.session)return;
@@ -433,12 +434,11 @@ $('msg').addEventListener('input',()=>{
     const prefix=text.slice(1);
     const matches=getMatchingCommands(prefix);
     if(matches.length)showCmdDropdown(matches); else hideCmdDropdown();
-  } else {
-    hideCmdDropdown();
+  } else if(!text.startsWith('/')&&typeof handleDirInput==='function'){
+    handleDirInput(text);
   }
 });
 $('msg').addEventListener('keydown',e=>{
-  // Autocomplete navigation when dropdown is open
   const dd=$('cmdDropdown');
   const dropdownOpen=dd&&dd.classList.contains('open');
   if(dropdownOpen){
@@ -450,6 +450,19 @@ $('msg').addEventListener('keydown',e=>{
       if(e.isComposing){return;}
       e.preventDefault();
       selectCmdDropdownItem();
+      return;
+    }
+  }
+  // Directory path dropdown: check if it's open (via .cmd-item with .dir-path-suggest children)
+  if(dd&&dd.classList.contains('open')&&dd.querySelector('.dir-path-suggest')){
+    if(e.key==='ArrowUp'){e.preventDefault();navigateDirDropdown(-1);return;}
+    if(e.key==='ArrowDown'){e.preventDefault();navigateDirDropdown(1);return;}
+    if(e.key==='Tab'){e.preventDefault();selectDirDropdownItem();return;}
+    if(e.key==='Escape'){e.preventDefault();hideDirDropdown();return;}
+    if(e.key==='Enter'&&!e.shiftKey){
+      if(e.isComposing){return;}
+      e.preventDefault();
+      selectDirDropdownItem();
       return;
     }
   }
@@ -617,6 +630,14 @@ function applyBotName(){
 }
 
 (async()=>{
+  // IMMEDIATE: Render from cache before ANY async operations
+  // This ensures sessions/file tree appear instantly while APIs load
+  _renderSessionsFromCache();
+  if (typeof _tryRenderFileTreeFromCache === 'function') {
+    _tryRenderFileTreeFromCache();
+  }
+  _prePopulateSidebarPanelsFromCache();
+
   // Load send key preference
   let _bootSettings={};
   try{
@@ -663,7 +684,23 @@ function applyBotName(){
   const _testUpdates=new URLSearchParams(location.search).get('test_updates')==='1';
   if(_testUpdates||(_bootSettings.check_for_updates!==false&&!sessionStorage.getItem('hermes-update-checked')&&!sessionStorage.getItem('hermes-update-dismissed'))){
     const _checkUrl='/api/updates/check'+(_testUpdates?'?simulate=1':'');
-    api(_checkUrl).then(d=>{if(!_testUpdates)sessionStorage.setItem('hermes-update-checked','1');if((d.webui&&d.webui.behind>0)||(d.agent&&d.agent.behind>0))_showUpdateBanner(d);}).catch(()=>{});
+    api(_checkUrl).then(async d=>{
+      if(!_testUpdates)sessionStorage.setItem('hermes-update-checked','1');
+      // Auto-apply updates in background instead of showing banner
+      const targets=[];
+      if(d.webui&&d.webui.behind>0) targets.push('webui');
+      if(d.agent&&d.agent.behind>0) targets.push('agent');
+      if(targets.length>0){
+        for(const target of targets){
+          try{
+            await api('/api/updates/apply',{method:'POST',body:JSON.stringify({target})});
+            console.log('[VibeCode] Auto-applied update for:', target);
+          }catch(e){
+            console.error('[VibeCode] Auto-update failed for', target, e);
+          }
+        }
+      }
+    }).catch(()=>{});
   }
   // Fetch active profile
   try{const p=await api('/api/profile/active');S.activeProfile=p.name||'default';}catch(e){S.activeProfile='default';}
@@ -689,19 +726,170 @@ function applyBotName(){
   if(saved){
     try{
       await loadSession(saved);
-      // Only restore the panel from localStorage when the session actually has a workspace.
-      // Without this guard, sessions without a workspace snap open then immediately closed.
-      if(S.session&&S.session.workspace&&localStorage.getItem('hermes-webui-workspace-panel')==='open'){
-        _workspacePanelMode='browse';
+      syncWorkspacePanelState();
+      // Try to render file tree from cache immediately after session load
+      if (typeof _tryRenderFileTreeFromCache === 'function') {
+        _tryRenderFileTreeFromCache();
       }
-      syncWorkspacePanelState();await renderSessionList();if(typeof startGatewaySSE==='function')startGatewaySSE();await checkInflightOnBoot(saved);return;}
+      console.log('[boot] ABOUT TO CALL renderSessionList');
+      await renderSessionList();
+      console.log('[boot] renderSessionList DONE');
+      if(typeof startGatewaySSE==='function')startGatewaySSE();await checkInflightOnBoot(saved);return;}
     catch(e){localStorage.removeItem('hermes-webui-session');}
   }
-  // no saved session - show empty state, wait for user to hit +
-  syncTopbar();
-  syncWorkspacePanelState();
-  $('emptyState').style.display='';
+  // no saved session - create one with default ubuntu machine workspace
+  const defaultWorkspace='/home/house';
+  const defaultMachine='ubuntu';
+  try{
+    await switchToWorkspace(defaultWorkspace,'ubuntu home',defaultMachine);
+  }catch(e){
+    // fallback: just show empty state if workspace switch fails
+    syncTopbar();
+    syncWorkspacePanelState();
+    $('emptyState').style.display='';
+  }
   await renderSessionList();
   // Start real-time gateway session sync if setting is enabled
   if(typeof startGatewaySSE==='function') startGatewaySSE();
 })();
+
+// Render sessions from cache immediately on page load
+function _renderSessionsFromCache() {
+  const cached = localStorage.getItem('hermes-sessions-cache');
+  const projectsCached = localStorage.getItem('hermes-projects-cache');
+  if (!cached) return;
+
+  try {
+    const sessions = JSON.parse(cached);
+    if (!sessions || !sessions.length) return;
+
+    // Populate _allSessions if empty
+    if (typeof window._allSessions === 'undefined') {
+      window._allSessions = [];
+    }
+    if (!window._allSessions.length) {
+      window._allSessions = sessions;
+    }
+
+    // Populate _allProjects if empty
+    if (projectsCached && typeof window._allProjects !== 'undefined') {
+      const projects = JSON.parse(projectsCached);
+      if (projects && projects.length && !window._allProjects.length) {
+        window._allProjects = projects;
+      }
+    }
+
+    // Try to render immediately if DOM is ready
+    _tryRenderSessionsFromCache();
+
+  } catch (e) { /* ignore parse errors */ }
+}
+
+// Try to render sessions from cache, retry if DOM/functions not ready
+function _tryRenderSessionsFromCache(attempt = 1) {
+  const MAX_ATTEMPTS = 50; // 5 seconds max (100ms * 50)
+
+  // Check if we have the required function and DOM element
+  const hasFunction = typeof renderSessionListFromCache === 'function';
+  const hasDomElement = !!document.getElementById('sessionList');
+
+  if (hasFunction && hasDomElement && window._allSessions && window._allSessions.length) {
+    renderSessionListFromCache();
+    console.log('[boot] Sessions rendered from cache:', window._allSessions.length);
+    return;
+  }
+
+  // Retry if we haven't exceeded max attempts
+  if (attempt < MAX_ATTEMPTS) {
+    setTimeout(() => _tryRenderSessionsFromCache(attempt + 1), 100);
+  }
+}
+
+// Pre-populate sidebar panels from cache so they appear instantly when clicked
+function _prePopulateSidebarPanelsFromCache() {
+  // Schedule deferred rendering to ensure DOM and functions are ready
+  _deferredRenderPanels(1);
+}
+
+// Deferred panel rendering with retry logic
+function _deferredRenderPanels(attempt = 1) {
+  const MAX_ATTEMPTS = 30; // 3 seconds max
+
+  // Pre-load crons from cache and render if panel exists
+  const cronsCached = localStorage.getItem('hermes-crons-cache');
+  if (cronsCached && !window._cronsCache) {
+    try {
+      const crons = JSON.parse(cronsCached);
+      window._cronsCache = crons;
+      const box = document.getElementById('cronList');
+      if (box && typeof _renderCrons === 'function' && box.offsetParent !== null) {
+        _renderCrons(crons);
+        console.log('[boot] Crons rendered from cache');
+      }
+    } catch (e) {}
+  }
+
+  // Pre-load skills from cache and render if panel exists
+  const skillsCached = localStorage.getItem('hermes-skills-cache');
+  if (skillsCached && !window._skillsData) {
+    try {
+      const skills = JSON.parse(skillsCached);
+      window._skillsData = skills;
+      const box = document.getElementById('skillsList');
+      if (box && typeof renderSkills === 'function' && box.offsetParent !== null) {
+        renderSkills(skills);
+        console.log('[boot] Skills rendered from cache:', skills.length);
+      }
+    } catch (e) {}
+  }
+
+  // Pre-load workspaces from cache and render if panel exists
+  const workspacesCached = localStorage.getItem('hermes-workspaces-cache');
+  if (workspacesCached) {
+    try {
+      const workspaces = JSON.parse(workspacesCached);
+      window._workspaceListCache = workspaces;
+      const box = document.getElementById('workspacesPanel');
+      if (box && typeof renderWorkspacesPanel === 'function' && box.offsetParent !== null) {
+        renderWorkspacesPanel(workspaces);
+        console.log('[boot] Workspaces rendered from cache:', workspaces.length);
+      }
+    } catch (e) {}
+  }
+
+  // Pre-load profiles from cache and render if panel exists
+  const profilesCached = localStorage.getItem('hermes-profiles-cache');
+  if (profilesCached) {
+    try {
+      const profiles = JSON.parse(profilesCached);
+      window._profilesCache = profiles;
+      if (typeof _renderProfiles === 'function') {
+        _renderProfiles(profiles);
+        console.log('[boot] Profiles rendered from cache');
+      }
+    } catch (e) {}
+  }
+
+  // Pre-load memories/wiki from cache
+  const memoriesCached = localStorage.getItem('hermes-memories-cache');
+  const wikiCached = localStorage.getItem('hermes-wiki-cache');
+  if ((memoriesCached || wikiCached) && typeof WikiMemoryBrowser !== 'undefined') {
+    try {
+      // Initialize with cached data if available
+      if (memoriesCached) {
+        const memories = JSON.parse(memoriesCached);
+        // Cache will be used by WikiMemoryBrowser.loadData()
+        console.log('[boot] Memories cached for WMB:', memories.length);
+      }
+      if (wikiCached) {
+        const wiki = JSON.parse(wikiCached);
+        console.log('[boot] Wiki cached for WMB:', wiki.length || wiki.pages?.length);
+      }
+    } catch (e) {}
+  }
+
+  // Continue retrying if we haven't exceeded max attempts
+  if (attempt < MAX_ATTEMPTS) {
+    setTimeout(() => _deferredRenderPanels(attempt + 1), 100);
+  }
+}

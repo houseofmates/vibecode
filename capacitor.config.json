@@ -1,0 +1,22 @@
+{
+  "appId": "app.vibecode.mobile",
+  "appName": "VibeCode",
+  "webDir": "static",
+  "server": {
+    "url": "http://192.168.4.233:8786",
+    "cleartext": true
+  },
+  "android": {
+    "buildOptions": {
+      "keystorePath": "releases/vibecode.keystore",
+      "keystoreAlias": "vibecode",
+      "keystorePassword": "vibecode123",
+      "keyPassword": "vibecode123"
+    }
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}

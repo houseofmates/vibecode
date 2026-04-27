@@ -1,0 +1,49 @@
+#!/bin/bash
+# VibeCode - AppImage launcher (runs from local or remote codebase)
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+APPDIR="$(dirname "$SELF")/.."
+
+# Cache directory for cloned repos
+CACHE_DIR="$HOME/.vibecode-cache"
+mkdir -p "$CACHE_DIR"
+
+# Detect vibecode codebase location
+# Priority: VIBECODE_HOME (local or mounted path), VIBECODE_GIT (git repo), local ~/vibecode
+if [ -n "$VIBECODE_HOME" ] && [ -d "$VIBECODE_HOME" ]; then
+    CODE_DIR="$VIBECODE_HOME"
+    echo "[vibecode] Using codebase from: $CODE_DIR"
+elif [ -n "$VIBECODE_GIT" ]; then
+    # Clone or update git repo
+    REPO_NAME=$(basename "$VIBECODE_GIT" .git)
+    CLONE_DIR="$CACHE_DIR/$REPO_NAME"
+    
+    if [ -d "$CLONE_DIR/.git" ]; then
+        echo "[vibecode] Updating codebase from git..."
+        cd "$CLONE_DIR"
+        git pull
+    else
+        echo "[vibecode] Cloning codebase from git..."
+        git clone "$VIBECODE_GIT" "$CLONE_DIR"
+    fi
+    CODE_DIR="$CLONE_DIR"
+elif [ -d "$HOME/vibecode" ]; then
+    CODE_DIR="$HOME/vibecode"
+    echo "[vibecode] Using codebase from: $CODE_DIR"
+else
+    echo "ERROR: Cannot find vibecode codebase"
+    echo ""
+    echo "Set one of the following:"
+    echo "  VIBECODE_HOME=/path/to/vibecode      # Local or mounted directory"
+    echo "  VIBECODE_GIT=https://github.com/...  # Git repository URL"
+    echo ""
+    echo "For network access, mount the remote directory first:"
+    echo "  sshfs user@192.168.4.233:/home/user/vibecode ~/vibecode"
+    echo "  export VIBECODE_HOME=~/vibecode"
+    exit 1
+fi
+
+export HERMES_WEBUI_HOST="192.168.4.233"
+export HERMES_WEBUI_PORT="8786"
+
+cd "$CODE_DIR"
+exec python3 server.py "$@"

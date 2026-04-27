@@ -1,0 +1,15 @@
+[Unit]
+Description=vibecode server
+After=network.target
+
+[Service]
+Type=simple
+User=house
+WorkingDirectory=/home/house/vibecode
+ExecStart=/usr/bin/python3 /home/house/vibecode/server.py
+Restart=always
+RestartSec=5
+Environment="HOME=/home/house"
+
+[Install]
+WantedBy=multi-user.target

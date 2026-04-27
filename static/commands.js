@@ -240,6 +240,9 @@ function hideCmdDropdown(){
   const dd=$('cmdDropdown');
   if(dd)dd.classList.remove('open');
   _cmdSelectedIdx=-1;
+  _dirSelectedIdx=-1;
+  _dirCurrentPrefix='';
+  if(_dirDebounceTimer){clearTimeout(_dirDebounceTimer);_dirDebounceTimer=null;}
 }
 
 function navigateCmdDropdown(dir){
@@ -264,4 +267,114 @@ function selectCmdDropdownItem(){
     items[0].onmousedown({preventDefault:()=>{}});
   }
   hideCmdDropdown();
+}
+
+// ── Directory path autocomplete ───────────────────────────────────────────
+
+let _dirSelectedIdx=-1;
+let _dirDebounceTimer=null;
+let _dirCurrentPrefix='';
+
+const _dirPathRe=/^(\.{1,2}\/|~\/|\/[^\s/]+\/|[^\s/]+\/)[^\s/]*$/;
+
+function detectDirPrefix(text){
+  if(!text) return null;
+  const m=text.match(_dirPathRe);
+  return m?m[0]:null;
+}
+
+function showDirDropdown(matches){
+  const dd=$('cmdDropdown');
+  if(!dd)return;
+  dd.innerHTML='';
+  _dirSelectedIdx=-1;
+  for(let i=0;i<matches.length;i++){
+    const m=matches[i];
+    const el=document.createElement('div');
+    el.className='cmd-item';
+    el.dataset.idx=i;
+    el.innerHTML=`<div class="cmd-item-name dir-path-suggest"><span class="dir-path-icon">&#128193;</span> ${esc(m.path)}</div>`;
+    el.onmousedown=(e)=>{
+      e.preventDefault();
+      _insertDirPath(m.path);
+      hideCmdDropdown();
+    };
+    dd.appendChild(el);
+  }
+  dd.classList.add('open');
+}
+
+function hideDirDropdown(){
+  const dd=$('cmdDropdown');
+  if(dd)dd.classList.remove('open');
+  _dirSelectedIdx=-1;
+  _dirCurrentPrefix='';
+  if(_dirDebounceTimer){clearTimeout(_dirDebounceTimer);_dirDebounceTimer=null;}
+}
+
+function navigateDirDropdown(dir){
+  const dd=$('cmdDropdown');
+  if(!dd)return;
+  const items=dd.querySelectorAll('.cmd-item');
+  if(!items.length)return;
+  items.forEach(el=>el.classList.remove('selected'));
+  _dirSelectedIdx+=dir;
+  if(_dirSelectedIdx<0)_dirSelectedIdx=items.length-1;
+  if(_dirSelectedIdx>=items.length)_dirSelectedIdx=0;
+  items[_dirSelectedIdx].classList.add('selected');
+}
+
+function selectDirDropdownItem(){
+  const dd=$('cmdDropdown');
+  if(!dd)return;
+  const items=dd.querySelectorAll('.cmd-item');
+  if(_dirSelectedIdx>=0&&_dirSelectedIdx<items.length){
+    items[_dirSelectedIdx].onmousedown({preventDefault:()=>{}});
+  } else if(items.length===1){
+    items[0].onmousedown({preventDefault:()=>{}});
+  }
+  hideDirDropdown();
+}
+
+function _insertDirPath(fullPath){
+  const input=$('msg');
+  if(!input)return;
+  const text=input.value;
+  const prefix=_dirCurrentPrefix;
+  if(!prefix)return;
+  const startIdx=text.lastIndexOf(prefix);
+  if(startIdx===-1)return;
+  const before=text.slice(0,startIdx);
+  const after=input.selectionStart<text.length?text.slice(input.selectionStart):'';
+  const insertChar=after&&!after.startsWith('/')&&!after.startsWith(' ')?'/':'';
+  input.value=before+fullPath+insertChar+after;
+  input.selectionStart=input.selectionEnd=before.length+fullPath.length+(insertChar?1:0);
+  autoResize();
+  updateSendBtn();
+}
+
+async function searchDirPaths(prefix){
+  if(!S.session)return[];
+  try{
+    const data=await api(`/api/workspaces/path-suggest?session_id=${encodeURIComponent(S.session.session_id)}&prefix=${encodeURIComponent(prefix)}`);
+    return data.matches||[];
+  }catch(e){return[];}
+}
+
+function handleDirInput(text){
+  const prefix=detectDirPrefix(text);
+  if(!prefix){
+    hideDirDropdown();
+    return;
+  }
+  if(prefix===_dirCurrentPrefix)return;
+  hideDirDropdown();
+  _dirCurrentPrefix=prefix;
+  if(_dirDebounceTimer)clearTimeout(_dirDebounceTimer);
+  _dirDebounceTimer=setTimeout(async()=>{
+    const matches=await searchDirPaths(prefix);
+    if(_dirCurrentPrefix===prefix&&matches.length){
+      showDirDropdown(matches);
+    }
+  },150);
 }

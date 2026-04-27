@@ -1,6 +1,10 @@
 node_modules/
 __pycache__/
 *.pyc
+*.pyo
+*.orig
+*.swp
+*.swo
 .DS_Store
 .env
 *.log
@@ -8,3 +12,14 @@ __pycache__/
 .kilo/
 .temp/
 tmp/
+
+# Build outputs
+releases/*.appimage
+releases/*.apk
+releases/*.keystore
+android/
+*.AppImage
+*.zsync
+
+# Capacitor
+ios/
