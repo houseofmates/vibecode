@@ -77,8 +77,30 @@ check_server_health() {
     return 1
 }
 
+# Preload critical modules in background for faster startup
+(
+    echo "Preloading modules..."
+    $PYTHON -c "
+import sys
+import json
+import logging
+import threading
+import queue
+import time
+import os
+from pathlib import Path
+# Preload API modules
+sys.path.insert(0, '/home/house/vibecode')
+try:
+    from api import config, helpers, models
+    from api.streaming import _get_ai_agent
+except ImportError:
+    pass
+" 2>/dev/null
+) &
+
 # Start with optimized Python flags for faster startup
-$PYTHON -u -O -X faulthandler -X importtime=0 server.py > "$LOGFILE" 2>&1 &
+$PYTHON -u -O -X faulthandler -X importtime=0 -X dev -X pycache_prefix=/tmp/vibecode_pycache server.py > "$LOGFILE" 2>&1 &
 NEW_PID=$!
 echo $NEW_PID > "$PIDFILE"
 

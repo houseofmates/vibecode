@@ -2,6 +2,7 @@
 Hermes Web UI -- SSE streaming engine and agent thread runner.
 Includes Sprint 10 cancel support via CANCEL_FLAGS.
 """
+import asyncio
 import json
 import logging
 import os
@@ -12,6 +13,7 @@ import time
 import traceback
 from pathlib import Path
 from typing import Optional
+from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,9 @@ from api.helpers import redact_session_data
 # interleave their os.environ writes. This global lock serializes the env
 # save/restore around the entire agent run.
 _ENV_LOCK = threading.Lock()
+
+# Thread pool for non-blocking operations
+_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix='streaming_')
 
 # Round-robin API key rotation for NVIDIA NIM
 _nvidia_key_lock = threading.Lock()
@@ -1163,7 +1168,24 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                         s.save()
                     except Exception:
                         pass  # Non-critical, don't interrupt streaming on save failure
-                put('token', {'text': text_str})
+                # Buffer tokens for batch delivery to reduce SSE overhead
+                if not hasattr(on_token, '_token_buffer'):
+                    on_token._token_buffer = []
+                    on_token._last_flush = time.time()
+                
+                on_token._token_buffer.append(text_str)
+                current_time = time.time()
+                
+                # Flush buffer if: buffer is full, enough time passed, or this is a major token
+                if (len(on_token._token_buffer) >= 5 or 
+                    current_time - on_token._last_flush >= 0.1 or  # 100ms
+                    len(text_str) > 50):  # Major token
+                    
+                    buffered_text = ''.join(on_token._token_buffer)
+                    put('token', {'text': buffered_text})
+                    on_token._token_buffer.clear()
+                    on_token._last_flush = current_time
+                    _token_sent = True
 
             def on_reasoning(text):
                 nonlocal _reasoning_text
@@ -1479,9 +1501,17 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                         print(f"[webui] Emitting {len(_remaining)} chars of remaining content", flush=True)
                         # Optimized: batch token delivery to reduce overhead
                         words = _remaining.split(' ')
+                        batch_buffer = []
                         for i, _word in enumerate(words):
-                            put('token', {'text': ' ' + _word if i > 0 else _word})
-                            # Removed artificial sleep for maximum throughput
+                            token_text = ' ' + _word if i > 0 else _word
+                            batch_buffer.append(token_text)
+                            # Flush in batches of 10 tokens
+                            if len(batch_buffer) >= 10:
+                                put('token', {'text': ''.join(batch_buffer)})
+                                batch_buffer.clear()
+                        # Flush remaining tokens
+                        if batch_buffer:
+                            put('token', {'text': ''.join(batch_buffer)})
 
             # ── Detect silent agent failure (no assistant reply produced) ──
             # When the agent catches an auth/network error internally it may return
@@ -1889,6 +1919,13 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                             _leading_ws = _content[:len(_content) - len(_content.lstrip())]
                             _rm['content'] = _leading_ws + _content_strip[_match_len:].lstrip()
                         break
+            # Flush any remaining buffered tokens before completion
+            if hasattr(on_token, '_token_buffer') and on_token._token_buffer:
+                remaining_text = ''.join(on_token._token_buffer)
+                if remaining_text.strip():
+                    put('token', {'text': remaining_text})
+                on_token._token_buffer.clear()
+            
             raw_session = s.compact() | {'messages': s.messages, 'tool_calls': tool_calls}
             put('done', {'session': redact_session_data(raw_session), 'usage': usage})
             _swarm_notify_done(stream_id, s.messages, usage)

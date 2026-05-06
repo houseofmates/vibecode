@@ -24,6 +24,15 @@ android/
 *.AppImage
 *.zsync
 
+# Debug and extraction scripts
+debug_*.sh
+extract_*.sh
+run_*.sh
+
+# Temporary directories
+lib/
+squashfs-root/
+
 # Capacitor
 ios/
 node_modules
