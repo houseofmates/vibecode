@@ -1464,11 +1464,13 @@ window.switchToWorkspace = async function switchToWorkspace(path,name,machineId)
   const machineHostname = machine ? machine.hostname : null;
   const machinePayload = machine ? {machine_id: machineId, machine_hostname: machineHostname} : {};
 
-  if(!S.session || sessionInProgress){
+  // Defensive: if S.session exists but lacks a valid session_id, treat as no session
+  const hasValidSession = S.session && S.session.session_id;
+  if(!hasValidSession || sessionInProgress){
     if (sessionInProgress) {
       console.log('[WS] Existing session has messages; creating a fresh session for workspace switch');
     } else {
-      console.log('[WS] No session - creating new one for:', path);
+      console.log('[WS] No valid session - creating new one for:', path);
     }
 
     try{

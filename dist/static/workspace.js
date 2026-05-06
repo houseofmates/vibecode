@@ -101,6 +101,8 @@ async function api(path,opts={}){
     const ct=res.headers.get('content-type')||'';
     const result = ct.includes('application/json')?await res.json():await res.text();
     console.log('[api] Response:', result);
+    // Remember the working base so EventSource and other code can use it directly
+    window.HERMES_API_BASE = baseUrl;
     return result;
   }
   throw lastError || new Error('Failed to fetch');
@@ -111,9 +113,10 @@ function fileExt(p){ const i=p.lastIndexOf('.'); return i>=0?p.slice(i).toLowerC
 
 // Expose api globally for cross-script access
 window.api = api;
+window._getApiBaseCandidates = _getApiBaseCandidates;
 
 // Image extensions for preview
-const IMAGE_EXTS=new Set(['.png','.jpg','.jpeg','.gif','.svg','.webp','.ico','.bmp']);
+const image_exts=new Set(['.png','.jpg','.jpeg','.gif','.svg','.webp','.ico','.bmp']);
 
 // Persist/restore expanded directory state per workspace in localStorage
 function _wsExpandKey(){
@@ -224,9 +227,9 @@ function navigateUp(){
 }
 
 // File extension sets for preview routing (must match server-side sets)
-const MD_EXTS     = new Set(['.md','.markdown','.mdown']);
+const md_exts     = new Set(['.md','.markdown','.mdown']);
 // Binary formats that should download rather than preview
-const DOWNLOAD_EXTS = new Set([
+const download_exts = new Set([
   '.docx','.doc','.xlsx','.xls','.pptx','.ppt','.odt','.ods','.odp',
   '.pdf','.zip','.tar','.gz','.bz2','.7z','.rar',
   '.mp3','.mp4','.wav','.m4a','.ogg','.flac','.mov','.avi','.mkv','.webm',
@@ -331,7 +334,7 @@ async function openFile(path){
   const ext=fileExt(path);
 
   // Binary/download-only formats: trigger browser download, don't preview
-  if(DOWNLOAD_EXTS.has(ext)){
+  if(download_exts.has(ext)){
     downloadFile(path);
     return;
   }
@@ -350,14 +353,14 @@ async function openFile(path){
 
   _previewCurrentPath = path;
   renderFileBreadcrumb(path);
-  if(IMAGE_EXTS.has(ext)){
+  if(image_exts.has(ext)){
     // Image: load via raw endpoint, show as <img>
     showPreview('image');
     const url=`api/file/raw?session_id=${encodeURIComponent(S.session.session_id)}&path=${encodeURIComponent(path)}`;
     $('previewImg').alt=path;
     $('previewImg').src=url;
     $('previewImg').onerror=()=>setStatus(t('image_load_failed'));
-  } else if(MD_EXTS.has(ext)){
+  } else if(md_exts.has(ext)){
     // Markdown: fetch text, render with renderMd, display as formatted HTML
     try{
       const data=await api(`/api/file?session_id=${encodeURIComponent(S.session.session_id)}&path=${encodeURIComponent(path)}`);

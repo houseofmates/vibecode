@@ -101,6 +101,8 @@ async function api(path,opts={}){
     const ct=res.headers.get('content-type')||'';
     const result = ct.includes('application/json')?await res.json():await res.text();
     console.log('[api] Response:', result);
+    // Remember the working base so EventSource and other code can use it directly
+    window.HERMES_API_BASE = baseUrl;
     return result;
   }
   throw lastError || new Error('Failed to fetch');
@@ -111,6 +113,7 @@ function fileExt(p){ const i=p.lastIndexOf('.'); return i>=0?p.slice(i).toLowerC
 
 // Expose api globally for cross-script access
 window.api = api;
+window._getApiBaseCandidates = _getApiBaseCandidates;
 
 // Image extensions for preview
 const image_exts=new Set(['.png','.jpg','.jpeg','.gif','.svg','.webp','.ico','.bmp']);

@@ -259,12 +259,56 @@ class TerminalInstance {
     }
 
     connect() {
-        const base = getApiBase();
+        this._reconnectAttempts = 0;
+        this._baseCandidateIndex = 0;
+        // Build candidate list using the same logic as window.api
+        let candidates = [getApiBase()];
+        if (typeof window._getApiBaseCandidates === 'function') {
+            try {
+                const isCapacitorApp = !!(window.Capacitor || window.__capacitor || location.protocol==='capacitor:' || document.documentElement.classList.contains('capacitor'));
+                const isTauri = !isCapacitorApp && (
+                    window.__TAURI__ ||
+                    location.protocol==='tauri:' ||
+                    location.protocol==='file:' ||
+                    location.hostname==='tauri.localhost' ||
+                    location.host==='tauri.localhost' ||
+                    location.hostname.includes('tauri')
+                );
+                candidates = window._getApiBaseCandidates(isCapacitorApp, isTauri);
+            } catch (e) {}
+        }
+        const seen = new Set();
+        this._baseCandidates = candidates.filter(c => { if (!c || seen.has(c)) return false; seen.add(c); return true; });
+        this._doConnect();
+    }
+
+    _doConnect() {
+        if (this._baseCandidateIndex >= this._baseCandidates.length) {
+            // All candidates exhausted — start a retry cycle
+            this._baseCandidateIndex = 0;
+            this._reconnectAttempts++;
+            if (this._reconnectAttempts > this._maxReconnects) {
+                this.xterm.writeln('\r\n\x1b[31m● connection failed after multiple retries. close and reopen the terminal.\x1b[0m');
+                return;
+            }
+            const baseDelay = this._reconnectDelay * Math.pow(1.5, this._reconnectAttempts - 1);
+            const jitter = Math.random() * 500;
+            const delay = Math.min(30000, baseDelay + jitter);
+            console.log(`[terminal] all candidates failed, retrying in ${Math.round(delay)}ms (attempt ${this._reconnectAttempts})`);
+            this._reconnectTimer = setTimeout(() => {
+                if (TerminalState.terminals.has(this.terminalId)) {
+                    this._doConnect();
+                }
+            }, delay);
+            return;
+        }
+
+        const base = this._baseCandidates[this._baseCandidateIndex];
         const url = new URL('api/terminal/stream', base);
         url.searchParams.set('terminal_id', this.terminalId);
         url.searchParams.set('client_id', this.clientId);
 
-        console.log('[terminal] Connecting SSE to', url.href);
+        console.log(`[terminal] Connecting SSE to ${url.href} (candidate ${this._baseCandidateIndex + 1}/${this._baseCandidates.length})`);
         this.eventSource = new EventSource(url.href, { withCredentials: true });
         this._updateConnectionStatus('connecting');
 
@@ -277,6 +321,7 @@ class TerminalInstance {
             console.log('[terminal] Connected:', data.terminal_id);
             this.connected = true;
             this._reconnectAttempts = 0;
+            this._baseCandidateIndex = 0;
             this._updateConnectionStatus('connected');
             this.xterm.writeln(`\r\n\x1b[38;2;246;176;18m● connected to ${data.name}\x1b[0m\r\n`);
             // Flush any buffered input
@@ -303,7 +348,6 @@ class TerminalInstance {
         });
 
         this.eventSource.addEventListener('error', (e) => {
-            // Distinguish between first-connect failure and mid-stream drop
             const wasConnected = this.connected;
             this.connected = false;
             this._updateConnectionStatus('disconnected');
@@ -313,33 +357,35 @@ class TerminalInstance {
                 this.eventSource = null;
             }
 
-            // If we were never connected, don't spam reconnection messages in terminal
             if (wasConnected) {
+                // Mid-stream drop — reset candidates and reconnect after delay
                 this.xterm.writeln(`\r\n\x1b[33m● connection lost\x1b[0m`);
-            }
-
-            this._reconnectAttempts++;
-            if (this._reconnectAttempts > this._maxReconnects) {
-                this.xterm.writeln('\r\n\x1b[31m● connection failed after multiple retries. close and reopen the terminal.\x1b[0m');
-                return;
-            }
-
-            // Exponential backoff with jitter
-            const baseDelay = this._reconnectDelay * Math.pow(1.5, this._reconnectAttempts - 1);
-            const jitter = Math.random() * 500;
-            const delay = Math.min(30000, baseDelay + jitter);
-
-            if (wasConnected) {
-                this.xterm.writeln(`\x1b[33m  reconnecting in ${Math.round(delay/1000)}s… (attempt ${this._reconnectAttempts}/${this._maxReconnects})\x1b[0m`);
-            } else {
-                console.log(`[terminal] reconnecting in ${Math.round(delay)}ms (attempt ${this._reconnectAttempts})`);
-            }
-
-            this._reconnectTimer = setTimeout(() => {
-                if (TerminalState.terminals.has(this.terminalId)) {
-                    this.connect();
+                this._reconnectAttempts++;
+                if (this._reconnectAttempts > this._maxReconnects) {
+                    this.xterm.writeln('\r\n\x1b[31m● connection failed after multiple retries. close and reopen the terminal.\x1b[0m');
+                    return;
                 }
-            }, delay);
+                const baseDelay = this._reconnectDelay * Math.pow(1.5, this._reconnectAttempts - 1);
+                const jitter = Math.random() * 500;
+                const delay = Math.min(30000, baseDelay + jitter);
+                this.xterm.writeln(`\x1b[33m  reconnecting in ${Math.round(delay/1000)}s… (attempt ${this._reconnectAttempts}/${this._maxReconnects})\x1b[0m`);
+                this._baseCandidateIndex = 0;
+                this._reconnectTimer = setTimeout(() => {
+                    if (TerminalState.terminals.has(this.terminalId)) {
+                        this._doConnect();
+                    }
+                }, delay);
+            } else {
+                // First-connect failure — try next candidate immediately
+                console.log(`[terminal] Candidate ${this._baseCandidateIndex + 1} failed, trying next`);
+                this._baseCandidateIndex++;
+                clearTimeout(this._reconnectTimer);
+                this._reconnectTimer = setTimeout(() => {
+                    if (TerminalState.terminals.has(this.terminalId)) {
+                        this._doConnect();
+                    }
+                }, 100);
+            }
         });
     }
 
