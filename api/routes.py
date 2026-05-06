@@ -587,6 +587,43 @@ def handle_get(handler, parsed) -> bool:
             },
         )
 
+    if parsed.path == "/ready":
+        # Check if we can access session storage
+        try:
+            # Try to access SESSIONS dict (should always work if server is up)
+            _ = len(SESSIONS)
+            # Try to access SESSIONS_LOCK (should always work)
+            with SESSIONS_LOCK:
+                pass
+            # Check if we can write to session directory (basic filesystem access)
+            test_file = SESSION_DIR / ".ready_test"
+            try:
+                test_file.touch()
+                test_file.unlink()
+                filesystem_ok = True
+            except Exception:
+                filesystem_ok = False
+            
+            return j(
+                handler,
+                {
+                    "status": "ready" if filesystem_ok else "degraded",
+                    "checks": {
+                        "sessions_accessible": True,
+                        "filesystem_writable": filesystem_ok,
+                    }
+                }
+            )
+        except Exception as e:
+            return j(
+                handler,
+                {
+                    "status": "not_ready",
+                    "error": str(e)
+                },
+                status_code=503
+            )
+
     if parsed.path == "/api/models":
         return j(handler, get_available_models())
 
