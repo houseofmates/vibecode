@@ -735,10 +735,23 @@ function createCanvasInlineCard(type, title, content) {
   openEl.className = 'canvas-inline-open';
   openEl.textContent = 'open ↗';
 
-  footer.appendChild(typeBadge);
-  footer.appendChild(nameEl);
-  footer.appendChild(openEl);
-  card.appendChild(footer);
+ footer.appendChild(typeBadge);
+ footer.appendChild(nameEl);
+ footer.appendChild(openEl);
+
+  // add copy button
+  const copyEl = document.createElement('span');
+  copyEl.className = 'canvas-inline-copy';
+  copyEl.textContent = 'copy';
+  copyEl.style.cssText = 'margin-left:8px;cursor:pointer;font-size:10px;';
+  copyEl.onclick = (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(content).then(() => {
+      if (typeof showToast === 'function') showToast('copied');
+    });
+  };
+  footer.appendChild(copyEl);
+ card.appendChild(footer);
 
   return card;
 }
@@ -776,9 +789,11 @@ function injectCanvasCards(messageEl) {
     // check if card already exists after this pre
     if (pre.nextElementSibling && pre.nextElementSibling.classList.contains('canvas-inline-card')) return;
 
-    const title = lang ? `${lang} block` : 'code block';
-    const card = createCanvasInlineCard(type, title, code);
-    pre.insertAdjacentElement('afterend', card);
+   const title = lang ? `${lang} block` : 'code block';
+   const card = createCanvasInlineCard(type, title, code);
+   pre.insertAdjacentElement('afterend', card);
+   // hide the original code block to avoid duplication
+   pre.style.display = 'none';
   });
 }
 

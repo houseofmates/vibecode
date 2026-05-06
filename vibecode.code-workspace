@@ -6,5 +6,8 @@
         {
             "path": "../termisol"
         }
-    ]
+    ],
+    "settings": {
+        "java.configuration.updateBuildConfiguration": "disabled"
+    }
 }

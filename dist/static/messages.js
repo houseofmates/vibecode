@@ -330,6 +330,8 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
     {open:'<|channel>thought\n',close:'<channel|>'},
     // Kimi K2 tool call format — hide raw tool call XML from visible stream
     {open:'<|tool_call_section_begin|>',close:'<|tool_call_section_end|>'},
+    {open:'<|tool_calls_section_begin|>',close:'<|tool_calls_section_end|>'},
+    {open:'<|tool_call_begin|>',close:'<|tool_call_end|>'},
     {open:'<tool>',close:'</tool>'},
     // DeepSeek V3 / V3.1
     {open:'<｜tool▁calls▁begin｜>',close:'<｜tool▁calls▁end｜>'},
@@ -348,6 +350,13 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
     // JSON array/object markers for tool calls (common in NIM models)
     {open:'[{"name":',close:']',jsonBlock:true},
     {open:'{"name":',close:'}',jsonBlock:true,matchBrace:true},
+    // NVIDIA NIM custom markers
+    {open:'<tool_call_end>',close:''},
+    {open:'<tool_calls_section_end>',close:''},
+    {open:'<tool_calls_section_begin>',close:''},
+    {open:'<tool_call_begin|>',close:''},
+    // NVIDIA NIM format with "parameters" field
+    {open:'{"name":',close:'"parameters":',jsonBlock:true},
   ];
 
   function _isActiveSession(){
@@ -504,6 +513,8 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       '<｜tool▁call▁end｜>','<｜tool▁calls▁end｜>','<｜tool▁sep｜>',
       '</tool_call>','<|python_tag|>','[TOOL_CALLS]',
       '</function_calls>','</function>','</functions>','</invoke>','</tool_calls>',
+      '<tool_call_end>','<tool_calls_section_end>','<tool_calls_section_begin>',
+      '<tool_call_begin|>','<|tool_call_section_begin|>',
     ];
     for(const tag of _toolOrphans){
       let idx;
@@ -515,6 +526,33 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
     // Match patterns like {"name": "...", "arguments": {...}} or [{"name": ...}]
     text=text.replace(/\{[^{}]*"name"\s*:\s*"[^"]+"[^{}]*\}/g,'');
     text=text.replace(/\[\s*\{[^{}]*"name"\s*:\s*"[^"]+"[^\]]*\}\s*\]/g,'');
+    // Match NVIDIA NIM format with "parameters" field: {"name": "...", "parameters": {...}}
+    text=text.replace(/\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"parameters"\s*:\s*\{[^\}]*\}[^\}]*\}/g,'');
+    // Match partial JSON fragments like ,"id":"skills_list:1"}
+    text=text.replace(/,\s*"id"\s*:\s*"[^"]+"\s*\}/g,'');
+    // Strip NVIDIA NIM <tool_call> blocks explicitly (some NIM endpoints emit
+    // tool calls as raw XML in content in addition to structured tool_calls).
+    text=text.replace(/<tool_call>[\s\S]*?<\/tool_call>/gi,'');
+    // Also strip orphaned inner arg_key/arg_value pairs that sometimes remain
+    // when the outer <tool_call> wrapper was fragmented across chunks.
+    text=text.replace(/<arg_key>[\s\S]*?<\/arg_key>\s*<arg_value>[\s\S]*?<\/arg_value>/gi,'');
+    text=text.replace(/<arg_key>[\s\S]*?<\/arg_key>/gi,'');
+    text=text.replace(/<arg_value>[\s\S]*?<\/arg_value>/gi,'');
+    // Strip DeepSeek/NVIDIA hallucinated custom markup (e.g. < | dsml | tool_calls>)
+    text=text.replace(/<\s*\|\s*dsml\s*\|\s*tool_calls\s*>[\s\S]*?<\s*\/\s*\|\s*dsml\s*\|\s*tool_calls\s*>/gi,'');
+    text=text.replace(/<\s*\|\s*DSML\s*\|\s*tool_calls\s*>[\s\S]*?<\s*\/\s*\|\s*DSML\s*\|\s*tool_calls\s*>/gi,'');
+    text=text.replace(/<\s*\|\s*dsml\s*\|\s*tool_calls\s*>/gi,'');
+    text=text.replace(/<\s*\|\s*DSML\s*\|\s*tool_calls\s*>/gi,'');
+    text=text.replace(/<\s*\/\s*\|\s*dsml\s*\|\s*tool_calls\s*>/gi,'');
+    text=text.replace(/<\s*\/\s*\|\s*DSML\s*\|\s*tool_calls\s*>/gi,'');
+    // Strip pipe-delimited tool metadata fragments (ToolPill, tool-result, etc.)
+    text=text.replace(/\w*\|ToolPill\|[^\s|]*/gi,'');
+    text=text.replace(/\w*\|toolpill\|[^\s|]*/gi,'');
+    text=text.replace(/tool-result\|ToolResult\|tool_result[^\n]*/gi,'');
+    // Strip GLM inline tool call text (Tool name key=val...)
+    text=text.replace(/Tool '\w+'.*$/gm,'');
+    // Strip does not exist / Available tools error text from GLM models
+    text=text.replace(/does not exist.*Available tools:.*$/gm,'');
     // Strip XML pseudo-tool tags (e.g. <terminal>...</terminal>, <read_file>...</read_file>)
     // that models emit as raw text instead of structured tool_calls.
     const xmlRegex=/<([a-zA-Z_][a-zA-Z0-9_\-]*)[^>]*>([\s\S]*?)<\/\1>/g;
@@ -565,7 +603,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
         return {thinkingText:'', displayText:'', inThinking:true};
       }
     }
-    return {thinkingText:'', displayText:raw, inThinking:false};
+    return {thinkingText:'', displayText:_streamDisplay(), inThinking:false};
   }
   function _renderLiveThinking(parsed){
     const text=(parsed&&parsed.thinkingText)||'';
@@ -601,7 +639,23 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       _renderLiveThinking(parsed);
       _renderXmlToolCards();
       if(assistantBody){
-        assistantBody.innerHTML=parsed.displayText?renderMd(parsed.displayText):'';
+        if(parsed.displayText){
+          assistantBody.innerHTML=renderMd(parsed.displayText);
+        }else if(parsed.thinkingText){
+          // Model is sending reasoning but no visible content tokens (common with
+          // DeepSeek / reasoning models). Show the reasoning trace in the bubble
+          // so the stream doesn't appear to freeze.
+          assistantBody.innerHTML='<span style="opacity:.75;font-style:italic;">'+esc(parsed.thinkingText)+'</span>';
+        }else if(assistantText.trim()){
+          // Tokens are arriving but being stripped (tool calls, thinking tags, etc.).
+          // Show a subtle working indicator so the stream doesn't appear frozen.
+          const _hasToolPatterns=/<\|?tool|tool_call|function_call|<functions>|<invoke|\{"name"|\{"name"[^}]*"parameters"|\|ToolPill\||\|toolpill\||tool-result\|ToolResult|<\s*\|\s*[dD][sS][mM][lL]\s*\|\s*tool_calls|tool_call_end|tool_calls_section_end/i.test(assistantText);
+          assistantBody.innerHTML=_hasToolPatterns
+            ?'<span style="opacity:.6;font-style:italic;">working on tools…</span>'
+            :'';
+        }else{
+          assistantBody.innerHTML='';
+        }
       }
       scrollIfPinned();
     });
@@ -862,8 +916,13 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       renderSessionList();setBusy(false);setStatus('');
       setComposerStatus('');
       updateSendBtn();
-      playNotificationSound();
-      sendDesktopNotification('Response complete',finalAssistantText?finalAssistantText.slice(0,100):'Task finished');
+      // Skip notifications for cron job sessions
+      const cronPatterns = ['cron_', 'session_cron', 'sessions_cron'];
+      const isCronSession = cronPatterns.some(p => (activeSid || '').toLowerCase().startsWith(p));
+      if (!isCronSession) {
+        playNotificationSound();
+        sendDesktopNotification('Response complete',finalAssistantText?finalAssistantText.slice(0,100):'Task finished');
+      }
     };
 
     handlers['stream_end']=e=>{
@@ -1257,7 +1316,7 @@ function _ensureClarifyCardDom() {
       <div class="clarify-question" id="clarifyQuestion"></div>
       <div class="clarify-choices" id="clarifyChoices"></div>
       <div class="clarify-response">
-        <input class="clarify-input" id="clarifyInput" type="text" data-i18n-placeholder="clarify_input_placeholder" placeholder="Type your response…">
+        <input class="clarify-input" id="clarifyInput" type="text" data-i18n-placeholder="clarify_input_placeholder" placeholder="type your response…">
         <button class="clarify-submit" id="clarifySubmit" data-i18n="clarify_send">Send</button>
       </div>
       <div class="clarify-hint" id="clarifyHint" data-i18n="clarify_hint">Please choose one option, or type your own response below.</div>
@@ -1413,7 +1472,7 @@ function showClarifyCard(pending) {
     };
   }
   if (typeof lockComposerForClarify === "function") {
-    lockComposerForClarify(question ? `Clarification needed: ${question}` : "Clarification needed");
+    lockComposerForClarify(question ? `clarification needed: ${question}` : "clarification needed");
   }
   _clarifySetControlsDisabled(false, false);
   const msgInner = $("msgInner");
@@ -1462,9 +1521,9 @@ function startClarifyPolling(sid) {
       const msg = String((e && e.message) || "");
       if (!_clarifyMissingEndpointWarned && /(^|\b)(404|not found)(\b|$)/i.test(msg)) {
         _clarifyMissingEndpointWarned = true;
-        setComposerStatus("Clarify unavailable on current server build. Restart server.");
+        setComposerStatus("clarify endpoint unavailable. please restart server.");
         if (typeof showToast === "function") {
-          showToast("Clarify endpoint unavailable. Please restart server.", 5000);
+          showToast("clarify endpoint unavailable. please restart server.", 5000);
         }
         stopClarifyPolling();
       }
@@ -1620,7 +1679,7 @@ async function respondSudoPassword(action, cachedPassword=null) {
       body: JSON.stringify({ session_id: sid, password: password })
     });
   } catch(e) {
-    setStatus("Sudo password error: " + e.message);
+    setStatus("sudo password error: " + e.message);
     // Clear cache on error
     _clearCachedSudoPassword();
   }

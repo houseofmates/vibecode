@@ -1,3 +1,41 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SCROLLBAR STYLING - Force yellow accent globally
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* WebKit scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 4px !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #f6b012 !important;
+  border-radius: 4px !important;
+  border: 2px solid #050505 !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ffcc33 !important;
+}
+
+::-webkit-scrollbar-corner {
+  background: #050505 !important;
+}
+
+/* Tauri AppImage thin scrollbar override */
+.tauri-app ::-webkit-scrollbar {
+  width: 4px !important;
+  height: 4px !important;
+}
+.tauri-app ::-webkit-scrollbar-thumb {
+  border: 1px solid #050505 !important;
+}
+
 /* Remove border from active nav-tab */
 .nav-tab.active,
 .nav-tab {
@@ -1385,6 +1423,16 @@ textarea#msg {
   padding: 0;
 }
 
+.thinking-preview {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  opacity: 0.65;
+  color: var(--text-secondary, #a0a0a0);
+  font-style: italic;
+  line-height: 1.4;
+}
+
 .thinking-card {
   margin: 0;
 }
@@ -1615,3 +1663,65 @@ textarea#msg {
   background: #0d0d0d !important;
 }
 
+
+/* Terminal connection status dot */
+.terminal-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.terminal-status-dot.connected {
+  background-color: #27c93f;
+  box-shadow: 0 0 4px rgba(39, 201, 63, 0.5);
+}
+
+.terminal-status-dot.connecting {
+  background-color: #f6b012;
+  box-shadow: 0 0 4px rgba(246, 176, 18, 0.5);
+  animation: terminal-pulse 1.2s ease-in-out infinite;
+}
+
+.terminal-status-dot.disconnected {
+  background-color: #ff5f56;
+  box-shadow: 0 0 4px rgba(255, 95, 86, 0.4);
+}
+
+@keyframes terminal-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Tab status text (copy/paste feedback) */
+.terminal-tab-status {
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Terminal search overlay */
+.terminal-search-overlay {
+  animation: terminal-fade-in 0.15s ease;
+}
+
+.terminal-search-overlay input::placeholder {
+  color: var(--muted);
+}
+
+@keyframes terminal-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* xterm link hover */
+.xterm-overlay__link {
+  text-decoration: underline;
+  cursor: pointer;
+}

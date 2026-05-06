@@ -67,6 +67,7 @@ if(!window.HERMES_API_BASE){
 }
 
 if(isTauri){
+  document.documentElement.classList.add('tauri-app');
   console.log('[Tauri] Desktop mode detected');
 } else {
   console.log('[Tauri] Not detected - normal size');

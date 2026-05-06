@@ -1,3 +1,41 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SCROLLBAR STYLING - Force yellow accent globally
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* WebKit scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 4px !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #f6b012 !important;
+  border-radius: 4px !important;
+  border: 2px solid #050505 !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ffcc33 !important;
+}
+
+::-webkit-scrollbar-corner {
+  background: #050505 !important;
+}
+
+/* Tauri AppImage thin scrollbar override */
+.tauri-app ::-webkit-scrollbar {
+  width: 4px !important;
+  height: 4px !important;
+}
+.tauri-app ::-webkit-scrollbar-thumb {
+  border: 1px solid #050505 !important;
+}
+
 /* Remove border from active nav-tab */
 .nav-tab.active,
 .nav-tab {

@@ -57,6 +57,19 @@ def _security_headers(handler):
     )
 
 
+def _cors_headers(handler) -> None:
+    """Send CORS headers to allow Tauri AppImage and cross-origin access."""
+    origin = handler.headers.get('Origin', '')
+    # Echo back the actual origin (required when credentials: 'include' is used)
+    if origin:
+        handler.send_header('Access-Control-Allow-Origin', origin)
+    else:
+        handler.send_header('Access-Control-Allow-Origin', '*')
+    handler.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    handler.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    handler.send_header('Access-Control-Allow-Credentials', 'true')
+
+
 def j(handler, payload, status: int=200) -> None:
     """Send a JSON response."""
     body = _json.dumps(payload, ensure_ascii=False, indent=2).encode('utf-8')
@@ -65,6 +78,7 @@ def j(handler, payload, status: int=200) -> None:
     handler.send_header('Content-Length', str(len(body)))
     handler.send_header('Cache-Control', 'no-store')
     _security_headers(handler)
+    _cors_headers(handler)
     handler.end_headers()
     handler.wfile.write(body)
 
@@ -77,6 +91,7 @@ def t(handler, payload, status: int=200, content_type: str='text/plain; charset=
     handler.send_header('Content-Length', str(len(body)))
     handler.send_header('Cache-Control', 'no-store')
     _security_headers(handler)
+    _cors_headers(handler)
     handler.end_headers()
     handler.wfile.write(body)
 

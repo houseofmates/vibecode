@@ -106,6 +106,39 @@ function extractXmlToolCalls(text){
   displayText=displayText.replace(/<arg_key>[\s\S]*?<\/arg_key>/gi,'');
   displayText=displayText.replace(/<arg_value>[\s\S]*?<\/arg_value>/gi,'');
 
+  // ── NVIDIA NIM custom markers ──────────────────────────────────────────────
+  // Strip markers like <tool_call_end>, <tool_calls_section_end>, <tool_call_begin|>
+  displayText=displayText.replace(/<tool_call_end>/gi,'');
+  displayText=displayText.replace(/<tool_calls_section_end>/gi,'');
+  displayText=displayText.replace(/<tool_calls_section_begin>/gi,'');
+  displayText=displayText.replace(/<\|tool_call_section_begin\|>/gi,'');
+  displayText=displayText.replace(/<\|tool_call_section_end\|>/gi,'');
+  displayText=displayText.replace(/<tool_call_begin\|>/gi,'');
+
+  // ── JSON tool calls with "parameters" field (NVIDIA NIM style) ──────────
+  // Pattern: {"name": "...", "parameters": {...}, "id": "..."}
+  const jsonParamRe=/\{\s*"name"\s*:\s*"([^"]+)"\s*,\s*"parameters"\s*:\s*(\{[^\}]*\})[^\}]*\}/gi;
+  let jsonMatch;
+  while((jsonMatch=jsonParamRe.exec(text))!==null){
+    const name=jsonMatch[1];
+    let args={};
+    try{ args=JSON.parse(jsonMatch[2]); }catch(e){ args={raw:jsonMatch[2]}; }
+    const full=jsonMatch[0];
+    toolCalls.push({
+      name,
+      preview:JSON.stringify(args).slice(0,80),
+      args,
+      snippet:full,
+      done:true,
+      tid:`json-${name}-${Math.abs(full.split('').reduce((h,c)=>((h<<5)-h)+c.charCodeAt(0),0)).toString(36)}`
+    });
+  }
+  displayText=displayText.replace(jsonParamRe,'');
+
+  // ── Partial JSON fragments (remnants of tool calls) ──────────────────────
+  // Pattern: ,"id":"skills_list:1"} or similar fragments
+  displayText=displayText.replace(/,\s*"id"\s*:\s*"[^"]+"\s*\}/g,'');
+
   // ── Generic XML pseudo-tool extraction ────────────────────────────────────
   const regex=/<([a-zA-Z_][a-zA-Z0-9_\-]*)[^>]*>([\s\S]*?)<\/\1>/g;
   let match;
@@ -2032,7 +2065,8 @@ function renderMessages(){
     const hasToolCalls = msgToolCalls || sessionToolCalls;
     const toolCount = m.tool_calls?.length || S.toolCalls?.filter(tc => tc.assistant_msg_idx === rawIdx).length || 0;
     const toolBtn = (!isUser && hasToolCalls) ? `<button class="msg-tool-badge" data-msg-idx="${rawIdx}" onclick="toggleToolCardsForMessage(${rawIdx})" title="show tool calls">${li('paperclip',10)} tool (${toolCount||'1+'})</button>` : '';
-    row.innerHTML=`<div class="msg-role ${m.role}" ${tsTitle?`title="${esc(tsTitle)}"`:''}><div class="role-icon ${m.role}">${roleIconContent}</div><span style="font-size:12px">${isUser?t('you'):esc(_bn)}</span><span class="msg-actions">${editBtn}<button class="msg-copy-btn msg-action-btn" title="${t('copy')}" onclick="copyMsg(this)">${li('copy',13)}</button>${retryBtn}</span></div>${toolBtn}${filesHtml}<div class="msg-body">${bodyHtml}</div>${tsBottom?`<div class="msg-timestamp">${tsBottom}</div>`:''}`;
+    const toolCardContainer = (!isUser && hasToolCalls) ? `<div class="tool-card-container" data-msg-idx="${rawIdx}"></div>` : '';
+    row.innerHTML=`<div class="msg-role ${m.role}" ${tsTitle?`title="${esc(tsTitle)}"`:''}><div class="role-icon ${m.role}">${roleIconContent}</div><span style="font-size:12px">${isUser?t('you'):esc(_bn)}</span><span class="msg-actions">${editBtn}<button class="msg-copy-btn msg-action-btn" title="${t('copy')}" onclick="copyMsg(this)">${li('copy',13)}</button>${retryBtn}</span></div>${toolBtn}${toolCardContainer}${filesHtml}<div class="msg-body">${bodyHtml}</div>${tsBottom?`<div class="msg-timestamp">${tsBottom}</div>`:''}`;
     row.dataset.rawText = String(content).trim();
     inner.appendChild(row);
     // Render thinking card after the assistant message (collapsed by default)
@@ -2101,6 +2135,8 @@ function renderMessages(){
   const _allToolCalls=Array.from(_allToolCallsMap.values());
   if(!S.busy && _allToolCalls.length){
     inner.querySelectorAll('.tool-card-row').forEach(el=>el.remove());
+    // Also clear tool-card containers so they get fresh cards
+    inner.querySelectorAll('.tool-card-container').forEach(el=>{while(el.firstChild)el.removeChild(el.firstChild);});
     const byAssistant = {};
     for(const tc of _allToolCalls){
       const key = tc.assistant_msg_idx !== undefined ? tc.assistant_msg_idx : -1;
@@ -2162,15 +2198,35 @@ function renderMessages(){
         toggle.appendChild(collapseBtn);
         frag.insertBefore(toggle,frag.firstChild);
       }
-      // Insert after the anchor row (or after any previously inserted group for
-      // the same anchor), preserving chronological order for multi-step chains.
-      const insertAfterNode = anchorInsertAfter.get(anchorRow) || anchorRow;
-      const refNode = insertAfterNode ? insertAfterNode.nextSibling : null;
-      if(refNode) inner.insertBefore(frag,refNode);
-      else inner.appendChild(frag);
-      // Record the last child we inserted so the next group for this anchor
-      // goes after it rather than back at anchorRow.nextSibling.
-      anchorInsertAfter.set(anchorRow, inner.lastChild);
+      // Insert the tool cards into the container inside the anchor row,
+      // directly under the tool pill button. Fall back to after the row
+      // if no container exists (e.g. for older sessions without container).
+      let container = anchorRow ? anchorRow.querySelector(`.tool-card-container[data-msg-idx="${aIdx}"]`) : null;
+      // If no container, create one inside the row
+      if(!container && anchorRow){
+        container = document.createElement('div');
+        container.className = 'tool-card-container';
+        container.dataset.msgIdx = aIdx;
+        const toolBtn = anchorRow.querySelector(`.msg-tool-badge[data-msg-idx="${aIdx}"]`);
+        if(toolBtn){
+          toolBtn.insertAdjacentElement('afterend', container);
+        } else {
+          anchorRow.appendChild(container);
+        }
+      }
+      // Now place the fragment into the container
+      if(container){
+        // Clear any existing cards in this container first
+        while(container.firstChild) container.removeChild(container.firstChild);
+        container.appendChild(frag);
+      } else {
+        // Fallback: insert after the row as before
+        const insertAfterNode = anchorInsertAfter.get(anchorRow) || anchorRow;
+        const refNode = insertAfterNode ? insertAfterNode.nextSibling : null;
+        if(refNode) inner.insertBefore(frag,refNode);
+        else inner.appendChild(frag);
+        anchorInsertAfter.set(anchorRow, inner.lastChild);
+      }
     }
   }
   // Render usage badge on the last assistant message row (if enabled and usage data exists)
@@ -2231,18 +2287,25 @@ function toolIcon(name){
 function toggleToolCardsForMessage(msgIdx){
   const inner=$('msgInner');
   if(!inner)return;
-  // Find all tool cards associated with this message
-  const toolRows=inner.querySelectorAll(`.tool-card-row[data-msg-idx="${msgIdx}"]`);
-  if(toolRows.length===0)return;
-  // Check if any are currently visible (open)
-  const anyOpen=Array.from(toolRows).some(r=>r.style.display!=='none');
-  // Toggle visibility - show if any are hidden, hide if all are visible
+  // Find the tool card container inside the message row for this msgIdx
+  const container=inner.querySelector(`.tool-card-container[data-msg-idx="${msgIdx}"]`);
+  // Also find any legacy tool-card-row siblings outside the container
+  const legacyRows=inner.querySelectorAll(`.tool-card-row[data-msg-idx="${msgIdx}"]`);
+  // Get the cards inside the container
+  const containerCards=container?container.querySelectorAll('.tool-card-row'):[];
+  // Check if any are currently visible
+  const anyContainerOpen=Array.from(containerCards).some(r=>r.style.display!=='none');
+  const anyLegacyOpen=Array.from(legacyRows).some(r=>r.style.display!=='none');
+  const anyOpen=anyContainerOpen||anyLegacyOpen;
   const shouldShow=!anyOpen;
-  toolRows.forEach(r=>{r.style.display=shouldShow?'':''; if(!shouldShow)r.style.display='none';});
+  // Toggle container cards
+  if(container) containerCards.forEach(r=>{r.style.display=shouldShow?'':'none';});
+  // Toggle legacy cards too
+  legacyRows.forEach(r=>{r.style.display=shouldShow?'':'none';});
   // Update button text/icon
   const btn=inner.querySelector(`.msg-tool-badge[data-msg-idx="${msgIdx}"]`);
   if(btn){
-    const count=toolRows.length;
+    const count=containerCards.length||legacyRows.length;
     btn.innerHTML=shouldShow?`${li('paperclip',10)} hide`:`${li('paperclip',10)} tool (${count})`;
   }
 }
@@ -2539,11 +2602,12 @@ function _thinkingMarkup(text=''){
   const _bn=window._botName||'Hermes';
   const icon=esc(_bn.charAt(0).toUpperCase());
   const label=esc(_bn);
-  // Live thinking indicator during streaming - never show a thinking card here.
-  // The thinking card with content is only rendered by renderMessages() from persisted reasoning.
-  const body=(text&&String(text).trim())
-    ? `<div class="thinking"><div class="thinking-label">${t('thinking')}</div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`
-    : `<div class="thinking"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+  const textStr=String(text||'').trim();
+  // Show a short preview of what the model is thinking so the stream doesn't feel frozen
+  const preview=textStr
+    ? `<span class="thinking-preview">${esc(textStr.slice(0,120))}${textStr.length>120?'…':''}</span>`
+    : '';
+  const body=`<div class="thinking"><div class="thinking-label">${t('thinking')}</div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>${preview}`;
   return `<div class="msg-role assistant"><div class="role-icon assistant">${icon}</div>${label}</div>${body}`;
 }
 // Track the last thinking text to avoid unnecessary DOM updates that reset CSS animation

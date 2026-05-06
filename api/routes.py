@@ -127,6 +127,9 @@ def _check_csrf(handler) -> bool:
     if not origin and not referer:
         return True  # non-browser clients (curl, agent) have no Origin
     target = origin or referer
+    # Allow Tauri desktop app origins (not browser-based, no CSRF attack surface)
+    if target.startswith("tauri://"):
+        return True
     # Extract host:port from origin/referer
     m = _re.match(r"^https?://([^/]+)", target)
     if not m:

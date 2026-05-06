@@ -1,6 +1,7 @@
 /**
  * Terminal panel with xterm.js integration
- * Supports multiple tabs, workspace sync, and right-click context menu
+ * Supports multiple tabs, workspace sync, right-click context menu,
+ * URL link provider, search, connection status, and smart reconnection.
  */
 
 // Terminal state
@@ -20,9 +21,26 @@ const CLOSE_ICON = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" 
 // Terminal add icon
 const ADD_ICON = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`;
 
+// Search icon
+const SEARCH_ICON = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`;
+
 // Generate unique client ID
 function getClientId() {
     return `client_${Date.now()}_${TerminalState.nextClientId++}`;
+}
+
+// Resolve API base URL — never fall back to localhost in production
+function getApiBase() {
+    return window.HERMES_API_BASE || (location.origin + '/');
+}
+
+// Debounce helper
+function debounce(fn, ms) {
+    let t;
+    return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...args), ms);
+    };
 }
 
 // TerminalInstance class
@@ -38,8 +56,13 @@ class TerminalInstance {
         this.tabElement = null;
         this.connected = false;
         this._reconnectAttempts = 0;
-        this._maxReconnects = 5;
-        this._reconnectDelay = 2000;
+        this._maxReconnects = 10;
+        this._reconnectDelay = 1000;
+        this._reconnectTimer = null;
+        this._fitDebounced = debounce(() => this.fit(), 100);
+        this._outputBuffer = []; // buffer output while disconnected
+        this._searchOverlay = null;
+        this._statusTimer = null;
     }
 
     async init(container) {
@@ -52,15 +75,23 @@ class TerminalInstance {
         }
         this.container = container;
 
-        // Create xterm instance
+        // Create xterm instance — optimized for snappiness
         this.xterm = new Terminal({
-            fontFamily: 'Droid Sans Mono, ui-monospace, monospace',
+            fontFamily: 'JetBrains Mono, Droid Sans Mono, ui-monospace, monospace',
             fontSize: 14,
-            cursorBlink: true,
-            cursorStyle: 'block',
-            scrollback: 10000,
+            fontWeight: 'normal',
+            fontWeightBold: 'bold',
+            cursorBlink: false,
+            cursorStyle: 'bar',
+            scrollback: 5000,
             cols: 80,
             rows: 24,
+            allowProposedApi: true,
+            screenReaderMode: false,
+            fastScrollModifier: 'alt',
+            macOptionIsMeta: true,
+            drawBoldTextInBrightColors: false,
+            minimumContrastRatio: 1,
             theme: {
                 background: '#0d0d0d',
                 foreground: '#ffd45f',
@@ -87,7 +118,10 @@ class TerminalInstance {
         this.xterm.open(termContainer);
         console.log('[terminal] xterm opened');
 
-        // Custom terminal hotkeys for copy, paste, select-all, and terminal interrupt.
+        // Register URL link provider
+        this._registerLinkProvider();
+
+        // Custom terminal hotkeys for copy, paste, select-all, search, clear, and terminal interrupt.
         this.xterm.attachCustomKeyEventHandler((e) => {
             const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
             const isCtrl = isMac ? e.metaKey : e.ctrlKey;
@@ -96,31 +130,53 @@ class TerminalInstance {
 
             if (!isCtrl || e.altKey) return true;
 
+            // Ctrl+Shift+A: select all
             if (key === 'a' && isShift) {
                 this.xterm.selectAll();
+                this._setStatus('selected all');
                 e.preventDefault();
                 return false;
             }
 
+            // Ctrl+Shift+F: toggle search
+            if (key === 'f' && isShift) {
+                this.toggleSearch();
+                e.preventDefault();
+                return false;
+            }
+
+            // Ctrl+Shift+K: clear terminal
+            if (key === 'k' && isShift) {
+                this.xterm.clear();
+                this._setStatus('cleared');
+                e.preventDefault();
+                return false;
+            }
+
+            // Ctrl+V: paste
             if (key === 'v' && !isShift) {
                 navigator.clipboard.readText().then(text => {
                     if (text) {
                         this.sendInput(text);
+                        this._setStatus('pasted');
                     }
                 }).catch(() => {});
                 e.preventDefault();
                 return false;
             }
 
+            // Ctrl+C: copy if selection, else pass through
             if (key === 'c') {
                 if (isShift) {
                     this.sendInput('\x03');
+                    this._setStatus('sent SIGINT');
                     e.preventDefault();
                     return false;
                 }
                 const selection = this.xterm.getSelection();
                 if (selection) {
                     navigator.clipboard.writeText(selection).catch(() => {});
+                    this._setStatus('copied');
                     e.preventDefault();
                     return false;
                 }
@@ -134,6 +190,9 @@ class TerminalInstance {
         this.xterm.onData((data) => {
             if (this.connected) {
                 this.sendInput(data);
+            } else {
+                // Queue input while disconnected
+                this._outputBuffer.push({ type: 'input', data });
             }
         });
 
@@ -151,25 +210,81 @@ class TerminalInstance {
         this.connect();
 
         // Handle window resize
-        window.addEventListener('resize', () => {
-            this.fit();
+        window.addEventListener('resize', () => this._fitDebounced());
+    }
+
+    _registerLinkProvider() {
+        if (!this.xterm || typeof this.xterm.registerLinkProvider !== 'function') return;
+        const urlRegex = /(https?:\/\/[^\s"'<>(){}\[\]]+)/g;
+        this.xterm.registerLinkProvider({
+            provideLinks: (y, callback) => {
+                const line = this.xterm.buffer.active.getLine(y);
+                if (!line) return callback(undefined);
+                const text = line.translateToString(true);
+                const links = [];
+                let m;
+                while ((m = urlRegex.exec(text)) !== null) {
+                    links.push({
+                        range: { start: { x: m.index, y }, end: { x: m.index + m[0].length, y } },
+                        text: m[0],
+                        activate: () => window.open(m[0], '_blank')
+                    });
+                }
+                callback(links);
+            }
         });
     }
 
+    _setStatus(msg) {
+        const term = this;
+        if (term.tabElement) {
+            const statusEl = term.tabElement.querySelector('.terminal-tab-status');
+            if (statusEl) {
+                statusEl.textContent = msg;
+                statusEl.style.opacity = '1';
+                clearTimeout(term._statusTimer);
+                term._statusTimer = setTimeout(() => {
+                    statusEl.style.opacity = '0';
+                }, 1200);
+            }
+        }
+    }
+
+    _updateConnectionStatus(status) {
+        if (!this.tabElement) return;
+        const dot = this.tabElement.querySelector('.terminal-status-dot');
+        if (!dot) return;
+        dot.classList.remove('connected', 'connecting', 'disconnected');
+        dot.classList.add(status);
+    }
+
     connect() {
-        const base = window.HERMES_API_BASE || 'http://localhost:8786/';
+        const base = getApiBase();
         const url = new URL('api/terminal/stream', base);
         url.searchParams.set('terminal_id', this.terminalId);
         url.searchParams.set('client_id', this.clientId);
 
+        console.log('[terminal] Connecting SSE to', url.href);
         this.eventSource = new EventSource(url.href, { withCredentials: true });
+        this._updateConnectionStatus('connecting');
+
+        this.eventSource.addEventListener('open', () => {
+            console.log('[terminal] SSE transport open');
+        });
 
         this.eventSource.addEventListener('ready', (e) => {
             const data = JSON.parse(e.data);
             console.log('[terminal] Connected:', data.terminal_id);
             this.connected = true;
             this._reconnectAttempts = 0;
-            this.xterm.writeln(`\r\n\x1b[32mConnected to terminal: ${data.name}\x1b[0m\r\n`);
+            this._updateConnectionStatus('connected');
+            this.xterm.writeln(`\r\n\x1b[38;2;246;176;18m● connected to ${data.name}\x1b[0m\r\n`);
+            // Flush any buffered input
+            const buffered = this._outputBuffer.filter(o => o.type === 'input');
+            this._outputBuffer = [];
+            for (const item of buffered) {
+                this.sendInput(item.data);
+            }
         });
 
         this.eventSource.addEventListener('output', (e) => {
@@ -177,8 +292,9 @@ class TerminalInstance {
             if (data.type === 'output') {
                 this.xterm.write(data.data);
             } else if (data.type === 'exit') {
-                this.xterm.writeln(`\r\n\x1b[31mTerminal exited (code: ${data.code})\x1b[0m`);
+                this.xterm.writeln(`\r\n\x1b[31m● terminal exited (code: ${data.code})\x1b[0m`);
                 this.connected = false;
+                this._updateConnectionStatus('disconnected');
             }
         });
 
@@ -187,21 +303,39 @@ class TerminalInstance {
         });
 
         this.eventSource.addEventListener('error', (e) => {
-            console.error('[terminal] SSE error:', e);
+            // Distinguish between first-connect failure and mid-stream drop
+            const wasConnected = this.connected;
             this.connected = false;
+            this._updateConnectionStatus('disconnected');
+
             if (this.eventSource) {
                 this.eventSource.close();
                 this.eventSource = null;
             }
+
+            // If we were never connected, don't spam reconnection messages in terminal
+            if (wasConnected) {
+                this.xterm.writeln(`\r\n\x1b[33m● connection lost\x1b[0m`);
+            }
+
             this._reconnectAttempts++;
             if (this._reconnectAttempts > this._maxReconnects) {
-                this.xterm.writeln('\r\n\x1b[31mConnection failed after multiple retries. Please close and reopen the terminal.\x1b[0m');
+                this.xterm.writeln('\r\n\x1b[31m● connection failed after multiple retries. close and reopen the terminal.\x1b[0m');
                 return;
             }
-            const delay = Math.min(30000, this._reconnectDelay * Math.pow(1.5, this._reconnectAttempts - 1));
-            this.xterm.writeln(`\r\n\x1b[31mConnection lost. Reconnecting in ${Math.round(delay/1000)}s... (attempt ${this._reconnectAttempts}/${this._maxReconnects})\x1b[0m`);
 
-            setTimeout(() => {
+            // Exponential backoff with jitter
+            const baseDelay = this._reconnectDelay * Math.pow(1.5, this._reconnectAttempts - 1);
+            const jitter = Math.random() * 500;
+            const delay = Math.min(30000, baseDelay + jitter);
+
+            if (wasConnected) {
+                this.xterm.writeln(`\x1b[33m  reconnecting in ${Math.round(delay/1000)}s… (attempt ${this._reconnectAttempts}/${this._maxReconnects})\x1b[0m`);
+            } else {
+                console.log(`[terminal] reconnecting in ${Math.round(delay)}ms (attempt ${this._reconnectAttempts})`);
+            }
+
+            this._reconnectTimer = setTimeout(() => {
                 if (TerminalState.terminals.has(this.terminalId)) {
                     this.connect();
                 }
@@ -213,16 +347,16 @@ class TerminalInstance {
         try {
             const _api = typeof window.api === 'function' ? window.api : null;
             if (_api) {
-                await _api('api/terminal/input', {
+                await _api(`api/terminal/${this.terminalId}/write`, {
                     method: 'POST',
-                    body: JSON.stringify({ terminal_id: this.terminalId, data })
+                    body: JSON.stringify({ data })
                 });
             } else {
-                await fetch(new URL('api/terminal/input', window.HERMES_API_BASE || 'http://localhost:8786/').href, {
+                await fetch(new URL(`api/terminal/${this.terminalId}/write`, getApiBase()).href, {
                     method: 'POST',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ terminal_id: this.terminalId, data })
+                    body: JSON.stringify({ data })
                 });
             }
         } catch (e) {
@@ -234,16 +368,16 @@ class TerminalInstance {
         try {
             const _api = typeof window.api === 'function' ? window.api : null;
             if (_api) {
-                await _api('api/terminal/resize', {
+                await _api(`api/terminal/${this.terminalId}/resize`, {
                     method: 'POST',
-                    body: JSON.stringify({ terminal_id: this.terminalId, cols, rows })
+                    body: JSON.stringify({ cols, rows })
                 });
             } else {
-                await fetch(new URL('api/terminal/resize', window.HERMES_API_BASE || 'http://localhost:8786/').href, {
+                await fetch(new URL(`api/terminal/${this.terminalId}/resize`, getApiBase()).href, {
                     method: 'POST',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ terminal_id: this.terminalId, cols, rows })
+                    body: JSON.stringify({ cols, rows })
                 });
             }
         } catch (e) {
@@ -258,8 +392,14 @@ class TerminalInstance {
         if (!container) return;
 
         // Calculate cols/rows based on container size
-        const charWidth = this.xterm._core._renderService.dimensions.actualCellWidth || 9;
-        const charHeight = this.xterm._core._renderService.dimensions.actualCellHeight || 18;
+        // Use xterm's measured dimensions when available; fallback to sensible defaults
+        let charWidth = 9;
+        let charHeight = 18;
+        try {
+            const dims = this.xterm._core?._renderService?.dimensions;
+            if (dims?.actualCellWidth) charWidth = dims.actualCellWidth;
+            if (dims?.actualCellHeight) charHeight = dims.actualCellHeight;
+        } catch (_) {}
 
         const width = container.clientWidth - 16; // minus padding
         const height = container.clientHeight - 16;
@@ -267,9 +407,99 @@ class TerminalInstance {
         const cols = Math.floor(width / charWidth);
         const rows = Math.floor(height / charHeight);
 
-        if (cols > 0 && rows > 0) {
+        if (cols > 0 && rows > 0 && (cols !== this.xterm.cols || rows !== this.xterm.rows)) {
             this.xterm.resize(cols, rows);
         }
+    }
+
+    toggleSearch() {
+        if (this._searchOverlay && this._searchOverlay.parentNode) {
+            this._searchOverlay.remove();
+            this._searchOverlay = null;
+            this.focus();
+            return;
+        }
+        const overlay = document.createElement('div');
+        overlay.className = 'terminal-search-overlay';
+        overlay.style.cssText = `
+            position: absolute;
+            top: 8px; right: 8px;
+            background: rgba(13,13,13,0.95);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 8px;
+            display: flex; align-items: center; gap: 6px;
+            z-index: 100; font-size: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        `;
+        overlay.innerHTML = `
+            <span style="color:var(--muted);">${SEARCH_ICON}</span>
+            <input type="text" placeholder="search…" style="
+                background:transparent; border:none; color:var(--text);
+                outline:none; font-size:12px; width:140px;
+            ">
+            <span class="ts-count" style="color:var(--muted);font-size:11px;"></span>
+            <button class="ts-close" style="
+                background:none; border:none; color:var(--muted);
+                cursor:pointer; font-size:14px; line-height:1;
+            ">×</button>
+        `;
+        this.container.style.position = 'relative';
+        this.container.appendChild(overlay);
+
+        const input = overlay.querySelector('input');
+        const countEl = overlay.querySelector('.ts-count');
+        const closeBtn = overlay.querySelector('.ts-close');
+
+        let currentMatch = -1;
+        let matches = [];
+
+        const doSearch = () => {
+            const query = input.value;
+            if (!query) {
+                countEl.textContent = '';
+                this.xterm.clearSelection();
+                matches = [];
+                currentMatch = -1;
+                return;
+            }
+            matches = [];
+            const buffer = this.xterm.buffer.active;
+            for (let y = buffer.viewportY; y < buffer.length; y++) {
+                const line = buffer.getLine(y);
+                if (!line) continue;
+                const text = line.translateToString(true);
+                let idx = text.toLowerCase().indexOf(query.toLowerCase());
+                while (idx !== -1) {
+                    matches.push({ x: idx, y, len: query.length });
+                    idx = text.toLowerCase().indexOf(query.toLowerCase(), idx + 1);
+                }
+            }
+            countEl.textContent = matches.length ? `${matches.length}` : '0';
+            currentMatch = matches.length ? 0 : -1;
+            if (currentMatch >= 0) {
+                const m = matches[currentMatch];
+                this.xterm.select(m.x, m.y, m.len);
+            }
+        };
+
+        const nextMatch = () => {
+            if (!matches.length) return;
+            currentMatch = (currentMatch + 1) % matches.length;
+            const m = matches[currentMatch];
+            this.xterm.select(m.x, m.y, m.len);
+            this.xterm.scrollLines(m.y - this.xterm.buffer.active.viewportY);
+        };
+
+        input.addEventListener('input', doSearch);
+        input.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') { ev.preventDefault(); nextMatch(); }
+            if (ev.key === 'Escape') { ev.preventDefault(); this.toggleSearch(); }
+        });
+        closeBtn.addEventListener('click', () => this.toggleSearch());
+        input.focus();
+
+        this._searchOverlay = overlay;
     }
 
     focus() {
@@ -279,6 +509,9 @@ class TerminalInstance {
     }
 
     destroy() {
+        if (this._reconnectTimer) {
+            clearTimeout(this._reconnectTimer);
+        }
         if (this.eventSource) {
             this.eventSource.close();
         }
@@ -293,6 +526,9 @@ class TerminalInstance {
 
 // Initialize terminal panel
 function initTerminalPanel() {
+    if (TerminalState._initialized) return;
+    TerminalState._initialized = true;
+
     console.log('[terminal] initTerminalPanel called');
     const tabsContainer = document.getElementById('terminalTabs');
     const termContainer = document.getElementById('terminalContainer');
@@ -306,7 +542,14 @@ function initTerminalPanel() {
     const panelNewBtn = document.getElementById('btnNewTerminal');
     const panelCloseBtn = document.getElementById('btnCloseTerminal');
     if (panelNewBtn) panelNewBtn.addEventListener('click', () => createNewTerminal());
-    if (panelCloseBtn) panelCloseBtn.addEventListener('click', () => closeActiveTerminal());
+    if (panelCloseBtn) panelCloseBtn.addEventListener('click', () => {
+        // Toggle panel off via switchPanel so button state stays in sync
+        if (typeof switchPanel === 'function') {
+            switchPanel('terminal');
+        } else {
+            closeActiveTerminal();
+        }
+    });
 
     // Load existing terminals
     loadTerminals();
@@ -318,23 +561,30 @@ async function loadTerminals() {
         const _api = typeof window.api === 'function' ? window.api : null;
         let data;
         if (_api) {
-            data = await _api('api/terminals');
+            data = await _api('api/terminal/list');
         } else {
-            const resp = await fetch(new URL('api/terminals', window.HERMES_API_BASE || 'http://localhost:8786/').href, { credentials: 'include' });
+            const resp = await fetch(new URL('api/terminal/list', getApiBase()).href, { credentials: 'include' });
             data = await resp.json();
         }
 
         if (data.terminals && data.terminals.length > 0) {
             for (const term of data.terminals) {
-                await createTerminalTab(term.terminal_id, term.name, term.cwd);
+                // Skip terminals already loaded in this session
+                if (!TerminalState.terminals.has(term.terminal_id)) {
+                    await createTerminalTab(term.terminal_id, term.name, term.cwd);
+                }
             }
         } else {
-            // Create default terminal
-            await createNewTerminal();
+            // Create default terminal only if none exist yet
+            if (TerminalState.terminals.size === 0) {
+                await createNewTerminal();
+            }
         }
     } catch (e) {
         console.error('[terminal] Failed to load terminals:', e);
-        await createNewTerminal();
+        if (TerminalState.terminals.size === 0) {
+            await createNewTerminal();
+        }
     }
 }
 
@@ -377,7 +627,7 @@ async function createNewTerminal() {
                 body: JSON.stringify(payload)
             });
         } else {
-            const resp = await fetch(new URL('api/terminal/create', window.HERMES_API_BASE || 'http://localhost:8786/').href, {
+            const resp = await fetch(new URL('api/terminal/create', getApiBase()).href, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
@@ -424,7 +674,9 @@ function createTabElement(terminalId, name) {
     tab.className = 'terminal-tab';
     tab.id = `terminal-tab-${terminalId}`;
     tab.innerHTML = `
+        <span class="terminal-status-dot connecting" title="connection status"></span>
         <span class="terminal-tab-name">${escapeHtml(name)}</span>
+        <span class="terminal-tab-status"></span>
         <span class="terminal-tab-close">${CLOSE_ICON}</span>
     `;
 
@@ -480,8 +732,12 @@ function activateTerminal(terminalId) {
             term.tabElement.classList.add('active');
         }
         if (term.xterm) {
-            term.focus();
-            console.log('[terminal] xterm focused');
+            // Defer fit one frame so the browser has computed the container size
+            requestAnimationFrame(() => {
+                term.fit();
+                term.focus();
+            });
+            console.log('[terminal] xterm fit + focused');
         }
     }
 
@@ -496,16 +752,14 @@ async function closeTerminal(terminalId) {
     try {
         const _api = typeof window.api === 'function' ? window.api : null;
         if (_api) {
-            await _api('api/terminal/close', {
-                method: 'POST',
-                body: JSON.stringify({ terminal_id: terminalId })
+            await _api(`api/terminal/${terminalId}/close`, {
+                method: 'POST'
             });
         } else {
-            await fetch(new URL('api/terminal/close', window.HERMES_API_BASE || 'http://localhost:8786/').href, {
+            await fetch(new URL(`api/terminal/${terminalId}/close`, getApiBase()).href, {
                 method: 'POST',
                 credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ terminal_id: terminalId })
+                headers: { 'Content-Type': 'application/json' }
             });
         }
     } catch (e) {
@@ -560,7 +814,7 @@ function showTerminalContextMenu(e, terminalId) {
         border-radius: 6px;
         padding: 4px 0;
         z-index: 1000;
-        min-width: 140px;
+        min-width: 160px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     `;
 
@@ -568,6 +822,7 @@ function showTerminalContextMenu(e, terminalId) {
         <div class="terminal-menu-item" data-action="rename">rename</div>
         <div class="terminal-menu-item" data-action="close">close</div>
         <div class="terminal-menu-separator"></div>
+        <div class="terminal-menu-item" data-action="clear">clear</div>
         <div class="terminal-menu-item" data-action="new">new terminal</div>
     `;
 
@@ -580,6 +835,8 @@ function showTerminalContextMenu(e, terminalId) {
             }
         } else if (action === 'close') {
             await closeTerminal(terminalId);
+        } else if (action === 'clear') {
+            if (term.xterm) term.xterm.clear();
         } else if (action === 'new') {
             await createNewTerminal();
         }
@@ -603,16 +860,16 @@ async function renameTerminal(terminalId, name) {
     try {
         const _api = typeof window.api === 'function' ? window.api : null;
         if (_api) {
-            await _api('api/terminal/rename', {
+            await _api(`api/terminal/${terminalId}/rename`, {
                 method: 'POST',
-                body: JSON.stringify({ terminal_id: terminalId, name })
+                body: JSON.stringify({ name })
             });
         } else {
-            await fetch(new URL('api/terminal/rename', window.HERMES_API_BASE || 'http://localhost:8786/').href, {
+            await fetch(new URL(`api/terminal/${terminalId}/rename`, getApiBase()).href, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ terminal_id: terminalId, name })
+                body: JSON.stringify({ name })
             });
         }
 
@@ -663,6 +920,21 @@ function showToast(msg, ms) {
 // Initialize on panel switch
 function onTerminalPanelShow() {
     TerminalState.panelVisible = true;
+    // Defensive: clear any stuck inline styles from old cached code
+    const bottomPanel = document.getElementById('bottomPanel');
+    const panelTerminal = document.getElementById('panelTerminal');
+    if (bottomPanel) {
+        bottomPanel.style.display = '';
+        bottomPanel.style.opacity = '';
+        bottomPanel.style.visibility = '';
+        bottomPanel.style.pointerEvents = '';
+    }
+    if (panelTerminal) {
+        panelTerminal.style.display = '';
+        panelTerminal.style.opacity = '';
+        panelTerminal.style.visibility = '';
+        panelTerminal.style.pointerEvents = '';
+    }
     const term = TerminalState.terminals.get(TerminalState.activeTerminalId);
     if (term) {
         setTimeout(() => {

@@ -13,6 +13,15 @@ async function switchPanel(name) {
         panelTerminal.classList.remove('active');
         if (typeof onTerminalPanelHide === 'function') onTerminalPanelHide();
       } else {
+        // Defensive: clear any stuck inline styles from old cached code
+        bottomPanel.style.display = '';
+        bottomPanel.style.opacity = '';
+        bottomPanel.style.visibility = '';
+        bottomPanel.style.pointerEvents = '';
+        panelTerminal.style.display = '';
+        panelTerminal.style.opacity = '';
+        panelTerminal.style.visibility = '';
+        panelTerminal.style.pointerEvents = '';
         bottomPanel.classList.add('active');
         panelTerminal.classList.add('active');
         if (typeof initTerminalPanel === 'function') initTerminalPanel();
@@ -2448,6 +2457,7 @@ async function loadSettingsPanel(){
       kiloGroup.label='kilo/kilocode';
       const nemotronOpt=document.createElement('option');
       nemotronOpt.value='nvidia/nemotron-3-super-120b-a12b:free'; nemotronOpt.textContent='nemotron';
+    kiloGroup.appendChild(nemotronOpt);
       kiloGroup.appendChild(nemotronOpt);
       modelSel.appendChild(kiloGroup);
       modelSel.value=settings.default_model||'';

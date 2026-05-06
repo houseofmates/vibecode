@@ -1084,6 +1084,9 @@ body.resizing[data-resize-direction='ew']{cursor:col-resize;}
 .skill-linked-section h4{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px;}
 .skill-linked-file{display:block;font-size:12px;padding:3px 6px;border-radius:4px;cursor:pointer;color:var(--blue);text-decoration:none;}
 .skill-linked-file:hover{background:var(--hover-bg);}
+.tool-card-container{margin:0;padding:0;}
+.tool-card-container .tool-card-row{margin:0;padding:1px 0;}
+.tool-card-container .tool-card{margin:2px 0 2px 40px;}
 .tool-card-row{margin:0;padding:1px 0;}
 .tool-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:6px;margin:2px 0 2px 40px;overflow:hidden;transition:border-color .15s;}
 .tool-card:hover{border-color:rgba(255,255,255,.12);}
@@ -1120,7 +1123,7 @@ body.resizing[data-resize-direction='ew']{cursor:col-resize;}
 ::-webkit-scrollbar-thumb{background:#f6b012 !important;border-radius:3px !important;border:none !important}
 ::-webkit-scrollbar-thumb:hover{background:rgba(246,176,18,0.8) !important}
 ::-webkit-scrollbar-corner{background:transparent !important}
-* { scrollbar-width: thin !important; scrollbar-color: #f6b012 transparent !important; }
+
 
 /* ── Settings overlay ── */
 .settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;}

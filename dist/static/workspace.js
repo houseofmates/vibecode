@@ -37,6 +37,8 @@ function _getApiBaseCandidates(isCapacitorApp, isTauri){
   if(isCapacitorApp || isTauri){
     add('http://localhost:8786/');
     add('http://127.0.0.1:8786/');
+    // Fallback to the development server on 192.168.4.233 if local is unavailable
+    add('http://192.168.4.233:8786/');
   }
   // Only use localhost fallbacks in packaged or local-webview contexts.
   if(!isHostedWeb){

@@ -1123,7 +1123,7 @@ body.resizing[data-resize-direction='ew']{cursor:col-resize;}
 ::-webkit-scrollbar-thumb{background:#f6b012 !important;border-radius:3px !important;border:none !important}
 ::-webkit-scrollbar-thumb:hover{background:rgba(246,176,18,0.8) !important}
 ::-webkit-scrollbar-corner{background:transparent !important}
-* { scrollbar-width: thin !important; scrollbar-color: #f6b012 transparent !important; }
+
 
 /* ── Settings overlay ── */
 .settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;}

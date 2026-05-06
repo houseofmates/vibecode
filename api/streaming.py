@@ -1481,8 +1481,7 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                         words = _remaining.split(' ')
                         for i, _word in enumerate(words):
                             put('token', {'text': ' ' + _word if i > 0 else _word})
-                            if i % 10 == 0:  # Only sleep every 10 tokens for better performance
-                                time.sleep(0.005)
+                            # Removed artificial sleep for maximum throughput
 
             # ── Detect silent agent failure (no assistant reply produced) ──
             # When the agent catches an auth/network error internally it may return
@@ -1566,8 +1565,7 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                                     return False
                                 token_text = word if i == 0 else ' ' + word
                                 on_token(token_text)
-                                if i % 10 == 0:  # Reduced sleep frequency for better throughput
-                                    time.sleep(0.005)  # Reduced sleep duration
+                                # Removed artificial sleep for maximum throughput
                             s.messages = fallback_messages
                             result = fallback_result
                             agent = fallback_agent
@@ -1672,9 +1670,7 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                                 # Add space back except for first word
                                 token_text = word if i == 0 else ' ' + word
                                 on_token(token_text)
-                                # Small delay to make it feel like streaming (optional, can be 0)
-                                if i % 5 == 0:
-                                    time.sleep(0.01)
+                                # Removed artificial delay for natural flow control
 
                             # Update session with fallback result
                             s.messages = fallback_messages
