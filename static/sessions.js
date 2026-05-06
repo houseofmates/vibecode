@@ -947,19 +947,24 @@ async function deleteSession(sid){
 
 // ── Delete all cron sessions ─────────────────────────────────────────────
 
-async function deleteAllCronSessions(){
-  // Patterns that identify cron-related sessions
+function _isCronSession(s){
   const cronPatterns = ['cron_', 'session_cron', 'sessions_cron'];
+  const sid = (s.session_id || '').toLowerCase();
+  const title = (s.title || '').toLowerCase();
+  const sourceTag = (s.source_tag || '').toLowerCase();
+  if (cronPatterns.some(p => sid.startsWith(p.toLowerCase()))) return true;
+  if (title.startsWith('cron')) return true;
+  if (sourceTag === 'cron') return true;
+  return false;
+}
 
+async function deleteAllCronSessions(){
   // Get all sessions
   const data = await api('/api/sessions' + (_showSwarmSessions ? '?show_swarm=true' : ''));
   const allSessions = data.sessions || [];
 
-  // Filter sessions that start with cron patterns
-  const cronSessions = allSessions.filter(s => {
-    const sid = s.session_id || '';
-    return cronPatterns.some(pattern => sid.toLowerCase().startsWith(pattern.toLowerCase()));
-  });
+  // Filter cron-related sessions (by id prefix, title prefix, or source tag)
+  const cronSessions = allSessions.filter(_isCronSession);
 
   if (cronSessions.length === 0) {
     showToast('no cron sessions found');
@@ -988,7 +993,7 @@ async function deleteAllCronSessions(){
   }
 
   // If current session was a cron session, clear it
-  if (S.session && cronPatterns.some(p => S.session.session_id.toLowerCase().startsWith(p.toLowerCase()))) {
+  if (S.session && _isCronSession(S.session)) {
     S.session = null;
     S.messages = [];
     S.entries = [];
