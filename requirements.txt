@@ -17,4 +17,4 @@ python-json-logger>=2.0.7
 
 # Development / testing (optional)
 # pytest>=7.0.0
-# playwright>=1.40.0
+playwright>=1.40.0

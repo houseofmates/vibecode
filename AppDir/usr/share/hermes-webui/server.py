@@ -8,8 +8,20 @@ import socket
 import sys
 import time
 import traceback
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
+
+# Set up JSON logging for the root logger
+from python_json_logger import JsonFormatter
+
+logHandler = logging.StreamHandler(sys.stdout)
+formatter = JsonFormatter('%(timestamp)s %(level)s %(name)s %(message)s')
+logHandler.setFormatter(formatter)
+# Clear any existing handlers and set our own
+logging.root.handlers.clear()
+logging.root.addHandler(logHandler)
+logging.root.setLevel(logging.INFO)
 
 logger = logging.getLogger(__name__)
 
@@ -155,17 +167,69 @@ def main() -> None:
     SESSION_DIR.mkdir(parents=True, exist_ok=True)
     DEFAULT_WORKSPACE.mkdir(parents=True, exist_ok=True)
 
-    # Warm up session cache for instant page loads
-    _warmup_session_cache()
+     # Warm up session cache for instant page loads
+     _warmup_session_cache()
 
-    # Start the gateway session watcher for real-time SSE updates
-    try:
-        from api.gateway_watcher import start_watcher
-        start_watcher()
-    except Exception as e:
-        print(f'[!!] WARNING: Gateway watcher failed to start: {e}', flush=True)
+     # Start the gateway session watcher for real-time SSE updates
+     try:
+         from api.gateway_watcher import start_watcher
+         start_watcher()
+     except Exception as e:
+         print(f'[!!] WARNING: Gateway watcher failed to start: {e}', flush=True)
 
-    httpd = QuietHTTPServer((HOST, PORT), Handler)
+      # Start background cron session cleanup (every hour)
+      def cleanup_cron_sessions():
+          """Background cleanup of cron sessions only"""
+          import time
+          from api.config import SESSION_DIR, LOCK
+          from api.models import Session
+          
+          while True:
+              try:
+                  time.sleep(3600)  # Run every hour
+                  
+                  cleaned = 0
+                  for p in SESSION_DIR.glob("*.json"):
+                      # Only clean sessions that start with cron or _cron
+                      if not (p.stem.startswith('cron') or p.stem.startswith('_cron')):
+                          continue
+                          
+                      try:
+                          s = Session.load(p.stem)
+                          if not s:
+                              continue
+                              
+                          # Always delete cron/_cron sessions regardless of content
+                          with LOCK:
+                              SESSIONS.pop(p.stem, None)
+                          p.unlink(missing_ok=True)
+                          cleaned += 1
+                      except Exception:
+                          # Skip problematic files
+                          continue
+                          
+                  # Rebuild index to remove cleaned sessions
+                  try:
+                      from api.models import _rebuild_session_index
+                      _rebuild_session_index()
+                  except Exception:
+                      pass
+                      
+                  if cleaned > 0:
+                      logger.info(f"Cleaned up {cleaned} cron/_cron sessions")
+                      print(f'[ok] Cleaned up {cleaned} cron/_cron sessions', flush=True)
+                      
+              except Exception as e:
+                  logger.error(f"Error in cron session cleanup: {e}")
+                  # Continue the loop even if there's an error
+                  continue
+
+      # Start cleanup thread as daemon so it doesn't block shutdown
+      cleanup_thread = threading.Thread(target=cleanup_cron_sessions, daemon=True)
+      cleanup_thread.start()
+      logger.info("Started cron session cleanup background thread")
+
+     httpd = QuietHTTPServer((HOST, PORT), Handler)
 
     # ── TLS/HTTPS setup (optional) ─────────────────────────────────────────
     from api.config import TLS_ENABLED, TLS_CERT, TLS_KEY
