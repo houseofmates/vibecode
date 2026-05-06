@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var pw = input.value;
     hideErr();
     try {
-      var res = await fetch('api/auth/login', {
+      var res = await fetch((window.HERMES_API_BASE || location.origin + '/') + 'api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: pw }),

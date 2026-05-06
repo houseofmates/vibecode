@@ -1,6 +1,6 @@
 [Desktop Entry]
-Name=VibeCode Desktop
-Comment=VibeCode Desktop App - Connects to remote instance
+Name=vibecode Desktop
+Comment=vibecode Desktop App - Connects to remote instance
 Exec=/home/house/apps/vibecode-desktop.sh
 Icon=vibecode
 Terminal=false

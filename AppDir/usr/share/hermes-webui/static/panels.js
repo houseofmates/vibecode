@@ -2,6 +2,37 @@ let _currentPanel = 'chat';
 let _skillsData = null; // cached skills list
 
 async function switchPanel(name) {
+  // Terminal now lives in a bottom panel, not the sidebar
+  if (name === 'terminal') {
+    const bottomPanel = $('bottomPanel');
+    const panelTerminal = $('panelTerminal');
+    if (bottomPanel && panelTerminal) {
+      const isActive = bottomPanel.classList.contains('active');
+      if (isActive) {
+        bottomPanel.classList.remove('active');
+        panelTerminal.classList.remove('active');
+        if (typeof onTerminalPanelHide === 'function') onTerminalPanelHide();
+      } else {
+        // Defensive: clear any stuck inline styles from old cached code
+        bottomPanel.style.display = '';
+        bottomPanel.style.opacity = '';
+        bottomPanel.style.visibility = '';
+        bottomPanel.style.pointerEvents = '';
+        panelTerminal.style.display = '';
+        panelTerminal.style.opacity = '';
+        panelTerminal.style.visibility = '';
+        panelTerminal.style.pointerEvents = '';
+        bottomPanel.classList.add('active');
+        panelTerminal.classList.add('active');
+        if (typeof initTerminalPanel === 'function') initTerminalPanel();
+        if (typeof onTerminalPanelShow === 'function') onTerminalPanelShow();
+      }
+    }
+    const tt = $('btnTerminalPanelToggle');
+    if (tt) tt.classList.toggle('active', bottomPanel?.classList.contains('active'));
+    return;
+  }
+
   _currentPanel = name;
   // Update nav tabs
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.panel === name));
@@ -9,74 +40,112 @@ async function switchPanel(name) {
   document.querySelectorAll('.panel-view').forEach(p => p.classList.remove('active'));
   const panelEl = $('panel' + name.charAt(0).toUpperCase() + name.slice(1));
   if (panelEl) panelEl.classList.add('active');
+  // Hide bottom panel when switching to a non-terminal sidebar panel
+  const bottomPanel = $('bottomPanel');
+  if (bottomPanel) {
+    bottomPanel.classList.remove('active');
+    const panelTerminal = $('panelTerminal');
+    if (panelTerminal) panelTerminal.classList.remove('active');
+    if (typeof onTerminalPanelHide === 'function') onTerminalPanelHide();
+  }
+  const tt = $('btnTerminalPanelToggle');
+  if (tt) tt.classList.remove('active');
+  // Refresh sessions whenever the chat panel becomes active.
+  if (name === 'chat') {
+    if (typeof renderSessionList === 'function') {
+      await renderSessionList();
+    } else if (typeof renderSessionListFromCache === 'function') {
+      renderSessionListFromCache();
+    }
+  }
   // Lazy-load panel data
   if (name === 'tasks') await loadCrons();
   if (name === 'skills') await loadSkills();
   if (name === 'memory') await loadMemory();
   if (name === 'workspaces') await loadWorkspacesPanel();
-  if (name === 'profiles') await loadProfilesPanel();
   if (name === 'todos') loadTodos();
 }
 
 // ── Cron panel ──
+let _cronsCache = null;
+
 async function loadCrons() {
   const box = $('cronList');
+  // Show cached crons instantly while fetching fresh data
+  if (!_cronsCache) {
+    let cached = null;
+    try { cached = localStorage.getItem('hermes-crons-cache'); } catch (e) {}
+    if (cached) {
+      try {
+        _cronsCache = JSON.parse(cached);
+        _renderCrons(_cronsCache);
+      } catch (e) { /* ignore parse errors */ }
+    }
+  }
   try {
     const data = await api('/api/crons');
-    if (!data.jobs || !data.jobs.length) {
-      box.innerHTML = `<div style="padding:16px;color:var(--muted);font-size:12px">${esc(t('cron_no_jobs'))}</div>`;
-      return;
-    }
-    box.innerHTML = '';
-    for (const job of data.jobs) {
-      const item = document.createElement('div');
-      item.className = 'cron-item';
-      item.id = 'cron-' + job.id;
-      const statusClass = job.enabled === false ? 'disabled' : job.state === 'paused' ? 'paused' : job.last_status === 'error' ? 'error' : 'active';
-      const statusLabel = job.enabled === false ? t('cron_status_off') : job.state === 'paused' ? t('cron_status_paused') : job.last_status === 'error' ? t('cron_status_error') : t('cron_status_active');
-      const nextRun = job.next_run_at ? new Date(job.next_run_at).toLocaleString() : t('not_available');
-      const lastRun = job.last_run_at ? new Date(job.last_run_at).toLocaleString() : t('never');
-      item.innerHTML = `
-        <div class="cron-header" onclick="toggleCron('${job.id}')">
-          <span class="cron-name" title="${esc(job.name)}">${esc(job.name)}</span>
-          <span class="cron-status ${statusClass}">${statusLabel}</span>
-        </div>
-        <div class="cron-body" id="cron-body-${job.id}">
-          <div class="cron-schedule">${li('clock',12)} ${esc(job.schedule_display || job.schedule?.expression || '')} &nbsp;|&nbsp; ${esc(t('cron_next'))}: ${esc(nextRun)} &nbsp;|&nbsp; ${esc(t('cron_last'))}: ${esc(lastRun)}</div>
-          <div class="cron-prompt">${esc((job.prompt||'').slice(0,300))}${(job.prompt||'').length>300?'…':''}</div>
-          <div class="cron-actions">
-            <button class="cron-btn run" onclick="cronRun('${job.id}')">${li('play',12)} ${esc(t('cron_run_now'))}</button>
-            ${job.state==='paused'
-              ? `<button class="cron-btn" onclick="cronResume('${job.id}')">${li('play',12)} ${esc(t('cron_resume'))}</button>`
-              : `<button class="cron-btn pause" onclick="cronPause('${job.id}')">${li('pause',12)} ${esc(t('cron_pause'))}</button>`}
-            <button class="cron-btn" onclick="cronEditOpen('${job.id}',${JSON.stringify(job).replace(/"/g,'&quot;')})">${li('pencil',12)} ${esc(t('edit'))}</button>
-            <button class="cron-btn" style="border-color:rgba(201,168,76,.3);color:var(--accent)" onclick="cronDelete('${job.id}')">${li('trash-2',12)} ${esc(t('delete_title'))}</button>
-          </div>
-          <!-- Inline edit form, hidden by default -->
-          <div id="cron-edit-${job.id}" style="display:none;margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
-            <input id="cron-edit-name-${job.id}" placeholder="${esc(t('cron_job_name_placeholder'))}" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:5px;box-sizing:border-box">
-            <input id="cron-edit-schedule-${job.id}" placeholder="${esc(t('cron_schedule_placeholder'))}" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:5px;box-sizing:border-box">
-            <textarea id="cron-edit-prompt-${job.id}" rows="3" placeholder="${esc(t('cron_prompt_placeholder'))}" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;resize:none;font-family:inherit;margin-bottom:5px;box-sizing:border-box"></textarea>
-            <div id="cron-edit-err-${job.id}" style="font-size:11px;color:var(--accent);display:none;margin-bottom:5px"></div>
-            <div style="display:flex;gap:6px">
-              <button class="cron-btn run" style="flex:1" onclick="cronEditSave('${job.id}')">${esc(t('save'))}</button>
-              <button class="cron-btn" style="flex:1" onclick="cronEditClose('${job.id}')">${esc(t('cancel'))}</button>
-            </div>
-          </div>
-          <div id="cron-output-${job.id}">
-            <div class="cron-last-header" style="display:flex;align-items:center;justify-content:space-between">
-              <span>${esc(t('cron_last_output'))}</span>
-              <button class="cron-btn" style="padding:1px 8px;font-size:10px" onclick="loadCronHistory('${job.id}',this)">${esc(t('cron_all_runs'))}</button>
-            </div>
-            <div class="cron-last" id="cron-out-text-${job.id}" style="color:var(--muted);font-size:11px">${esc(t('loading'))}</div>
-            <div id="cron-history-${job.id}" style="display:none"></div>
-          </div>
-        </div>`;
-      box.appendChild(item);
-      // Eagerly load last output for visible items
-      loadCronOutput(job.id);
-    }
+    _cronsCache = data;
+    // Cache for instant load next time
+    try { localStorage.setItem('hermes-crons-cache', JSON.stringify(data)); } catch (e) {}
+    _renderCrons(data);
   } catch(e) { box.innerHTML = `<div style="padding:12px;color:var(--accent);font-size:12px">${esc(t('error_prefix'))}${esc(e.message)}</div>`; }
+}
+
+function _renderCrons(data) {
+  const box = $('cronList');
+  if (!data.jobs || !data.jobs.length) {
+    box.innerHTML = `<div style="padding:16px;color:var(--muted);font-size:12px">${esc(t('cron_no_jobs'))}</div>`;
+    return;
+  }
+  box.innerHTML = '';
+  for (const job of data.jobs) {
+    const item = document.createElement('div');
+    item.className = 'cron-item';
+    item.id = 'cron-' + job.id;
+    const statusClass = job.enabled === false ? 'disabled' : job.state === 'paused' ? 'paused' : job.last_status === 'error' ? 'error' : 'active';
+    const statusLabel = job.enabled === false ? t('cron_status_off') : job.state === 'paused' ? t('cron_status_paused') : job.last_status === 'error' ? t('cron_status_error') : t('cron_status_active');
+    const nextRun = job.next_run_at ? new Date(job.next_run_at).toLocaleString() : t('not_available');
+    const lastRun = job.last_run_at ? new Date(job.last_run_at).toLocaleString() : t('never');
+    item.innerHTML = `
+      <div class="cron-header" onclick="toggleCron('${job.id}')">
+        <span class="cron-name" title="${esc(job.name)}">${esc(job.name)}</span>
+        <span class="cron-status ${statusClass}">${statusLabel}</span>
+      </div>
+      <div class="cron-body" id="cron-body-${job.id}">
+        <div class="cron-schedule">${li('clock',12)} ${esc(job.schedule_display || job.schedule?.expression || '')} &nbsp;|&nbsp; ${esc(t('cron_next'))}: ${esc(nextRun)} &nbsp;|&nbsp; ${esc(t('cron_last'))}: ${esc(lastRun)}</div>
+        <div class="cron-prompt">${esc((job.prompt||'').slice(0,300))}${(job.prompt||'').length>300?'…':''}</div>
+        <div class="cron-actions">
+          <button class="cron-btn run" onclick="cronRun('${job.id}')">${li('play',12)} ${esc(t('cron_run_now'))}</button>
+          ${job.state==='paused'
+            ? `<button class="cron-btn" onclick="cronResume('${job.id}')">${li('play',12)} ${esc(t('cron_resume'))}</button>`
+            : `<button class="cron-btn pause" onclick="cronPause('${job.id}')">${li('pause',12)} ${esc(t('cron_pause'))}</button>`}
+          <button class="cron-btn" onclick="cronEditOpen('${job.id}',${JSON.stringify(job).replace(/"/g,'&quot;')})">${li('pencil',12)} ${esc(t('edit'))}</button>
+          <button class="cron-btn" style="border-color:rgba(201,168,76,.3);color:var(--accent)" onclick="cronDelete('${job.id}')">${li('trash-2',12)} ${esc(t('delete_title'))}</button>
+        </div>
+        <!-- Inline edit form, hidden by default -->
+        <div id="cron-edit-${job.id}" style="display:none;margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+          <input id="cron-edit-name-${job.id}" placeholder="${esc(t('cron_job_name_placeholder'))}" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:5px;box-sizing:border-box">
+          <input id="cron-edit-schedule-${job.id}" placeholder="${esc(t('cron_schedule_placeholder'))}" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:5px;box-sizing:border-box">
+          <textarea id="cron-edit-prompt-${job.id}" rows="3" placeholder="${esc(t('cron_prompt_placeholder'))}" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;resize:none;font-family:inherit;margin-bottom:5px;box-sizing:border-box"></textarea>
+          <div id="cron-edit-err-${job.id}" style="font-size:11px;color:var(--accent);display:none;margin-bottom:5px"></div>
+          <div style="display:flex;gap:6px">
+            <button class="cron-btn run" style="flex:1" onclick="cronEditSave('${job.id}')">${esc(t('save'))}</button>
+            <button class="cron-btn" style="flex:1" onclick="cronEditClose('${job.id}')">${esc(t('cancel'))}</button>
+          </div>
+        </div>
+        <div id="cron-output-${job.id}">
+          <div class="cron-last-header" style="display:flex;align-items:center;justify-content:space-between">
+            <span>${esc(t('cron_last_output'))}</span>
+            <button class="cron-btn" style="padding:1px 8px;font-size:10px" onclick="loadCronHistory('${job.id}',this)">${esc(t('cron_all_runs'))}</button>
+          </div>
+          <div class="cron-last" id="cron-out-text-${job.id}" style="color:var(--muted);font-size:11px">${esc(t('loading'))}</div>
+          <div id="cron-history-${job.id}" style="display:none"></div>
+        </div>
+      </div>`;
+    box.appendChild(item);
+    // Eagerly load last output for visible items
+    loadCronOutput(job.id);
+  }
 }
 
 let _cronSelectedSkills=[];
@@ -356,13 +425,26 @@ async function clearConversation() {
 
 // ── Skills panel ──
 async function loadSkills() {
-  if (_skillsData) { renderSkills(_skillsData); return; }
   const box = $('skillsList');
+  // Show cached skills instantly while fetching fresh data
+  if (!_skillsData) {
+    let cached = null;
+    try { cached = localStorage.getItem('hermes-skills-cache'); } catch (e) {}
+    if (cached) {
+      try {
+        _skillsData = JSON.parse(cached);
+        renderSkills(_skillsData);
+      } catch (e) { /* ignore parse errors */ }
+    }
+  }
+  if (_skillsData) { renderSkills(_skillsData); }
   try {
     const data = await api('/api/skills');
     _skillsData = data.skills || [];
+    // Cache for instant load next time
+    try { localStorage.setItem('hermes-skills-cache', JSON.stringify(_skillsData)); } catch (e) {}
     renderSkills(_skillsData);
-  } catch(e) { box.innerHTML = `<div style="padding:12px;color:var(--accent);font-size:12px">Error: ${esc(e.message)}</div>`; }
+  } catch(e) { if (!box.innerHTML || box.innerHTML.includes('loading')) box.innerHTML = `<div style="padding:12px;color:var(--accent);font-size:12px">Error: ${esc(e.message)}</div>`; }
 }
 
 function renderSkills(skills) {
@@ -503,8 +585,24 @@ function showSkillContextMenu(e, skillName, el) {
   // Create context menu
   const menu = document.createElement('div');
   menu.className = 'skill-context-menu';
-  menu.style.left = e.clientX + 'px';
-  menu.style.top = e.clientY + 'px';
+  
+  // Estimate menu height (~110px for 3 items with divider)
+  const menuHeight = 110;
+  const menuWidth = 140;
+  
+  // Adjust position to stay within viewport
+  let x = e.clientX;
+  let y = e.clientY;
+  
+  if (y + menuHeight > window.innerHeight) {
+    y = Math.max(10, y - menuHeight);
+  }
+  if (x + menuWidth > window.innerWidth) {
+    x = Math.max(10, x - menuWidth);
+  }
+  
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
   
   menu.innerHTML = `
     <div class="skill-context-item" onclick="openSkillEditor('${esc(skillName)}', document.querySelector('.skill-item[data-skill-name=\\'${esc(skillName)}\\']'))">
@@ -632,13 +730,25 @@ function syncWorkspaceDisplays(){
   }
 }
 
+let _workspaceListCache = null;
+
 async function loadWorkspaceList(){
+  // Clear cache to ensure fresh data
+  _workspaceListCache = null;
+  localStorage.removeItem('hermes-workspaces-cache');
   try{
     const data = await api('/api/workspaces');
     _workspaceList = data.workspaces || [];
+    _workspaceListCache = data.workspaces || [];
+    // Cache for instant load next time
+    try { localStorage.setItem('hermes-workspaces-cache', JSON.stringify(_workspaceListCache)); } catch (e) {}
     syncWorkspaceDisplays();
     return data;
-  }catch(e){ return {workspaces:[], last:''}; }
+  }catch(e){
+    // Return cached data on error if available
+    if (_workspaceListCache) return {workspaces: _workspaceListCache, last:''};
+    return {workspaces:[], last:''};
+  }
 }
 
 function _renderWorkspaceAction(label, meta, iconSvg, onClick){
@@ -691,35 +801,96 @@ function _positionComposerWsDropdown(){
   // // console.log('[Workspace] Final position:', {bottom, left, ddHeight: dd.offsetHeight});
 }
 
-function _positionProfileDropdown(){
-  const dd=$('profileDropdown');
-  const chip=$('profileChip');
-  const footer=document.querySelector('.composer-footer');
-  if(!dd||!chip||!footer)return;
-  const chipRect=chip.getBoundingClientRect();
-  const footerRect=footer.getBoundingClientRect();
-  let left=chipRect.left-footerRect.left;
-  const maxLeft=Math.max(0, footer.clientWidth-dd.offsetWidth);
-  left=Math.max(0, Math.min(left, maxLeft));
-  dd.style.left=`${left}px`;
-}
-
 function renderWorkspaceDropdownInto(dd, workspaces, currentWs){
   if(!dd)return;
   dd.innerHTML='';
+
+  // Add default /home/house workspaces for each machine at the top
+  const machineDefaults = [
+    { name: 'ubuntu', path: '/home/house', _machine: 'ubuntu' },
+    { name: 'pop! os', path: '/home/house', _machine: 'popos' }
+  ];
+
+  for (const m of machineDefaults) {
+    const opt = document.createElement('div');
+    // Include machine in active check to distinguish between same path on different machines
+    const isActive = m.path === currentWs && S.session && S.session.machine_id === m._machine;
+    opt.className = 'ws-opt' + (isActive ? ' active' : '');
+    opt.style.pointerEvents = 'auto';
+    opt.style.cursor = 'pointer';
+    // Directory name as main text, computer name colored in subtext
+    const dirName = m.path.split('/').filter(Boolean).pop() || m.path;
+    const machineColor = m._machine === 'ubuntu' ? '#3b82f6' : '#f4ae11';
+    const machineLabel = m._machine === 'ubuntu' ? 'ubuntu' : "pop! os";
+    opt.innerHTML = `<span class="ws-opt-name">${esc(dirName)}</span><span class="ws-opt-path" style="color:${machineColor}">${esc(machineLabel)}</span>`;
+    opt.addEventListener('click', async function(e){
+      console.log('[Workspace] Machine default clicked:', m.path, m.name, m._machine);
+      e.stopPropagation();
+      console.log('[Workspace] Calling switchToWorkspace with machine:', m._machine);
+      await window.switchToWorkspace(m.path, m.name, m._machine);
+      console.log('[Workspace] switchToWorkspace completed, closing dropdown...');
+      closeWsDropdown();
+    });
+    dd.appendChild(opt);
+  }
+
+  // Add separator after machine defaults
+  const machineDiv = document.createElement('div');
+  machineDiv.className = 'ws-divider';
+  dd.appendChild(machineDiv);
+
+  // Add remote paths from localStorage (paths added to each machine)
+  const remotePaths = _getRemotePaths();
+  for (const computer of REMOTE_COMPUTERS) {
+    const computerPaths = remotePaths[computer.id] || [];
+    for (const p of computerPaths) {
+      // Skip paths that are already the machine home
+      if (p === computer.home) continue;
+      const opt = document.createElement('div');
+      opt.className = 'ws-opt' + (p === currentWs ? ' active' : '');
+      opt.style.pointerEvents = 'auto';
+      opt.style.cursor = 'pointer';
+      const pathName = p.split('/').filter(Boolean).pop() || p;
+      // Color: blue for ubuntu, yellow for pop! os
+      const machineColor = computer.id === 'ubuntu' ? '#3b82f6' : '#f4ae11';
+      const machineLabel = computer.id === 'ubuntu' ? 'ubuntu' : "pop! os";
+      opt.innerHTML = `<span class="ws-opt-name">${esc(pathName)}</span><span class="ws-opt-path" style="color:${machineColor}">${esc(machineLabel)}</span>`;
+      opt.addEventListener('click', async function(e){
+        e.stopPropagation();
+        await window.switchToWorkspace(p, computer.name, computer.id);
+        closeWsDropdown();
+      });
+      dd.appendChild(opt);
+    }
+  }
+
+  // Add another separator if there are remote paths
+  const hasRemotePaths = REMOTE_COMPUTERS.some(c => (remotePaths[c.id] || []).length > 0);
+  if (hasRemotePaths) {
+    const remoteDiv = document.createElement('div');
+    remoteDiv.className = 'ws-divider';
+    dd.appendChild(remoteDiv);
+  }
+
+  // Add existing workspaces (excluding /home/house since it's shown as machine default)
   for(const w of workspaces){
+    if (w.path === '/home/house') continue;
+
     const opt=document.createElement('div');
     opt.className='ws-opt'+(w.path===currentWs?' active':'');
     opt.style.pointerEvents='auto';
     opt.style.cursor='pointer';
-    const machineLabel = w._machine ? `<span class="ws-opt-machine">${w._machine}</span>` : '';
-    opt.innerHTML=`<span class="ws-opt-name">${esc(w.name)}</span>${machineLabel}<span class="ws-opt-path">${esc(w.path)}</span>`;
-    opt.addEventListener('click', function(e){
+    // Directory name as main text, computer name colored in subtext
+    const machineColor = w._machine === 'ubuntu' ? '#3b82f6' : (w._machine === 'popos' ? '#f4ae11' : 'var(--muted)');
+    const machineLabel = w._machine === 'ubuntu' ? 'ubuntu' : (w._machine === 'popos' ? "pop! os" : w._machine);
+    const subtext = w._machine ? `<span class="ws-opt-path" style="color:${machineColor}">${esc(machineLabel)}</span>` : `<span class="ws-opt-path">${esc(w.path)}</span>`;
+    opt.innerHTML=`<span class="ws-opt-name">${esc(w.name)}</span>${subtext}`;
+    opt.addEventListener('click', async function(e){
       console.log('[Workspace] Option clicked:', w.path, w.name);
       e.stopPropagation();
       console.log('[Workspace] Calling switchToWorkspace...');
-      window.switchToWorkspace(w.path, w.name, w._machine);
-      console.log('[Workspace] Calling closeWsDropdown...');
+      await window.switchToWorkspace(w.path, w.name, w._machine);
+      console.log('[Workspace] switchToWorkspace completed, closing dropdown...');
       closeWsDropdown();
     });
     dd.appendChild(opt);
@@ -735,7 +906,7 @@ function renderWorkspaceDropdownInto(dd, workspaces, currentWs){
   dd.appendChild(_renderWorkspaceAction(
     t('workspace_manage'),
     t('workspace_manage_meta'),
-    li('cog',12),
+    GEAR_ICON_SVG,
     ()=>{closeWsDropdown();mobileSwitchPanel('workspaces');}
   ));
 }
@@ -802,8 +973,19 @@ window.addEventListener('resize',()=>{
 
 async function loadWorkspacesPanel(){
   const panel=$('workspacesPanel');
-  if(!panel)return;
+  console.log('[loadWorkspacesPanel] Panel element:', panel);
+  if(!panel){
+    console.error('[loadWorkspacesPanel] Panel element not found!');
+    return;
+  }
+  // Clear cache to ensure fresh data
+  try { localStorage.removeItem('hermes-workspaces-cache'); } catch (e) {}
+  // Sync remote paths from server so Tauri/browser share paths
+  await _syncRemotePathsFromServer();
+  console.log('[loadWorkspacesPanel] Loading workspace list...');
   const data=await loadWorkspaceList();
+  console.log('[loadWorkspacesPanel] Data received:', data);
+  console.log('[loadWorkspacesPanel] Workspaces count:', data.workspaces ? data.workspaces.length : 0);
   renderWorkspacesPanel(data.workspaces);
 }
 
@@ -813,24 +995,75 @@ const REMOTE_COMPUTERS=[
   {id:'popos',name:'pop! os home',color:'rgba(244,174,17,0.08)',border:'rgba(244,174,17,0.3)',ip:'192.168.4.233',home:'/home/house'},
 ];
 
+// Gear icon SVG (matches the profile dropdown "manage profiles" icon)
+const GEAR_ICON_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+
 function _getRemotePaths(){
   try{
     const raw=localStorage.getItem('hermes-remote-paths');
-    return raw?JSON.parse(raw):{ubuntu:[],popos:[]};
-  }catch(e){return {ubuntu:[],popos:[]};}
+    return raw?JSON.parse(raw):{};
+  }catch(e){return {};}
 }
 
-function _saveRemotePaths(data){
+async function _syncRemotePathsFromServer(){
+  try{
+    let localPaths=_getRemotePaths();
+    // Pull from server first (server is source of truth)
+    const data=await api('/api/remote_paths');
+    const serverPaths=data.paths||{};
+    let merged=false;
+    for(const key of ['ubuntu','popos',...Object.keys(serverPaths)]){
+      const serverList=serverPaths[key]||[];
+      const localList=localPaths[key]||[];
+      const combined=[...new Set([...localList,...serverList])];
+      if(JSON.stringify(combined)!==JSON.stringify(localPaths[key]||[])){
+        localPaths[key]=combined;
+        merged=true;
+      }
+    }
+    if(merged || Object.keys(localPaths).length===0){
+      _saveRemotePaths(localPaths,false);
+    }
+    // Push merged data back so other clients stay in sync
+    try{
+      await api('/api/remote_paths',{method:'POST',body:JSON.stringify({paths:localPaths})});
+    }catch(e){
+      console.warn('[remote_paths] Failed to push merged paths to server:',e);
+    }
+  }catch(e){
+    console.warn('[remote_paths] Failed to sync from server:',e);
+  }
+}
+
+function _seedRemotePathsIfEmpty(){
+  // Try to sync from server on startup so Tauri/browser share paths
+  _syncRemotePathsFromServer();
+}
+
+function _saveRemotePaths(data, syncToServer=true){
   try{
     localStorage.setItem('hermes-remote-paths',JSON.stringify(data));
   }catch(e){}
+  if(syncToServer){
+    api('/api/remote_paths',{method:'POST',body:JSON.stringify({paths:data})}).catch(e=>{
+      console.warn('[remote_paths] Failed to sync to server:',e);
+    });
+  }
+}
+
+function _normalizePath(path){
+  if(!path) return '';
+  return path.trim().replace(/\/$/,'');
 }
 
 function _addRemotePath(computerId,path){
   const data=_getRemotePaths();
   if(!data[computerId]) data[computerId]=[];
-  if(!data[computerId].includes(path)){
-    data[computerId].push(path);
+  const normalized=_normalizePath(path);
+  if(!normalized) return;
+  const existing=data[computerId].map(_normalizePath);
+  if(!existing.includes(normalized)){
+    data[computerId].push(normalized);
     _saveRemotePaths(data);
   }
 }
@@ -838,7 +1071,8 @@ function _addRemotePath(computerId,path){
 function _removeRemotePath(computerId,path){
   const data=_getRemotePaths();
   if(!data[computerId]) return;
-  data[computerId]=data[computerId].filter(p=>p!==path);
+  const normalized=_normalizePath(path);
+  data[computerId]=data[computerId].filter(p=>_normalizePath(p)!==normalized);
   _saveRemotePaths(data);
 }
 
@@ -852,12 +1086,17 @@ function _showRemotePathModal(computerId){
     cancelLabel:'Cancel',
     placeholder:'/path/to/workspace',
     value:''
-  }).then((path)=>{
+  }).then(async (path)=>{
     if(!path||!path.trim()) return;
     path=path.trim();
-    _addRemotePath(computerId,path);
-    loadWorkspacesPanel();
-    showToast('Path added for '+computer.name);
+    try{
+      const data=await api('/api/workspaces/add',{method:'POST',body:JSON.stringify({path})});
+      _workspaceList=data.workspaces;
+      _addRemotePath(computerId,path);
+      loadWorkspacesPanel();
+    }catch(e){
+      setStatus('Failed to add: '+e.message);
+    }
   });
 }
 
@@ -870,8 +1109,24 @@ function _showRemotePathContextMenu(event,computerId,path){
   const menu=document.createElement('div');
   menu.className='machine-context-menu';
   menu.style.cssText='position:fixed;background:#0a0a0a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.6);z-index:1000;min-width:160px;overflow:hidden;';
-  menu.style.left=event.clientX+'px';
-  menu.style.top=event.clientY+'px';
+  
+  // Estimate menu height (2 items ~70px)
+  const menuHeight = 70;
+  const menuWidth = 160;
+  
+  // Adjust position to stay within viewport
+  let x = event.clientX;
+  let y = event.clientY;
+  
+  if (y + menuHeight > window.innerHeight) {
+    y = Math.max(10, y - menuHeight);
+  }
+  if (x + menuWidth > window.innerWidth) {
+    x = Math.max(10, x - menuWidth);
+  }
+  
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
 
   // Rename option
   const renameOpt=document.createElement('div');
@@ -894,7 +1149,6 @@ function _showRemotePathContextMenu(event,computerId,path){
     _removeRemotePath(computerId,path);
     loadWorkspacesPanel();
     document.body.removeChild(menu);
-    showToast('Path removed');
   };
 
   menu.appendChild(renameOpt);
@@ -923,7 +1177,6 @@ function _showRenamePathModal(computerId,oldPath){
     _removeRemotePath(computerId,oldPath);
     _addRemotePath(computerId,newPath);
     loadWorkspacesPanel();
-    showToast('path renamed');
   });
 }
 
@@ -973,7 +1226,6 @@ async function _removeLocalWorkspace(path){
     const data=await api('/api/workspaces/remove',{method:'POST',body:JSON.stringify({path})});
     _workspaceList=data.workspaces;
     renderWorkspacesPanel(data.workspaces);
-    showToast(t('workspace_removed'));
   }catch(e){setStatus(t('remove_failed')+e.message);}
 }
 
@@ -986,10 +1238,14 @@ function _renderComputerCard(computer){
   card.style.cssText='margin-bottom:12px;border:1px solid '+computer.border+';border-radius:12px;background:'+computer.color+';overflow:hidden;';
   
   const header=document.createElement('div');
-  header.style.cssText='padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;';
+  header.style.cssText='padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;transition:background .12s;border-radius:12px 12px 0 0;';
+  header.onmouseenter=()=>header.style.background='rgba(255,255,255,.04)';
+  header.onmouseleave=()=>header.style.background='transparent';
+  header.title='Click to open ' + computer.home + ' on ' + computer.name;
   header.onclick=(e)=>{
     if(e.button===2) return;
-    switchToWorkspace(computer.home,computer.name+' (remote)');
+    console.log('[CardHeader] Clicked:', computer.home, 'machine:', computer.id);
+    switchToWorkspace(computer.home, computer.name+' (remote)', computer.id);
   };
   header.oncontextmenu=(e)=>{
     e.preventDefault();
@@ -1002,7 +1258,7 @@ function _renderComputerCard(computer){
 
     const addOpt=document.createElement('div');
     addOpt.style.cssText='padding:8px 14px;font-size:12px;color:var(--text);cursor:pointer;transition:background .12s;text-transform:lowercase;background:transparent;';
-    addOpt.textContent='add path';
+    addOpt.textContent='add';
     addOpt.onmouseover=()=>addOpt.style.background='rgba(255,255,255,.05)';
     addOpt.onmouseout=()=>addOpt.style.background='transparent';
     addOpt.onclick=()=>{
@@ -1038,10 +1294,20 @@ function _renderComputerCard(computer){
     for(const p of computerPaths){
       const pathCard=document.createElement('div');
       pathCard.style.cssText='padding:8px 10px;margin-top:6px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;';
-      pathCard.onclick=(e)=>{
+      pathCard.onclick=async (e)=>{
         if(e.button===2) return;
         e.stopPropagation();
-        switchToWorkspace(p,computer.name);
+        console.log('[PathCard] Clicked:', p, 'machine:', computer.id);
+        // Ensure path is in backend workspace list before switching (skip local validation for remote paths)
+        try{
+          await api('/api/workspaces/add',{method:'POST',body:JSON.stringify({path:p,skip_validation:true})});
+        }catch(e){
+          // If already in list, that's fine - proceed with switch
+          if(!e.message.includes('already in list')){
+            console.warn('[PathCard] Failed to add path to backend:', e);
+          }
+        }
+        await switchToWorkspace(p, computer.name, computer.id);
       };
       pathCard.oncontextmenu=(e)=>_showRemotePathContextMenu(e,computer.id,p);
 
@@ -1049,12 +1315,39 @@ function _renderComputerCard(computer){
       pathText.style.cssText='font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;';
       pathText.textContent=p;
 
+      // Inline delete button for discoverability
+      const delBtn=document.createElement('button');
+      delBtn.type='button';
+      delBtn.innerHTML='&times;';
+      delBtn.style.cssText='width:20px;height:20px;border-radius:4px;border:none;background:transparent;color:var(--muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .1s,color .1s,background .1s;';
+      delBtn.title='remove path';
+      delBtn.onclick=(e)=>{
+        e.stopPropagation();
+        _removeRemotePath(computer.id,p);
+        loadWorkspacesPanel();
+      };
+      delBtn.onmouseover=()=>{delBtn.style.color='#f87171';delBtn.style.background='rgba(248,113,113,.1)';};
+      delBtn.onmouseout=()=>{delBtn.style.color='var(--muted)';delBtn.style.background='transparent';};
+      pathCard.onmouseenter=()=>delBtn.style.opacity='1';
+      pathCard.onmouseleave=()=>delBtn.style.opacity='0';
+
       pathCard.appendChild(pathText);
+      pathCard.appendChild(delBtn);
       body.appendChild(pathCard);
     }
     
     card.appendChild(body);
   }
+  
+  // Add path button at bottom for discoverability
+  const addBtn=document.createElement('button');
+  addBtn.type='button';
+  addBtn.textContent='+ add path';
+  addBtn.style.cssText='margin:8px 14px 12px 14px;padding:6px 10px;font-size:11px;color:var(--muted);background:transparent;border:1px dashed var(--border);border-radius:6px;cursor:pointer;transition:all .12s;text-transform:lowercase;width:calc(100% - 28px);';
+  addBtn.onmouseover=()=>{addBtn.style.color='var(--text)';addBtn.style.borderColor='rgba(255,255,255,0.2)';};
+  addBtn.onmouseout=()=>{addBtn.style.color='var(--muted)';addBtn.style.borderColor='var(--border)';};
+  addBtn.onclick=()=>_showRemotePathModal(computer.id);
+  card.appendChild(addBtn);
   
   return card;
 }
@@ -1062,43 +1355,52 @@ function _renderComputerCard(computer){
 function renderWorkspacesPanel(workspaces){
   const panel=$('workspacesPanel');
   panel.innerHTML='';
-  
-  // Render remote computer cards first
+  const currentWs = S.session ? S.session.workspace : '';
+
+  // Merge local workspaces into remote paths so everything shows in machine cards
+  if(workspaces && workspaces.length){
+    const remotePaths=_getRemotePaths();
+    let changed=false;
+    for(const w of workspaces){
+      // Add local workspace paths to the 'popos' card (local machine)
+      // Deduplicate against existing remote paths
+      if(!remotePaths['popos']) remotePaths['popos']=[];
+      const norm=_normalizePath(w.path);
+      if(norm && !remotePaths['popos'].map(_normalizePath).includes(norm)){
+        remotePaths['popos'].push(norm);
+        changed=true;
+      }
+    }
+    if(changed){
+      _saveRemotePaths(remotePaths,false);
+    }
+  }
+
+  // Render remote computer cards
   for(const computer of REMOTE_COMPUTERS){
     panel.appendChild(_renderComputerCard(computer));
   }
-  
-  // Add separator if there are both remote cards and local workspaces
-  if(workspaces&&workspaces.length>0){
-    const sep=document.createElement('div');
-    sep.style.cssText='font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--muted);padding:8px 0 6px;margin-bottom:6px;text-transform:lowercase;';
-    sep.textContent='local workspaces';
-    panel.appendChild(sep);
-  }
-  
-  for(const w of workspaces){
-    const opt=document.createElement('div');
-    opt.className='ws-opt'+(w.path===currentWs?' active':'');
-    opt.style.pointerEvents='auto';
-    opt.style.cursor='pointer';
-    const machineLabel = w._machine ? `<span class="ws-opt-machine">${w._machine}</span>` : '';
-    opt.innerHTML=`<span class="ws-opt-name">${esc(w.name)}</span>${machineLabel}<span class="ws-opt-path">${esc(w.path)}</span>`;
-    // Use inline onclick for reliability
-    opt.onclick = function(e){
-      e.stopPropagation();
-      window.switchToWorkspace(w.path, w.name, w._machine);
-    };
-    panel.appendChild(opt);
-  }
+
+  // Add path input row (adds to local machine card)
   const addRow=document.createElement('div');addRow.className='ws-add-row';
+  addRow.style.marginTop='8px';
   addRow.innerHTML=`
     <input id="wsAddInput" placeholder="${esc(t('workspace_add_path_placeholder'))}" style="flex:1;background:rgba(255,255,255,.06);border:1px solid var(--border2);border-radius:7px;color:var(--text);padding:7px 10px;font-size:12px;outline:none;">
-    <button class="ws-action-btn" onclick="addWorkspace()">${li('plus',12)} ${esc(t('add'))}</button>`;
+    <button class="ws-action-btn" onclick="addRemoteWorkspacePath()">${li('plus',12)} ${esc(t('add'))}</button>`;
   panel.appendChild(addRow);
   const hint=document.createElement('div');
   hint.style.cssText='font-size:11px;color:var(--muted);padding:4px 0 8px';
   hint.textContent=t('workspace_paths_validated_hint');
   panel.appendChild(hint);
+}
+
+function addRemoteWorkspacePath(){
+  const input=$('wsAddInput');
+  const path=(input?input.value:'').trim();
+  if(!path) return;
+  _addRemotePath('popos',path);
+  loadWorkspacesPanel();
+  if(input) input.value='';
 }
 
 async function addWorkspace(){
@@ -1110,7 +1412,6 @@ async function addWorkspace(){
     _workspaceList=data.workspaces;
     renderWorkspacesPanel(data.workspaces);
     if(input)input.value='';
-    showToast(t('workspace_added'));
   }catch(e){setStatus(t('add_failed')+e.message);}
 }
 
@@ -1120,7 +1421,6 @@ async function removeWorkspace(path){
     const data=await api('/api/workspaces/remove',{method:'POST',body:JSON.stringify({path})});
     _workspaceList=data.workspaces;
     renderWorkspacesPanel(data.workspaces);
-    showToast(t('workspace_removed'));
   }catch(e){setStatus(t('remove_failed')+e.message);}
 }
 
@@ -1143,42 +1443,63 @@ async function promptWorkspacePath(){
     await switchToWorkspace(target.path,target.name);
   }catch(e){
     if(String(e.message||'').includes('Workspace already in list')){
-      showToast(t('workspace_already_saved'));
       return;
     }
-    showToast(t('workspace_switch_failed')+e.message);
+    setStatus(t('workspace_switch_failed')+e.message);
   }
 }
 
 window.switchToWorkspace = async function switchToWorkspace(path,name,machineId){
   console.log('[WS] === START ===', path, name, machineId);
   console.log('[WS] S.session before:', S.session);
-  
-  if(!S.session){
-    console.log('[WS] No session - creating new one for:', path);
-    showToast('Creating session for workspace...');
+
+  if (S.busy) {
+    if (typeof showToast === 'function') showToast(t('workspace_busy_switch'));
+    return;
+  }
+
+  const sessionInProgress = S.session && Array.isArray(S.messages) && S.messages.length > 0;
+  const machines = typeof getMachines === 'function' ? getMachines() : [];
+  const machine = machineId ? machines.find(function(m){ return m.id === machineId; }) : null;
+  const machineHostname = machine ? machine.hostname : null;
+  const machinePayload = machine ? {machine_id: machineId, machine_hostname: machineHostname} : {};
+
+  if(!S.session || sessionInProgress){
+    if (sessionInProgress) {
+      console.log('[WS] Existing session has messages; creating a fresh session for workspace switch');
+    } else {
+      console.log('[WS] No session - creating new one for:', path);
+    }
+
     try{
       const model = ($('modelSelect') && $('modelSelect').value) || 'openai/gpt-4o';
-      console.log('[WS] Creating session with model:', model, 'workspace:', path);
-      const data = await api('/api/session/new',{method:'POST',body:JSON.stringify({
+      console.log('[WS] Creating session with model:', model, 'workspace:', path, 'machineId:', machineId);
+      console.log('[WS] getMachines available?:', typeof getMachines === 'function');
+      console.log('[WS] Machines:', machines);
+      const requestBody = {
         model: model,
-        workspace: path
-      })});
+        workspace: path,
+        ...machinePayload
+      };
+      console.log('[WS] Request body:', JSON.stringify(requestBody));
+      const data = await api('/api/session/new',{method:'POST',body:JSON.stringify(requestBody)});
       console.log('[WS] Session API response:', JSON.stringify(data));
-      
+
       // Handle both {session: {...}} and direct {...} formats
       S.session = data.session || data;
       console.log('[WS] S.session set to:', S.session);
-      
+      console.log('[WS] S.session.machine_id:', S.session.machine_id);
+      console.log('[WS] S.session.machine_hostname:', S.session.machine_hostname);
+
       // Save to localStorage
       if(S.session && S.session.session_id){
         localStorage.setItem('hermes-webui-session', S.session.session_id);
         console.log('[WS] Saved session_id to localStorage');
       }
-      
+
       syncTopbar();
       syncWorkspaceDisplays();
-      
+
       // Open workspace panel using the proper function
       if(typeof openWorkspacePanel==='function'){
         openWorkspacePanel('browse');
@@ -1190,36 +1511,37 @@ window.switchToWorkspace = async function switchToWorkspace(path,name,machineId)
         if(rp) rp.style.display='';
         if(typeof syncWorkspacePanelState==='function') syncWorkspacePanelState();
       }
-      
+
       await loadDir('.');
-      showToast('Switched to ' + (name || path));
       if(typeof closeWsDropdown==='function') closeWsDropdown();
       return;
     }catch(e){
       console.error('[WS] Session creation FAILED:', e);
+      if(typeof showToast === 'function') showToast(t('workspace_switch_failed') + e.message, 4000);
       return;
     }
   }
   
   try{
     console.log('[WS] Existing session - updating workspace to:', path);
-    S.busy = false;
     if(typeof closeWsDropdown==='function') closeWsDropdown();
     
     console.log('[WS] Calling API to update session...');
-    var r=await api('/api/session/update',{method:'POST',body:JSON.stringify({
-      session_id: S.session.session_id, 
-      workspace: path, 
-      model: S.session.model
-    })});
+    var requestBody = {
+      session_id: S.session.session_id,
+      workspace: path,
+      model: S.session.model,
+      ...machinePayload
+    };
+    console.log('[WS] Request body:', JSON.stringify(requestBody));
+    var r=await api('/api/session/update',{method:'POST',body:JSON.stringify(requestBody)});
     console.log('[WS] API response:', r);
-    
+
     console.log('[WS] Updating S.session.workspace to:', path);
     S.session.workspace = path;
-    if(machineId) {
+    if (machine) {
       S.session.machine_id = machineId;
-      var machine = (typeof getMachines === 'function' ? getMachines() : []).find(function(m){ return m.id === machineId; });
-      S.session.machine_hostname = machine ? machine.hostname : '192.168.4.250';
+      S.session.machine_hostname = machineHostname;
     }
     
     syncTopbar();
@@ -1238,11 +1560,15 @@ window.switchToWorkspace = async function switchToWorkspace(path,name,machineId)
       if(typeof syncWorkspacePanelState==='function') syncWorkspacePanelState();
     }
     
+    // Clear directory cache to force fresh load from potentially different machine
+    S._dirCache = {};
+    localStorage.removeItem('hermes-dircache:' + S.session.session_id + ':.');
+    
     await loadDir('.');
-    showToast('Switched to ' + (name || path));
     console.log('[WS] === SUCCESS ===');
   }catch(e){
     console.error('[WS] Workspace update FAILED:', e);
+    if(typeof showToast === 'function') showToast(t('workspace_switch_failed') + e.message, 4000);
   }
 }
 
@@ -1252,15 +1578,41 @@ let _profilesCache = null;
 async function loadProfilesPanel() {
   const panel = $('profilesPanel');
   if (!panel) return;
+  // Show cached profiles instantly while fetching fresh data
+  if (!_profilesCache) {
+    let cached = null;
+    try { cached = localStorage.getItem('hermes-profiles-cache'); } catch (e) {}
+    if (cached) {
+      try {
+        _profilesCache = JSON.parse(cached);
+        _renderProfiles(_profilesCache);
+      } catch (e) { /* ignore parse errors */ }
+    }
+  }
   try {
     const data = await api('/api/profiles');
+    console.log('[profiles] API response:', data);
     _profilesCache = data;
-    panel.innerHTML = '';
-    if (!data.profiles || !data.profiles.length) {
-      panel.innerHTML = `<div style="padding:16px;color:var(--muted);font-size:12px">${esc(t('profiles_no_profiles'))}</div>`;
-      return;
-    }
-    for (const p of data.profiles) {
+    // Cache for instant load next time
+    try { localStorage.setItem('hermes-profiles-cache', JSON.stringify(data)); } catch (e) {}
+    _renderProfiles(data);
+  } catch (e) {
+    console.error('[profiles] API error:', e);
+    if (!panel.innerHTML || panel.innerHTML.includes('loading')) panel.innerHTML = `<div style="color:var(--accent);font-size:12px;padding:12px">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+function _renderProfiles(data) {
+  const panel = $('profilesPanel');
+  if (!panel) return;
+  panel.innerHTML = '';
+  console.log('[profiles] Rendering profiles:', data);
+  if (!data || !data.profiles || !data.profiles.length) {
+    panel.innerHTML = `<div style="padding:16px;color:var(--muted);font-size:12px">${esc(t('profiles_no_profiles'))}</div>`;
+    return;
+  }
+  for (const p of data.profiles) {
+    try {
       const card = document.createElement('div');
       card.className = 'profile-card';
       const meta = [];
@@ -1273,6 +1625,9 @@ async function loadProfilesPanel() {
         : `<span class="profile-opt-badge stopped" title="${esc(t('profile_gateway_stopped'))}"></span>`;
       const isActive = p.name === data.active;
       const activeBadge = isActive ? `<span style="color:var(--link);font-size:10px;font-weight:600;margin-left:6px">${esc(t('profile_active'))}</span>` : '';
+      const deleteBtn = !p.is_default
+        ? `<button class="ws-action-btn danger" onclick="deleteProfile('${esc(p.name)}')" title="${esc(t('profile_delete_title'))}">${li('x',12)}</button>`
+        : '';
       card.innerHTML = `
         <div class="profile-card-header">
           <div style="min-width:0;flex:1">
@@ -1281,23 +1636,38 @@ async function loadProfilesPanel() {
           </div>
           <div class="profile-card-actions">
             ${!isActive ? `<button class="ws-action-btn" onclick="switchToProfile('${esc(p.name)}')" title="${esc(t('profile_switch_title'))}">${esc(t('profile_use'))}</button>` : ''}
-            ${!p.is_default ? `<button class="ws-action-btn danger" onclick="deleteProfile('${esc(p.name)}')" title="${esc(t('profile_delete_title'))}">${li('x',12)}</button>` : ''}
+            ${deleteBtn}
           </div>
         </div>`;
       panel.appendChild(card);
+    } catch (cardErr) {
+      console.error('[profiles] Failed to render profile card:', p, cardErr);
     }
-  } catch (e) {
-    panel.innerHTML = `<div style="color:var(--accent);font-size:12px;padding:12px">Error: ${esc(e.message)}</div>`;
   }
+}
+
+function _positionProfileDropdown(){
+  const dd=$('profileDropdown');
+  const chip=$('profileChip');
+  if(!dd||!chip) return;
+  const chipRect=chip.getBoundingClientRect();
+  const ddHeight=dd.offsetHeight || 240;
+  const bottom = window.innerHeight - chipRect.top + 8;
+  const left = Math.max(8, Math.min(chipRect.left, window.innerWidth - dd.offsetWidth - 8));
+  dd.style.left = `${left}px`;
+  dd.style.top = `${chipRect.bottom + 6}px`;
 }
 
 function renderProfileDropdown(data) {
   const dd = $('profileDropdown');
   if (!dd) return;
   dd.innerHTML = '';
-  const profiles = data.profiles || [];
-  const active = data.active || 'default';
-  for (const p of profiles) {
+  const active = data.active || '';
+  if (!data.profiles || !data.profiles.length) {
+    dd.innerHTML = `<div style="padding:16px;color:var(--muted);font-size:12px">${esc(t('profiles_no_profiles'))}</div>`;
+    return;
+  }
+  for (const p of data.profiles) {
     const opt = document.createElement('div');
     opt.className = 'profile-opt' + (p.name === active ? ' active' : '');
     const meta = [];
@@ -1306,7 +1676,7 @@ function renderProfileDropdown(data) {
     const gwDot = `<span class="profile-opt-badge ${p.gateway_running ? 'running' : 'stopped'}"></span>`;
     const checkmark = p.name === active ? ' <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--link)" stroke-width="3" style="vertical-align:-1px"><polyline points="20 6 9 17 4 12"/></svg>' : '';
     opt.innerHTML = `<div class="profile-opt-name">${gwDot}${esc(p.name)}${p.is_default ? ' <span style="opacity:.5;font-weight:400">(default)</span>' : ''}${checkmark}</div>` +
-      (meta.length ? `<div class="profile-opt-meta">${esc(meta.join(' \u00b7 '))}</div>` : '');
+      (meta.length ? `<div class="profile-opt-meta">${esc(meta.join(' · '))}</div>` : '');
     opt.onclick = async () => {
       closeProfileDropdown();
       if (p.name === active) return;
@@ -1314,10 +1684,9 @@ function renderProfileDropdown(data) {
     };
     dd.appendChild(opt);
   }
-  // Divider + Manage link
   const div = document.createElement('div'); div.className = 'ws-divider'; dd.appendChild(div);
   const mgmt = document.createElement('div'); mgmt.className = 'profile-opt ws-manage';
-  mgmt.innerHTML = `${li('settings',12)} ${esc(t('manage_profiles'))}`;
+  mgmt.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> ${esc(t('manage_profiles'))}`;
   mgmt.onclick = () => { closeProfileDropdown(); mobileSwitchPanel('profiles'); };
   dd.appendChild(mgmt);
 }
@@ -1343,6 +1712,7 @@ function closeProfileDropdown() {
   const chip=$('profileChip');
   if(chip) chip.classList.remove('active');
 }
+
 document.addEventListener('click', e => {
   if (!e.target.closest('#profileChipWrap') && !e.target.closest('#profileDropdown')) closeProfileDropdown();
 });
@@ -1430,7 +1800,6 @@ async function switchToProfile(name) {
     if (_currentPanel === 'skills') await loadSkills();
     if (_currentPanel === 'memory') await loadMemory();
     if (_currentPanel === 'tasks') await loadCrons();
-    if (_currentPanel === 'profiles') await loadProfilesPanel();
     if (_currentPanel === 'workspaces') await loadWorkspacesPanel();
 
   } catch (e) { showToast(t('switch_failed') + e.message); }
@@ -1575,19 +1944,45 @@ const WikiMemoryBrowser = (function() {
     $('wmbContent').style.display = 'none';
     $('wmbEmpty').style.display = 'none';
 
+    // Show cached data instantly while fetching fresh data
+    const cacheKey = state.view === 'wiki' ? 'hermes-wiki-cache' : 'hermes-memories-cache';
+    let cached = null;
+    try { cached = localStorage.getItem(cacheKey); } catch (e) {}
+    if (cached && state.items.length === 0) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (state.view === 'wiki') {
+          state.items = (parsed.pages || parsed || []).map(p => ({...p, type: 'wiki'}));
+        } else {
+          state.items = (parsed.memories || parsed || []).map(m => ({...m, type: 'memory', title: m.content?.slice(0, 50) || 'Memory ' + m.id}));
+        }
+        filterItems();
+        $('wmbLoading').style.display = 'none';
+        $('wmbContent').style.display = state.filtered.length ? '' : 'none';
+        $('wmbEmpty').style.display = state.filtered.length ? 'none' : '';
+      } catch (e) { /* ignore parse errors */ }
+    }
+
     try {
       if (state.view === 'wiki') {
         const res = await api('/api/wiki/pages');
         state.items = (res.pages || []).map(p => ({...p, type: 'wiki'}));
+        // Cache for instant load next time
+        try { localStorage.setItem('hermes-wiki-cache', JSON.stringify(res.pages || [])); } catch (e) {}
       } else {
         const res = await api('/api/memory/list');
         state.items = (res.memories || []).map(m => ({...m, type: 'memory', title: m.content?.slice(0, 50) || 'Memory ' + m.id}));
+        // Cache for instant load next time
+        try { localStorage.setItem('hermes-memories-cache', JSON.stringify(res.memories || [])); } catch (e) {}
       }
       filterItems();
     } catch (e) {
       console.error('Failed to load wiki/memory:', e);
-      state.items = [];
-      filterItems();
+      // Keep cached data if fetch fails
+      if (state.items.length === 0) {
+        state.items = [];
+        filterItems();
+      }
     }
 
     state.loading = false;
@@ -1691,18 +2086,19 @@ const WikiMemoryBrowser = (function() {
     menu.style.left = x + 'px';
     menu.style.top = y + 'px';
 
+    const isWiki = type === 'wiki';
     menu.innerHTML = `
-      <div class="wmb-context-item" onclick="WikiMemoryBrowser.openItem('${type}', '${id}')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        view
-      </div>
       <div class="wmb-context-item" onclick="WikiMemoryBrowser.editItem('${type}', '${id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         edit
       </div>
+      ${isWiki ? `<div class="wmb-context-item" onclick="WikiMemoryBrowser.renameItem('${type}', '${id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        rename
+      </div>` : ''}
       <div class="wmb-context-divider"></div>
       <div class="wmb-context-item" onclick="WikiMemoryBrowser.copyLink('${type}', '${id}')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
         copy link
       </div>
     `;
@@ -1718,9 +2114,10 @@ const WikiMemoryBrowser = (function() {
   async function openWikiPage(slug) {
     try {
       const res = await api(`/api/wiki/pages/${encodeURIComponent(slug)}`);
-      if (res.ok && res.page) {
-        state.currentPage = res.page;
-        showWikiModal(res.page, false);
+      const page = res.page || (res.slug ? res : null);
+      if (page) {
+        state.currentPage = page;
+        showWikiModal(page, false);
       }
     } catch (e) {
       console.error('Failed to load wiki page:', e);
@@ -1731,9 +2128,10 @@ const WikiMemoryBrowser = (function() {
     if (type === 'wiki') {
       try {
         const res = await api(`/api/wiki/pages/${encodeURIComponent(id)}`);
-        if (res.ok && res.page) {
-          state.currentPage = res.page;
-          showWikiModal(res.page, true);
+        const page = res.page || (res.slug ? res : null);
+        if (page) {
+          state.currentPage = page;
+          showWikiModal(page, true);
         }
       } catch (e) {
         console.error('Failed to load wiki page for edit:', e);
@@ -1822,6 +2220,37 @@ const WikiMemoryBrowser = (function() {
     navigator.clipboard.writeText(link).then(() => showToast('Link copied'));
   }
 
+  async function renameItem(type, id) {
+    if (type !== 'wiki') return;
+
+    const page = state.items.find(p => p.slug === id);
+    if (!page) return;
+
+    const newTitle = prompt('Rename wiki page:', page.title || page.slug);
+    if (!newTitle || newTitle === page.title) return;
+
+    try {
+      const res = await api('/api/wiki/update', {
+        method: 'POST',
+        body: JSON.stringify({
+          slug: id,
+          title: newTitle,
+          category: page.category,
+          content: page.content
+        })
+      });
+      if (res.ok) {
+        showToast('Page renamed');
+        refresh();
+      } else {
+        showToast('Failed to rename: ' + (res.error || 'Unknown error'));
+      }
+    } catch (e) {
+      console.error('Failed to rename wiki page:', e);
+      showToast('Failed to rename page');
+    }
+  }
+
   return {
     init,
     switchView,
@@ -1830,7 +2259,8 @@ const WikiMemoryBrowser = (function() {
     editItem,
     openItem,
     saveWikiPage,
-    copyLink
+    copyLink,
+    renameItem
   };
 })();
 
@@ -1915,7 +2345,8 @@ function toggleSettings(){
   if(!overlay) return;
   if(overlay.style.display==='none'){
     _settingsDirty = false;
-    _settingsThemeOnOpen = localStorage.getItem('hermes-theme') || document.documentElement.dataset.theme || 'dark';
+    try { _settingsThemeOnOpen = localStorage.getItem('hermes-theme'); } catch (e) {}
+    _settingsThemeOnOpen = _settingsThemeOnOpen || document.documentElement.dataset.theme || 'dark';
     _settingsSection = 'conversation';
     overlay.style.display='';
     loadSettingsPanel();
@@ -1991,8 +2422,8 @@ async function loadSettingsPanel(){
   try{
     const settings=await api('/api/settings');
     const resolvedLanguage=(typeof resolvePreferredLocale==='function')
-      ? resolvePreferredLocale(settings.language, localStorage.getItem('hermes-lang'))
-      : (settings.language || localStorage.getItem('hermes-lang') || 'en');
+      ? resolvePreferredLocale(settings.language, (()=>{ try{ return localStorage.getItem('hermes-lang'); }catch(e){ return null; } })())
+      : (settings.language || (()=>{ try{ return localStorage.getItem('hermes-lang'); }catch(e){ return null; } })() || 'en');
     // Keep settings modal and current page strings in sync with the resolved locale.
     if(typeof setLocale==='function'){
       setLocale(resolvedLanguage);
@@ -2005,14 +2436,20 @@ async function loadSettingsPanel(){
       // nvidia NIM group
       const nimGroup=document.createElement('optgroup');
       nimGroup.label='nvidia NIM';
+      const deepseekOpt=document.createElement('option');
+      deepseekOpt.value='@nvidia:deepseek-ai/deepseek-v4-pro'; deepseekOpt.textContent='deepseek';
+      nimGroup.appendChild(deepseekOpt);
       const kimiOpt=document.createElement('option');
-      kimiOpt.value='moonshotai/kimi-k2.5'; kimiOpt.textContent='kimi';
+      kimiOpt.value='@nvidia:moonshotai/kimi-k2.6'; kimiOpt.textContent='kimi';
       nimGroup.appendChild(kimiOpt);
+      const mistralOpt=document.createElement('option');
+      mistralOpt.value='@nvidia:mistralai/mistral-medium-3.5-128b'; mistralOpt.textContent='mistral';
+      nimGroup.appendChild(mistralOpt);
       const glmOpt=document.createElement('option');
-      glmOpt.value='z-ai/glm-5.1'; glmOpt.textContent='glm';
+      glmOpt.value='@zai:glm-5.1'; glmOpt.textContent='glm';
       nimGroup.appendChild(glmOpt);
       const minimaxOpt=document.createElement('option');
-      minimaxOpt.value='minimaxai/minimax-m2.7'; minimaxOpt.textContent='minimax';
+      minimaxOpt.value='@minimax:MiniMax-M2.7'; minimaxOpt.textContent='minimax';
       nimGroup.appendChild(minimaxOpt);
       modelSel.appendChild(nimGroup);
       // kilo/kilocode group
@@ -2020,6 +2457,7 @@ async function loadSettingsPanel(){
       kiloGroup.label='kilo/kilocode';
       const nemotronOpt=document.createElement('option');
       nemotronOpt.value='nvidia/nemotron-3-super-120b-a12b:free'; nemotronOpt.textContent='nemotron';
+    kiloGroup.appendChild(nemotronOpt);
       kiloGroup.appendChild(nemotronOpt);
       modelSel.appendChild(kiloGroup);
       modelSel.value=settings.default_model||'';
@@ -2194,7 +2632,8 @@ const API_KEYS_STORAGE_KEY = 'hermes_nvidia_api_keys';
 // Load API keys from localStorage
 function loadApiKeys(){
   try {
-    const stored = localStorage.getItem(API_KEYS_STORAGE_KEY);
+    let stored = null;
+    try { stored = localStorage.getItem(API_KEYS_STORAGE_KEY); } catch (e) {}
     _apiKeys = stored ? JSON.parse(stored) : [];
   } catch (e) {
     _apiKeys = [];
@@ -2213,34 +2652,52 @@ function saveApiKeys(){
 }
 
 // Add a new API key
-function addApiKey(){
+async function addApiKey(){
   const input = $('apiKeyInput');
-  if (!input) return;
+  const providerSelect = $('apiKeyProvider');
+  if (!input || !providerSelect) return;
   
   const key = input.value.trim();
+  const provider = providerSelect.value;
+  
   if (!key) {
     showToast('Please enter an API key');
     return;
   }
   
-  // Basic validation - NVIDIA keys are typically nvapi- prefix
-  if (!key.startsWith('nvapi-') && !key.startsWith('sk-')) {
+  // Basic validation based on provider
+  if (provider === 'nvidia' && !key.startsWith('nvapi-') && !key.startsWith('sk-')) {
     showToast('Warning: Key format doesn\'t match expected NVIDIA format (nvapi-...)');
   }
   
-  _apiKeys.push({
-    id: Date.now().toString(),
-    key: key,
-    added: new Date().toISOString()
-  });
-  
-  saveApiKeys();
-  renderApiKeysList();
-  
-  input.value = '';
-  input.focus();
-  
-  showToast(`API key added (${_apiKeys.length} total)`);
+  try {
+    // Send to server to save in config
+    const response = await api('/api/apikeys', {
+      method: 'POST',
+      body: JSON.stringify({ key, provider })
+    });
+    
+    if (response.ok) {
+      // Also save to localStorage for nvidia keys (for rotation UI)
+      if (provider === 'nvidia') {
+        _apiKeys.push({
+          id: Date.now().toString(),
+          key: key,
+          added: new Date().toISOString()
+        });
+        saveApiKeys();
+        renderApiKeysList();
+      }
+      
+      input.value = '';
+      input.focus();
+      showToast(`API key added for ${provider}`);
+    } else {
+      showToast('Failed to add API key: ' + (response.error || 'Unknown error'));
+    }
+  } catch (e) {
+    showToast('Failed to add API key: ' + e.message);
+  }
 }
 
 // Delete an API key
@@ -2391,7 +2848,8 @@ function getCurrentApiKey(){
   if (_apiKeys.length === 0) return null;
   
   // Get current index from localStorage or start at 0
-  let currentIndex = parseInt(localStorage.getItem('hermes_api_key_index') || '0');
+  let currentIndex = 0;
+  try { currentIndex = parseInt(localStorage.getItem('hermes_api_key_index') || '0'); } catch (e) {}
   if (currentIndex >= _apiKeys.length) currentIndex = 0;
   
   return _apiKeys[currentIndex];
@@ -2401,9 +2859,10 @@ function getCurrentApiKey(){
 function rotateApiKey(){
   if (_apiKeys.length <= 1) return null;
   
-  let currentIndex = parseInt(localStorage.getItem('hermes_api_key_index') || '0');
+  let currentIndex = 0;
+  try { currentIndex = parseInt(localStorage.getItem('hermes_api_key_index') || '0'); } catch (e) {}
   currentIndex = (currentIndex + 1) % _apiKeys.length;
-  localStorage.setItem('hermes_api_key_index', currentIndex.toString());
+  try { localStorage.setItem('hermes_api_key_index', currentIndex.toString()); } catch (e) {}
   
   return _apiKeys[currentIndex];
 }
@@ -2442,8 +2901,39 @@ async function loadHermesConfig(){
       throw new Error(response.error || 'Failed to load config');
     }
   } catch (e) {
-    // Fallback: show placeholder with instructions
-    editor.value = `# Failed to load config from 192.168.4.250
+    // Check if it's an SSH authentication error with helpful instructions
+    const errorMsg = e.message || '';
+    const isSshError = errorMsg.includes('SSH authentication failed') || 
+                       errorMsg.includes('SSH connection failed') ||
+                       errorMsg.includes('Authentication failed');
+    
+    if (isSshError) {
+      // Show the detailed SSH error message in the editor for clarity
+      editor.value = `# SSH Connection Error
+#
+# ${errorMsg.replace(/\n/g, '\n# ')}
+#
+# Quick fix:
+# 1. Ensure you can SSH to 192.168.4.250: ssh house@192.168.4.250
+# 2. If prompted for password, set up key auth: ssh-copy-id -i ~/.ssh/id_ed25519 house@192.168.4.250
+# 3. Or generate a new key: ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
+#
+# Manual fallback:
+# You can manually edit config.yaml on 192.168.4.250 at:
+# /home/house/.hermes/config.yaml
+#
+# Example config structure:
+# nvidia:
+#   api_keys:
+#     - nvapi-xxxxxxxx
+#     - nvapi-yyyyyyyy
+#   current_key_index: 0
+# model: nvidia/llama-3.1-405b-instruct
+# workspace: /home/house/projects
+`;
+    } else {
+      // Fallback: show placeholder with instructions
+      editor.value = `# Failed to load config from 192.168.4.250
 # Error: ${e.message}
 #
 # You can manually edit config.yaml on the .250 machine at:
@@ -2458,6 +2948,7 @@ async function loadHermesConfig(){
 # model: nvidia/llama-3.1-405b-instruct
 # workspace: /home/house/projects
 `;
+    }
     status.textContent = 'error loading config: ' + e.message;
     status.className = 'config-editor-status error';
   }
@@ -2499,7 +2990,16 @@ async function saveHermesConfig(){
       throw new Error(response.error || 'Failed to save config');
     }
   } catch (e) {
-    status.textContent = 'error saving config: ' + e.message;
+    const errorMsg = e.message || '';
+    const isSshError = errorMsg.includes('SSH authentication failed') || 
+                       errorMsg.includes('SSH connection failed') ||
+                       errorMsg.includes('Authentication failed');
+    
+    if (isSshError) {
+      status.textContent = 'SSH error - see editor for fix instructions';
+    } else {
+      status.textContent = 'error saving config: ' + e.message;
+    }
     status.className = 'config-editor-status error';
     showToast('Failed to save config: ' + e.message);
   }
@@ -2766,3 +3266,288 @@ if(typeof window.switchToWorkspace !== 'function'){
 } else {
   // // console.log('[panels.js] switchToWorkspace ready');
 }
+
+// Settings close button event listener (for Tauri desktop app compatibility)
+document.addEventListener('DOMContentLoaded', function(){
+  const btnCloseSettings = document.getElementById('btnCloseSettings');
+  if(btnCloseSettings){
+    btnCloseSettings.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('Close button clicked');
+      _closeSettingsPanel();
+    });
+  }
+  
+  // Escape key to close settings
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      const overlay = document.getElementById('settingsOverlay');
+      if(overlay && overlay.style.display !== 'none'){
+        _closeSettingsPanel();
+      }
+    }
+  });
+});
+
+// ── Mobile Navigation ─────────────────────────────────────────────────────
+
+let _mobilePanelVisible = false;
+let _currentMobilePanel = 'chat';
+
+function closeMobilePanels() {
+  if (!_mobilePanelVisible && !document.documentElement.classList.contains('apk-force-mobile')) {
+    return;
+  }
+  _mobilePanelVisible = false;
+  _currentMobilePanel = 'chat';
+
+  document.querySelectorAll('.mobile-nav-item').forEach(item => {
+    item.classList.remove('active');
+  });
+  const chatNav = document.querySelector('.mobile-nav-item[data-panel="chat"]');
+  if(chatNav){
+    chatNav.classList.add('active');
+  }
+  const wt = document.getElementById('btnWorkspacePanelToggle');
+  const tt = document.getElementById('btnTerminalPanelToggle');
+  if(wt) wt.classList.remove('active');
+  if(tt) tt.classList.remove('active');
+  document.querySelectorAll('.panel-view').forEach(panel => {
+    panel.classList.remove('active');
+    panel.style.display = '';
+    panel.style.opacity = '';
+    panel.style.visibility = '';
+    panel.style.pointerEvents = '';
+  });
+  const chatPanel = document.getElementById('panelChat');
+  if (chatPanel) {
+    chatPanel.style.display = '';
+    chatPanel.style.opacity = '';
+    chatPanel.style.visibility = '';
+    chatPanel.style.pointerEvents = '';
+  }
+  document.querySelector('.main')?.classList.remove('mobile-panel-active');
+  const bottomPanel = document.getElementById('bottomPanel');
+  if (bottomPanel) {
+    bottomPanel.classList.remove('active');
+    bottomPanel.style.display = '';
+  }
+  const panelTerminal = document.getElementById('panelTerminal');
+  if (panelTerminal) panelTerminal.classList.remove('active');
+}
+
+function switchMobilePanel(name) {
+  // Terminal lives in bottom panel - show/hide it
+  if (name === 'terminal') {
+    const bottomPanel = document.getElementById('bottomPanel');
+    const panelTerminal = document.getElementById('panelTerminal');
+    const isActive = !!bottomPanel?.classList.contains('active');
+    if (isActive) {
+      closeMobilePanels();
+      return;
+    }
+    _mobilePanelVisible = true;
+    _currentMobilePanel = 'terminal';
+    document.querySelectorAll('.mobile-nav-item').forEach(item => {
+      item.classList.remove('active');
+    });
+    const termNav = document.querySelector('.mobile-nav-item[data-panel="terminal"]');
+    if(termNav) termNav.classList.add('active');
+    if (bottomPanel) {
+      bottomPanel.classList.add('active');
+      bottomPanel.style.display = 'flex';
+    }
+    if (panelTerminal) {
+      panelTerminal.classList.add('active');
+      panelTerminal.style.display = 'flex';
+      panelTerminal.style.opacity = '1';
+      panelTerminal.style.visibility = 'visible';
+      panelTerminal.style.pointerEvents = 'auto';
+    }
+    document.querySelector('.main')?.classList.add('mobile-panel-active');
+    if (typeof initTerminalPanel === 'function') initTerminalPanel();
+    if (typeof onTerminalPanelShow === 'function') onTerminalPanelShow();
+    return;
+  }
+
+  // Update topbar toggle buttons active state in APK mode
+  if(document.documentElement.classList.contains('apk-force-mobile')){
+    const wt = document.getElementById('btnWorkspacePanelToggle');
+    const tt = document.getElementById('btnTerminalPanelToggle');
+    if(wt) {
+      wt.classList.toggle('active', name === 'workspaces');
+      // Force rounded corners via inline !important (most reliable in WebView)
+      wt.style.setProperty('border-radius', '999px', 'important');
+      wt.style.setProperty('-webkit-appearance', 'none', 'important');
+      wt.style.setProperty('appearance', 'none', 'important');
+    }
+    if(tt) {
+      tt.classList.toggle('active', name === 'terminal');
+      tt.style.setProperty('border-radius', '999px', 'important');
+      tt.style.setProperty('-webkit-appearance', 'none', 'important');
+      tt.style.setProperty('appearance', 'none', 'important');
+    }
+  }
+  const currentPanelEl = name === 'chat'
+    ? document.getElementById('panelChat')
+    : document.getElementById('panel' + name.charAt(0).toUpperCase() + name.slice(1));
+  const isCurrentPanelOpen = !!currentPanelEl?.classList.contains('active');
+  if (name === _currentMobilePanel && isCurrentPanelOpen) {
+    closeMobilePanels();
+    return;
+  }
+  if (name === 'chat' && _mobilePanelVisible && _currentMobilePanel !== 'chat') {
+    closeMobilePanels();
+    return;
+  }
+
+  _currentMobilePanel = name;
+  _mobilePanelVisible = name !== 'chat';
+
+  // Update mobile nav items
+  document.querySelectorAll('.mobile-nav-item').forEach(item => {
+    item.classList.toggle('active', item.dataset.panel === name);
+  });
+
+  // Hide all panel views first
+  document.querySelectorAll('.panel-view').forEach(p => p.classList.remove('active'));
+
+  // Hide bottom panel (terminal) when switching to other mobile panels
+  const bottomPanel = document.getElementById('bottomPanel');
+  if (bottomPanel) {
+    bottomPanel.classList.remove('active');
+    bottomPanel.style.display = '';
+  }
+  const panelTerminal = document.getElementById('panelTerminal');
+  if (panelTerminal) panelTerminal.classList.remove('active');
+
+  // Hide main chat area when showing a panel (except chat panel)
+  if (name !== 'chat') {
+    document.querySelector('.main')?.classList.add('mobile-panel-active');
+  } else {
+    document.querySelector('.main')?.classList.remove('mobile-panel-active');
+  }
+
+  // Handle chat panel specially - show the session list panel
+  if (name === 'chat') {
+    const chatPanel = document.getElementById('panelChat');
+    if (chatPanel) {
+      chatPanel.classList.add('active');
+      chatPanel.style.display = 'flex';
+      chatPanel.style.opacity = '1';
+      chatPanel.style.visibility = 'visible';
+      chatPanel.style.pointerEvents = 'auto';
+      // Add mobile header if not present
+      if (!chatPanel.querySelector('.mobile-panel-header')) {
+        const header = document.createElement('div');
+        header.className = 'mobile-panel-header';
+        header.innerHTML = `
+          <span class="mobile-panel-title">chats</span>
+          <button class="mobile-panel-close" onclick="closeMobilePanels()" aria-label="close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        `;
+        chatPanel.insertBefore(header, chatPanel.firstChild);
+      }
+      // Load sessions if not already loaded
+      if (typeof renderSessionList === 'function') {
+        renderSessionList();
+      }
+    }
+    return;
+  }
+
+  // For other panels, show the panel view
+  const panelEl = document.getElementById('panel' + name.charAt(0).toUpperCase() + name.slice(1));
+  if (panelEl) {
+    panelEl.classList.add('active');
+    panelEl.style.display = 'flex';
+    panelEl.style.opacity = '1';
+    panelEl.style.visibility = 'visible';
+    panelEl.style.pointerEvents = 'auto';
+    // Add mobile header if not present
+    if (!panelEl.querySelector('.mobile-panel-header')) {
+      const header = document.createElement('div');
+      header.className = 'mobile-panel-header';
+      header.innerHTML = `
+        <span class="mobile-panel-title">${name}</span>
+        <button class="mobile-panel-close" onclick="closeMobilePanels()" aria-label="close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      `;
+      panelEl.insertBefore(header, panelEl.firstChild);
+    }
+  } else {
+    return;
+  }
+
+  if (name === 'tasks' && typeof loadCrons === 'function') {
+    loadCrons();
+  }
+  if (name === 'skills' && typeof loadSkills === 'function') {
+    loadSkills();
+  }
+  if (name === 'memory' && typeof loadMemory === 'function') {
+    loadMemory();
+  }
+  if (name === 'workspaces' && typeof loadWorkspacesPanel === 'function') {
+    loadWorkspacesPanel();
+  }
+  if (name === 'todos' && typeof loadTodos === 'function') {
+    loadTodos();
+  }
+  if (name === 'terminal') {
+    if (typeof initTerminalPanel === 'function') {
+      initTerminalPanel();
+    }
+    if (typeof onTerminalPanelShow === 'function') {
+      onTerminalPanelShow();
+    }
+  }
+}
+
+function toggleMobileSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (sidebar && overlay) {
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('show');
+  }
+}
+
+function closeMobileSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (sidebar) sidebar.classList.remove('open');
+  if (overlay) overlay.classList.remove('show');
+}
+
+// Handle back button on mobile
+window.addEventListener('popstate', function(e) {
+  if (_mobilePanelVisible && _currentMobilePanel !== 'chat') {
+    e.preventDefault();
+    switchMobilePanel('chat');
+    history.pushState(null, '', location.href);
+  }
+});
+
+// Detect standalone PWA/APK mode and adjust UI
+if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+  document.body.classList.add('standalone-mode');
+}
+
+// Listen for display mode changes
+window.matchMedia('(display-mode: standalone)').addEventListener('change', (e) => {
+  if (e.matches) {
+    document.body.classList.add('standalone-mode');
+  } else {
+    document.body.classList.remove('standalone-mode');
+  }
+});

@@ -1,47 +1,15 @@
 [Unit]
-Description=Hermes WebUI Server
+Description=Hermes Web UI Backend
 After=network.target
 
 [Service]
 Type=simple
-User=house
-Group=house
-WorkingDirectory=/home/house/.hermes/hermes-agent/webui
-Environment=PYTHONPATH=/home/house/.hermes/hermes-agent
-Environment=HERMES_HOME=/home/house/.hermes
-# Optional: set a specific port (default is 8787)
-# Environment=HERMES_WEBUI_PORT=8787
-
-# For autostart on boot, create this file on .250 at:
-# /etc/systemd/system/hermes-webui.service
-
-ExecStart=/usr/bin/python3 /home/house/.hermes/hermes-agent/webui/server.py
-Restart=always
+WorkingDirectory=/home/house/vibecode
+ExecStart=/usr/bin/python3 /home/house/vibecode/server.py
+Restart=on-failure
 RestartSec=5
-
-# Security hardening (optional but recommended)
-NoNewPrivileges=true
-ProtectSystem=strict
-ProtectHome=no
-ReadWritePaths=/home/house/.hermes
+StandardOutput=journal
+StandardError=journal
 
 [Install]
-WantedBy=multi-user.target
-
-# --- INSTALL INSTRUCTIONS ---
-# 1. Copy this file to .250:
-#    scp hermes-webui.service house@192.168.4.250:/tmp/
-#    ssh house@192.168.4.250 'sudo mv /tmp/hermes-webui.service /etc/systemd/system/'
-#
-# 2. Reload systemd and enable the service:
-#    ssh house@192.168.4.250 'sudo systemctl daemon-reload'
-#    ssh house@192.168.4.250 'sudo systemctl enable hermes-webui.service'
-#
-# 3. Start the service:
-#    ssh house@192.168.4.250 'sudo systemctl start hermes-webui.service'
-#
-# 4. Check status:
-#    ssh house@192.168.4.250 'sudo systemctl status hermes-webui.service'
-#
-# 5. View logs:
-#    ssh house@192.168.4.250 'sudo journalctl -u hermes-webui.service -f'
+WantedBy=default.target

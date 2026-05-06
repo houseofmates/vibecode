@@ -18,15 +18,6 @@ WIKI_DB = '/home/house/.hermes/wiki/wiki.db'
 SSH_KEY_PATH = '/home/house/.ssh/id_ed25519'
 REMOTE_SESSIONS_DIR = '/home/house/.hermes/sessions'
 
-# Import importance calculator
-try:
- from .importance_calc import calculate_importance
-except ImportError:
- # Fallback if running standalone
- import sys
- sys.path.insert(0, '/home/house/vibecode/api')
- from importance_calc import calculate_importance
-
 class MemsterClient:
     """Client for SSH-based memster/wiki queries on .250"""
     
@@ -42,10 +33,33 @@ class MemsterClient:
         if getattr(cls, cache_key) is None:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            
+            # Check if SSH key exists
+            key_exists = os.path.exists(SSH_KEY_PATH)
+            
             try:
-                ssh.connect(target_host, username=MEMSTER_USER, key_filename=SSH_KEY_PATH)
-            except Exception:
-                ssh.connect(target_host, username=MEMSTER_USER)
+                if key_exists:
+                    ssh.connect(target_host, username=MEMSTER_USER, key_filename=SSH_KEY_PATH, timeout=10)
+                else:
+                    ssh.connect(target_host, username=MEMSTER_USER, timeout=10)
+            except paramiko.AuthenticationException as e:
+                # Clear the cached connection so we can retry
+                error_msg = f"SSH authentication failed to {target_host}. "
+                if key_exists:
+                    error_msg += f"Check that SSH key {SSH_KEY_PATH} is authorized on {target_host}. "
+                    error_msg += f"Try: ssh-copy-id -i {SSH_KEY_PATH} {MEMSTER_USER}@{target_host}"
+                else:
+                    error_msg += f"No SSH key found at {SSH_KEY_PATH}. "
+                    error_msg += f"Generate one with: ssh-keygen -t ed25519 -f {SSH_KEY_PATH}"
+                raise Exception(error_msg) from e
+            except paramiko.SSHException as e:
+                error_msg = f"SSH connection failed to {target_host}: {str(e)}. "
+                error_msg += f"Ensure {target_host} is reachable and SSH is enabled."
+                raise Exception(error_msg) from e
+            except Exception as e:
+                error_msg = f"Failed to connect to {target_host}: {str(e)}"
+                raise Exception(error_msg) from e
+            
             setattr(cls, cache_key, ssh)
         return getattr(cls, cache_key)
     
@@ -81,8 +95,11 @@ class MemsterClient:
         if cls._ssh_cache:
             cls._ssh_cache.close()
             cls._ssh_cache = None
+        if cls._ssh_cache_legacy:
+            cls._ssh_cache_legacy.close()
+            cls._ssh_cache_legacy = None
 
-@classmethod
+    @classmethod
     def list_remote_sessions(cls, sessions_dir: str = REMOTE_SESSIONS_DIR) -> List[Dict[str, Any]]:
         """List session files from remote .250 machine via SSH, with .233 as fallback"""
         all_sessions = {}
@@ -128,7 +145,7 @@ class MemsterClient:
                         pass
                     
                     all_sessions[session_id] = session_data
-        except Exception as e:
+        except:
             pass
         
         # Legacy: .233 (add sessions that don't exist in .250)
@@ -173,7 +190,7 @@ class MemsterClient:
                         pass
                     
                     all_sessions[session_id] = session_data
-        except Exception as e:
+        except:
             pass
         
         sessions = list(all_sessions.values())
@@ -182,14 +199,13 @@ class MemsterClient:
 
     @classmethod
     def get_remote_session(cls, session_id: str, sessions_dir: str = REMOTE_SESSIONS_DIR) -> Optional[Dict[str, Any]]:
-        """Get a specific session file content from remote machine via SSH"""
+        """Get a specific session from remote machine"""
         
-        # First try .250
+        # Try .250 first
         try:
             ssh = cls._get_ssh(MEMSTER_HOST)
             for ext in ['.json', '.jsonl']:
-                filename = f"{session_id}{ext}"
-                filepath = f"{sessions_dir}/{filename}"
+                filepath = f"{sessions_dir}/{session_id}{ext}"
                 cmd = f'cat {filepath} 2>/dev/null || echo ""'
                 stdin, stdout, stderr = ssh.exec_command(cmd)
                 content = stdout.read().decode().strip()
@@ -197,26 +213,20 @@ class MemsterClient:
                 if content:
                     data = json.loads(content)
                     if isinstance(data, list):
-                        return {
-                            "session_id": session_id,
-                            "messages": data,
-                            "title": session_id,
-                            "_remote_source": f"{MEMSTER_HOST}:{filepath}"
-                        }
+                        return {"session_id": session_id, "messages": data, "title": session_id, "_remote_source": f"{MEMSTER_HOST}:{filepath}"}
                     elif isinstance(data, dict):
                         data["_remote_source"] = f"{MEMSTER_HOST}:{filepath}"
                         if "session_id" not in data:
                             data["session_id"] = session_id
                         return data
-        except Exception as e:
+        except:
             pass
         
         # Try .233 if not found on .250
         try:
             ssh = cls._get_ssh(MEMSTER_HOST_LEGACY)
             for ext in ['.json', '.jsonl']:
-                filename = f"{session_id}{ext}"
-                filepath = f"{sessions_dir}/{filename}"
+                filepath = f"{sessions_dir}/{session_id}{ext}"
                 cmd = f'cat {filepath} 2>/dev/null || echo ""'
                 stdin, stdout, stderr = ssh.exec_command(cmd)
                 content = stdout.read().decode().strip()
@@ -224,57 +234,16 @@ class MemsterClient:
                 if content:
                     data = json.loads(content)
                     if isinstance(data, list):
-                        return {
-                            "session_id": session_id,
-                            "messages": data,
-                            "title": session_id,
-                            "_remote_source": f"{MEMSTER_HOST_LEGACY}:{filepath}"
-                        }
+                        return {"session_id": session_id, "messages": data, "title": session_id, "_remote_source": f"{MEMSTER_HOST_LEGACY}:{filepath}"}
                     elif isinstance(data, dict):
                         data["_remote_source"] = f"{MEMSTER_HOST_LEGACY}:{filepath}"
                         if "session_id" not in data:
                             data["session_id"] = session_id
                         return data
-        except Exception as e:
+        except:
             pass
         
         return None
-        try:
-            ssh = cls._get_ssh()
-            
-            # Try both .json and .jsonl extensions
-            for ext in ['.json', '.jsonl']:
-                filename = f"{session_id}{ext}"
-                filepath = f"{sessions_dir}/{filename}"
-                
-                # Check if file exists and get content
-                cmd = f'cat {filepath} 2>/dev/null || echo ""'
-                stdin, stdout, stderr = ssh.exec_command(cmd)
-                content = stdout.read().decode().strip()
-                
-                if content:
-                    try:
-                        data = json.loads(content)
-                        # Handle both single session object and array of messages
-                        if isinstance(data, list):
-                            # Assume it's messages array, wrap in session structure
-                            return {
-                                "session_id": session_id,
-                                "messages": data,
-                                "title": session_id,
-                                "_remote_source": f"{MEMSTER_HOST}:{filepath}"
-                            }
-                        elif isinstance(data, dict):
-                            data["_remote_source"] = f"{MEMSTER_HOST}:{filepath}"
-                            if "session_id" not in data:
-                                data["session_id"] = session_id
-                            return data
-                    except json.JSONDecodeError:
-                        continue
-                        
-            return None
-        except Exception as e:
-            return None
 
 
 def register_enhanced_wiki_memory_routes(app):
@@ -386,22 +355,16 @@ def register_enhanced_wiki_memory_routes(app):
         if not content:
             return jsonify({'ok': False, 'error': 'Content required'}), 400
         
- category = data.get('category', 'observation')
- tags = json.dumps(data.get('tags', []))
- 
- # Calculate importance based on content
- calculated_importance = calculate_importance(content, category)
- 
- # Use provided importance if given, otherwise use calculated
- importance = data.get('importance', calculated_importance)
- 
- # Escape for SQL
- safe_content = content.replace("'", "''")
- safe_tags = tags.replace("'", "''")
- 
- query = f"""INSERT INTO memories (content, category, tags, created_at, updated_at, importance)
- VALUES ('{safe_content}', '{category}', '{safe_tags}', datetime('now'), datetime('now'), {importance})
- RETURNING id"""
+        category = data.get('category', 'observation')
+        tags = json.dumps(data.get('tags', []))
+        
+        # Escape for SQL
+        safe_content = content.replace("'", "''")
+        safe_tags = tags.replace("'", "''")
+        
+        query = f"""INSERT INTO memories (content, category, tags, created_at, updated_at, importance)
+        VALUES ('{safe_content}', '{category}', '{safe_tags}', datetime('now'), datetime('now'), {data.get('importance', 50)})
+        RETURNING id"""
         
         result = MemsterClient.query_json(query, MEMSTER_DB)
         
@@ -663,50 +626,5 @@ def register_enhanced_wiki_memory_routes(app):
             'recent_wiki': wiki or [],
             'generated_at': datetime.utcnow().isoformat()
         })
-
-    # ============================================
-    # REMOTE SESSIONS API
-    # ============================================
-
-    @app.route('/api/remote/sessions', methods=['GET'])
-    def api_remote_sessions():
-        """List sessions from remote .250 machine's /home/house/.hermes/sessions"""
-        try:
-            sessions = MemsterClient.list_remote_sessions(REMOTE_SESSIONS_DIR)
-            return jsonify({
-                'ok': True,
-                'sessions': sessions,
-                'count': len(sessions),
-                'source': f'{MEMSTER_HOST}:{REMOTE_SESSIONS_DIR}'
-            })
-        except Exception as e:
-            return jsonify({
-                'ok': False,
-                'error': str(e),
-                'sessions': [],
-                'count': 0
-            }), 500
-
-    @app.route('/api/remote/sessions/<session_id>', methods=['GET'])
-    def api_remote_session_get(session_id):
-        """Get a specific session from remote .250 machine"""
-        try:
-            session = MemsterClient.get_remote_session(session_id, REMOTE_SESSIONS_DIR)
-            if session:
-                return jsonify({
-                    'ok': True,
-                    'session': session,
-                    'source': f'{MEMSTER_HOST}:{REMOTE_SESSIONS_DIR}'
-                })
-            else:
-                return jsonify({
-                    'ok': False,
-                    'error': 'Session not found'
-                }), 404
-        except Exception as e:
-            return jsonify({
-                'ok': False,
-                'error': str(e)
-            }), 500
 
 from flask import Flask, request, jsonify

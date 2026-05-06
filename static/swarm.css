@@ -1,0 +1,680 @@
+/* ── swarm panel overlay ──────────────────────────────────────────────────── */
+.swarm-panel-overlay{
+ position:fixed;inset:0;z-index:8000;
+ background:rgba(5,5,5,.85);
+ display:none;align-items:stretch;justify-content:flex-end;
+}
+
+.swarm-panel-wrap{
+ width:520px;max-width:100vw;height:100%;
+ background:var(--surface,#0a0a0a);
+ border-left:1px solid var(--border,#1e1e1e);
+ display:flex;flex-direction:column;
+ font-family:'Varela Round',sans-serif;
+}
+
+.swarm-panel-header{
+ display:flex;align-items:center;justify-content:space-between;
+ padding:16px 20px 12px;
+ border-bottom:1px solid var(--border,#1e1e1e);
+ flex-shrink:0;
+}
+.swarm-panel-title-row{
+ display:flex;align-items:center;gap:8px;
+}
+.swarm-panel-icon{font-size:20px;}
+.swarm-panel-title{
+ font-size:16px;font-weight:700;
+ letter-spacing:.03em;text-transform:lowercase;
+ color:var(--text,#e0e0e0);
+}
+.swarm-panel-subtitle{
+ font-size:12px;color:var(--muted,#777);margin-left:8px;
+}
+.swarm-panel-actions{
+ display:flex;align-items:center;gap:8px;
+}
+.sp-action-btn{
+ display:flex;align-items:center;justify-content:center;gap:6px;
+ background:rgba(245,175,18,.15);border:1px solid rgba(245,175,18,.3);
+ color:var(--accent,#f5af12);
+ font-size:12px;font-weight:600;padding:6px 12px;border-radius:10px;
+ cursor:pointer;font-family:inherit;text-transform:lowercase;
+ transition:background .15s,border-color .15s,transform .15s;
+}
+#btnSwarmNew{
+ padding:6px 12px;
+}
+.sp-plus-btn{
+ display:flex;align-items:center;justify-content:center;
+ background:none;border:none;
+ color:#f6b012;
+ padding:4px;border-radius:8px;
+ cursor:pointer;font-family:inherit;
+ transition:transform .15s,opacity .15s;
+}
+.sp-plus-btn:hover{transform:scale(1.12);opacity:.9;}
+.sp-plus-btn:active{transform:scale(.95);}
+.sp-action-btn:hover{background:rgba(245,175,18,.28);border-color:rgba(245,175,18,.5);transform:translateY(-1px);}
+.sp-close-btn{
+ background:none;border:none;color:var(--muted,#777);
+ font-size:24px;cursor:pointer;line-height:1;padding:0 4px;
+ transition:color .15s;
+}
+.sp-close-btn:hover{color:var(--text,#e0e0e0);}
+
+.swarm-panel-body{
+ flex:1;overflow:hidden;display:flex;flex-direction:column;
+}
+
+/* ── list view ──────────────────────────────────────────────────────────────── */
+.swarm-list-view{
+ flex:1;overflow-y:auto;padding:12px 16px;
+}
+
+.swarm-cards-grid{
+ display:flex;flex-direction:column;gap:8px;
+}
+
+.swarm-card{
+ background:var(--bg,#050505);
+ border:1px solid var(--border,#1e1e1e);
+ border-radius:10px;cursor:pointer;
+ overflow:hidden;transition:background .15s,border-color .15s;
+}
+.swarm-card:hover{
+ background:rgba(255,255,255,.03);border-color:var(--border2,#333);
+}
+
+.sc-head{
+ display:flex;align-items:flex-start;gap:10px;
+ padding:12px 14px;
+}
+.sc-color-dot{
+ width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:5px;
+}
+.sc-info{flex:1;min-width:0;}
+.sc-task{
+ font-size:13px;font-weight:600;color:var(--text,#e0e0e0);
+ line-height:1.3;margin-bottom:3px;
+ word-break:break-word;
+}
+.sc-meta{
+ font-size:11px;color:var(--muted,#888);
+ text-transform:lowercase;letter-spacing:.02em;
+ margin-bottom:2px;
+}
+.sc-last{
+ font-size:11px;color:var(--muted,#666);
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+ max-width:280px;display:inline-block;
+}
+.sc-right{
+ display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;
+}
+.sc-status{
+ font-size:11px;font-weight:600;text-transform:lowercase;
+ letter-spacing:.04em;
+}
+.sc-cancel{
+ background:none;border:none;color:var(--muted,#555);
+ font-size:18px;cursor:pointer;line-height:1;padding:0;
+ transition:color .15s;
+}
+.sc-cancel:hover{color:var(--accent,#f5af12);}
+
+.swarm-empty{
+ color:var(--muted,#555);font-size:13px;text-align:center;
+ padding:48px 24px;text-transform:lowercase;
+ line-height:1.8;
+}
+.swarm-empty-hint{
+ font-size:12px;color:var(--muted,#444);margin-top:8px;
+}
+
+/* ── detail view ──────────────────────────────────────────────────────────── */
+.swarm-detail-view{
+ flex:1;display:flex;flex-direction:column;overflow:hidden;
+}
+
+.sp-back-btn{
+ background:none;border:none;color:var(--blue,#6cb4ff);
+ font-size:12px;cursor:pointer;font-family:inherit;
+ padding:10px 16px 6px;text-align:left;
+ text-transform:lowercase;
+}
+.sp-back-btn:hover{text-decoration:underline;}
+
+#panelSwarm .swarm-new-view .sp-back-btn{
+ position:absolute;
+ top:10px;
+ right:12px;
+ z-index:2;
+ padding:8px 10px;
+ border-radius:10px;
+ background:rgba(255,255,255,0.04);
+}
+
+#swarmDetailHeader{
+ padding:0 16px 10px;border-bottom:1px solid var(--border,#1e1e1e);
+}
+.sd-task{
+ font-size:14px;font-weight:600;color:var(--text,#e0e0e0);
+ margin-bottom:4px;word-break:break-word;
+}
+.sd-meta{
+ font-size:11px;color:var(--muted,#888);text-transform:lowercase;
+}
+
+/* ── detail tabs ──────────────────────────────────────────────────────────── */
+.swarm-detail-tabs{
+ display:flex;gap:2px;padding:8px 12px;
+ border-bottom:1px solid var(--border,#1e1e1e);flex-shrink:0;
+}
+.sdt{
+ background:none;border:none;color:var(--muted,#888);
+ font-size:12px;font-weight:600;padding:6px 12px;
+ border-radius:6px;cursor:pointer;font-family:inherit;
+ text-transform:lowercase;transition:background .15s,color .15s;
+ letter-spacing:.03em;
+}
+.sdt.active{
+ background:rgba(108,180,255,.1);color:var(--blue,#6cb4ff);
+}
+.sdt:hover:not(.active){color:var(--text,#e0e0e0);}
+
+.swarm-tab-pane{
+ flex:1;display:none;flex-direction:column;overflow:hidden;
+}
+.swarm-tab-pane.active{display:flex;}
+
+/* ── coordination chat ────────────────────────────────────────────────────── */
+.swarm-chat{
+ flex:1;overflow-y:auto;padding:12px 14px;
+ display:flex;flex-direction:column;gap:8px;
+}
+
+.coord-msg{
+ display:flex;flex-direction:column;gap:2px;
+ padding:8px 12px;border-radius:8px;
+ background:rgba(255,255,255,.02);
+ border:1px solid var(--border,#1e1e1e);
+ font-size:12px;line-height:1.5;
+ max-width:92%;
+}
+.coord-system{background:rgba(108,180,255,.05);border-color:rgba(108,180,255,.15);}
+.coord-error{background:rgba(233,69,96,.05);border-color:rgba(233,69,96,.15);}
+
+.cm-name{font-weight:700;font-size:11px;letter-spacing:.03em;}
+.cm-content{color:var(--text,#e0e0e0);word-break:break-word;}
+.cm-time{font-size:10px;color:var(--muted,#555);margin-top:2px;}
+
+.coord-done{color:var(--green,#4ade80);font-weight:700;}
+.coord-check{color:var(--green,#4ade80);}
+.coord-x{color:var(--accent,#f5af12);}
+.coord-cancel{color:var(--accent,#f5af12);}
+.coord-hi{color:var(--blue,#6cb4ff);}
+.coord-swarm{color:var(--blue,#6cb4ff);}
+
+.swarm-chat-input{
+ display:flex;gap:8px;align-items:flex-end;
+ padding:10px 14px;border-top:1px solid var(--border,#1e1e1e);
+ flex-shrink:0;
+}
+#swarmChatMsg{
+ flex:1;background:var(--bg,#050505);border:1px solid var(--border,#1e1e1e);
+ border-radius:8px;color:var(--text,#e0e0e0);padding:8px 10px;
+ font-size:12px;font-family:inherit;resize:none;outline:none;
+ min-height:38px;max-height:120px;
+ transition:border-color .15s;
+}
+#swarmChatMsg:focus{border-color:var(--blue,#6cb4ff);}
+#swarmChatMsg::placeholder{color:var(--muted,#444);}
+#btnSwarmChatSend{
+ background:var(--accent,#f5af12);border:none;color:#fff;
+ font-size:16px;width:38px;height:38px;border-radius:8px;
+ cursor:pointer;flex-shrink:0;transition:background .15s;
+ display:flex;align-items:center;justify-content:center;
+}
+#btnSwarmChatSend:hover{background:#d13a54;}
+
+/* ── agents view ──────────────────────────────────────────────────────────── */
+#swarmAgentsList{
+ flex:1;overflow-y:auto;padding:12px 14px;
+ display:flex;flex-direction:column;gap:8px;
+}
+
+.agent-card{
+ display:flex;align-items:flex-start;gap:10px;
+ background:var(--bg,#050505);
+ border:1px solid var(--border,#1e1e1e);
+ border-radius:10px;padding:10px 12px;
+ cursor:pointer;transition:background .15s,border-color .15s,transform .15s;
+}
+.agent-card:hover{background:rgba(255,255,255,.04);border-color:rgba(108,180,255,.15);transform:translateY(-1px);}
+.ac-color{
+ width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px;
+}
+.ac-info{flex:1;min-width:0;}
+.ac-name{font-size:13px;font-weight:700;margin-bottom:2px;}
+.ac-task{font-size:11px;color:var(--muted,#888);margin-bottom:4px;line-height:1.3;}
+.ac-status{font-size:11px;font-weight:600;text-transform:lowercase;}
+.ac-status-running{color:var(--gold,#d4a74a);}
+.ac-status-done{color:var(--green,#4ade80);}
+.ac-status-error{color:var(--accent,#f5af12);}
+.ac-status-cancelled{color:var(--muted,#666);}
+.ac-status-pending{color:var(--muted,#888);}
+.ac-actions{margin-left:auto;flex-shrink:0;}
+.ac-result-btn{
+ font-size:11px;font-weight:500;
+ padding:4px 10px;border-radius:6px;
+ border:1px solid rgba(108,180,255,.2);
+ background:rgba(108,180,255,.06);color:var(--blue,#6cb4ff);
+ cursor:pointer;font-family:inherit;text-transform:lowercase;
+ transition:background .15s;
+}
+.ac-result-btn:hover{background:rgba(108,180,255,.14);}
+.ac-error{font-size:11px;color:var(--accent,#f5af12);max-width:180px;
+ word-break:break-word;}
+
+/* ── new swarm form ───────────────────────────────────────────────────────── */
+.swarm-new-view{
+ flex:1;display:flex;flex-direction:column;overflow:hidden;
+}
+.swarm-new-form{
+ flex:1;padding:12px 16px;overflow-y:auto;
+ display:flex;flex-direction:column;
+}
+.snf-label{
+ font-size:12px;font-weight:600;text-transform:lowercase;
+ color:var(--muted,#888);margin-bottom:6px;letter-spacing:.04em;
+}
+.swarm-textarea{
+ width:100%;background:var(--bg,#050505);
+ border:1px solid var(--border,#1e1e1e);
+ border-radius:8px;color:var(--text,#e0e0e0);
+ padding:10px 12px;font-size:13px;font-family:inherit;
+ resize:vertical;outline:none;min-height:100px;
+ transition:border-color .15s;
+}
+.swarm-textarea:focus{border-color:var(--blue,#6cb4ff);}
+.swarm-textarea::placeholder{color:var(--muted,#444);}
+
+.swarm-agent-count{
+ display:flex;gap:6px;
+}
+.sac-btn{
+ background:var(--bg,#050505);border:1px solid var(--border,#1e1e1e);
+ color:var(--muted,#888);font-size:13px;font-weight:600;
+ width:40px;height:40px;border-radius:8px;cursor:pointer;
+ font-family:inherit;transition:all .15s;
+}
+.sac-btn.active{
+ background:rgba(245,175,18,.1);border-color:rgba(233,69,96,.3);
+ color:var(--accent,#f5af12);
+}
+.sac-btn:hover:not(.active){
+ background:rgba(255,255,255,.03);color:var(--text,#e0e0e0);
+}
+
+.swarm-select{
+ background:var(--bg,#050505);border:1px solid var(--border,#1e1e1e);
+ border-radius:6px;color:var(--text,#e0e0e0);
+ padding:8px 10px;font-size:12px;font-family:inherit;
+ outline:none;cursor:pointer;
+}
+.swarm-select:focus{border-color:var(--blue,#6cb4ff);}
+
+.sp-launch-btn{
+ margin-top:16px;
+ background:var(--accent,#f5af12);border:none;color:#fff;
+ font-size:14px;font-weight:700;padding:12px;
+ border-radius:10px;cursor:pointer;font-family:inherit;
+ text-transform:lowercase;letter-spacing:.04em;
+ transition:background .15s;
+}
+.sp-launch-btn:hover{background:#d13a54;}
+
+/* ── result overlay ──────────────────────────────────────────────────────── */
+.swarm-result-overlay{
+ position:fixed;inset:0;z-index:9000;display:flex;
+ align-items:center;justify-content:center;
+ font-family:'Varela Round',sans-serif;
+}
+.sro-backdrop{position:absolute;inset:0;background:rgba(5,5,5,.7);}
+.sro-box{
+ position:relative;width:600px;max-width:90vw;max-height:75vh;
+ background:var(--surface,#0a0a0a);
+ border:1px solid var(--border,#1e1e1e);border-radius:14px;
+ display:flex;flex-direction:column;
+ box-shadow:0 24px 48px rgba(0,0,0,.5);
+}
+.sro-header{
+ display:flex;align-items:center;justify-content:space-between;
+ padding:14px 20px;border-bottom:1px solid var(--border,#1e1e1e);
+ font-size:13px;font-weight:600;text-transform:lowercase;
+ color:var(--text,#e0e0e0);
+}
+.sro-close{background:none;border:none;color:var(--muted,#777);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;}
+.sro-close:hover{color:var(--text,#e0e0e0);}
+.sro-content{
+ padding:16px 20px;overflow:auto;flex:1;
+ font-size:12px;line-height:1.6;
+ font-family:'SF Mono',ui-monospace,monospace;
+ white-space:pre-wrap;word-break:break-word;
+ color:var(--text,#e0e0e0);
+}
+
+/* ── mobile ──────────────────────────────────────────────────────────────────── */
+@media(max-width:600px){
+ .swarm-panel-wrap{width:100vw;border-left:none;}
+}
+/* ── v2.0 additions ──────────────────────────────────────────────────── */
+
+/* inject button in detail header */
+.btnInject{
+ background:var(--gold-darker,#5a4a1a);
+ color:var(--gold,#d4a74a);
+ border:1px solid var(--gold,#d4a74a);
+ border-radius:4px;
+ padding:2px 8px;
+ font-size:10px;
+ cursor:pointer;
+ margin-left:8px;
+ transition:all .15s;
+}
+.btnInject:hover{background:var(--gold,#d4a74a);color:var(--bg,#121018);}
+
+/* kill worker button */
+.ac-kill-btn{
+ background:none;
+ color:var(--accent,#f5af12);
+ border:1px solid var(--accent,#f5af12);
+ border-radius:3px;
+ padding:1px 6px;
+ font-size:10px;
+ cursor:pointer;
+ margin-left:6px;
+ transition:all .15s;
+}
+.ac-kill-btn:hover{background:var(--accent,#f5af12);color:var(--bg,#121018);}
+
+/* aggregate overlay */
+.swarm-agg-overlay{
+ position:fixed;top:0;left:0;right:0;bottom:0;
+ z-index:9999;display:flex;align-items:center;justify-content:center;
+}
+.sao-backdrop{
+ position:absolute;top:0;left:0;right:0;bottom:0;
+ background:rgba(0,0,0,.7);
+}
+.sao-box{
+ position:relative;background:var(--bg-secondary,#1a1625);
+ border-radius:12px;border:1px solid var(--border,#2a2535);
+ width:90%;max-width:700px;max-height:80vh;
+ overflow-y:auto;padding:20px;
+}
+.sao-header{
+ display:flex;justify-content:space-between;align-items:center;
+ margin-bottom:12px;font-size:15px;font-weight:600;color:var(--fg,#dad5e5);
+}
+.sao-close{
+ background:none;border:none;color:var(--muted,#888);font-size:22px;
+ cursor:pointer;padding:0 4px;
+}
+.sao-close:hover{color:var(--accent,#f5af12);}
+.sao-summary{
+ font-size:12px;color:var(--muted,#888);margin-bottom:10px;
+}
+.sao-patterns{
+ font-size:11px;color:var(--gold,#d4a74a);margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;
+}
+.sao-pattern{
+ background:var(--gold-darker,#3a3010);padding:2px 8px;border-radius:10px;font-size:10px;
+}
+.sao-result{margin-bottom:16px;}
+.sao-result-head{
+ font-size:12px;color:var(--blue,#6cb4ff);margin-bottom:4px;
+}
+.sao-result-icon{color:var(--green,#4ade80);}
+.sao-result-body{
+ background:var(--bg,#100b18);border-radius:6px;padding:10px;
+ font-size:11px;color:var(--fg,#dad5e5);max-height:200px;overflow-y:auto;
+ white-space:pre-wrap;word-break:break-all;
+}
+
+/* aggregate button in detail */
+.btnAggregate{
+ background:var(--gold-darker,#5a4a1a);
+ color:var(--gold,#d4a74a);
+ border:1px solid var(--gold,#d4a74a);
+ border-radius:6px;padding:6px 14px;
+ font-size:12px;cursor:pointer;margin-top:10px;width:100%;
+ transition:all .15s;
+}
+.btnAggregate:hover{background:var(--gold,#d4a74a);color:var(--bg,#121018);}
+
+/* context panel */
+.sctx-empty{font-size:11px;color:var(--muted,#666);padding:8px;}
+.sctx-entry{margin-bottom:6px;font-size:11px;}
+.sctx-key{
+ color:var(--blue,#6cb4ff);font-weight:600;margin-bottom:2px;
+}
+.sctx-val{
+ color:var(--fg,#dad5e5);word-break:break-all;
+ padding-left:8px;border-left:2px solid var(--blue,#6cb4ff);
+}
+
+/* templates */
+.stm-label{font-size:10px;color:var(--muted,#888);margin-bottom:4px;margin-top:12px;}
+.stm-chip{
+ display:inline-flex;align-items:center;gap:4px;
+ background:var(--bg-tertiary,#1e1a28);border:1px solid var(--border,#2a2535);
+ border-radius:14px;padding:3px 10px;margin:3px;font-size:11px;
+ cursor:pointer;transition:all .15s;
+}
+.stm-chip:hover{background:var(--gold-darker,#5a4a1a);border-color:var(--gold,#d4a74a);}
+.stm-del{
+ background:none;border:none;color:var(--muted,#666);
+ font-size:14px;cursor:pointer;padding:0;line-height:1;
+}
+.stm-del:hover{color:var(--accent,#f5af12);}
+
+/* agent card improvements */
+.ac-actions{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+.swarm-aggregate{margin-top:8px;}
+
+/* active stream indicator */
+.agent-card[data-running] .ac-color{animation:pulse 1.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+
+
+/* ── focus-visible states (accessibility) ─────────────────────────────── */
+.swarm-card:focus-visible,
+.sp-action-btn:focus-visible,
+.sp-close-btn:focus-visible,
+.swarm-btn:focus-visible,
+.sdt:focus-visible,
+.btnInject:focus-visible,
+.ac-kill-btn:focus-visible,
+.btnAggregate:focus-visible,
+.stm-chip:focus-visible,
+.stm-del:focus-visible,
+.ac-result-btn:focus-visible,
+.sro-close:focus-visible,
+.sao-close:focus-visible,
+.sc-cancel:focus-visible,
+.sp-back-btn:focus-visible,
+.swarm-trigger-btn:focus-visible,
+.swarm-modal-close:focus-visible,
+.swarm-btn-cancel:focus-visible,
+.swarm-btn-go:focus-visible{
+ outline:2px solid var(--blue,#6cb4ff);
+ outline-offset:2px;
+}
+
+/* ── active/pressed states ────────────────────────────────────────────── */
+.swarm-card:active{transform:scale(.98);opacity:.85;}
+.sp-action-btn:active{transform:scale(.96);}
+.swarm-btn:active{transform:scale(.96);}
+.sdt:active{background:rgba(108,180,255,.12);}
+.sac-btn:active{transform:scale(.92);}
+.ac-kill-btn:active{transform:scale(.92);}
+
+/* ── disabled states ──────────────────────────────────────────────────── */
+.sp-launch-btn:disabled,
+.ac-kill-btn:disabled{
+ opacity:.4;cursor:not-allowed;pointer-events:none;
+}
+
+/* ── smooth panel open/close ──────────────────────────────────────────── */
+.swarm-panel-overlay{
+ transition:opacity .2s ease;
+}
+.swarm-modal{
+ transition:opacity .15s ease;
+}
+
+/* ── empty state CTA button ───────────────────────────────────────────── */
+.swarm-empty-cta{
+ display:inline-block;margin-top:12px;
+ padding:8px 16px;
+ background:rgba(108,180,255,.12);border:1px solid rgba(108,180,255,.25);
+ color:var(--blue,#6cb4ff);
+ font-size:12px;font-weight:600;border-radius:8px;
+ cursor:pointer;font-family:inherit;text-transform:lowercase;
+ transition:background .15s,border-color .15s;
+}
+.swarm-empty-cta:hover{background:rgba(108,180,255,.2);border-color:rgba(108,180,255,.4);}
+.swarm-empty-cta:focus-visible{outline:2px solid var(--blue,#6cb4ff);outline-offset:2px;}
+
+/* ── coordination chat placeholder ────────────────────────────────────── */
+.coord-placeholder{
+ padding:20px 14px;color:var(--muted,#666);
+ font-size:12px;text-align:center;opacity:.6;
+ font-style:italic;
+}
+
+/* ── elapsed time on swarm cards ──────────────────────────────────────── */
+.sc-elapsed{
+ font-size:10px;color:var(--muted,#666);margin-left:auto;
+ font-variant-numeric:tabular-nums;
+}
+
+/* ── reduced motion ───────────────────────────────────────────────────── */
+@media(prefers-reduced-motion:reduce){
+ *{animation-duration:.01ms !important;transition-duration:.01ms !important;}
+}
+
+/* ── scrollbar styling for swarm panels ───────────────────────────────── */
+.swarm-list-view::-webkit-scrollbar,
+.swarm-chat::-webkit-scrollbar,
+#swarmAgentsList::-webkit-scrollbar,
+.sro-content::-webkit-scrollbar,
+.sao-result-body::-webkit-scrollbar{
+ width:6px;
+}
+.swarm-list-view::-webkit-scrollbar-track,
+.swarm-chat::-webkit-scrollbar-track,
+#swarmAgentsList::-webkit-scrollbar-track,
+.sro-content::-webkit-scrollbar-track,
+.sao-result-body::-webkit-scrollbar-track{
+ background:transparent;
+}
+.swarm-list-view::-webkit-scrollbar-thumb,
+.swarm-chat::-webkit-scrollbar-thumb,
+#swarmAgentsList::-webkit-scrollbar-thumb,
+.sro-content::-webkit-scrollbar-thumb,
+.sao-result-body::-webkit-scrollbar-thumb{
+ background:rgba(255,255,255,.12);border-radius:3px;
+}
+.swarm-list-view::-webkit-scrollbar-thumb:hover,
+.swarm-chat::-webkit-scrollbar-thumb:hover,
+#swarmAgentsList::-webkit-scrollbar-thumb:hover,
+.sro-content::-webkit-scrollbar-thumb:hover,
+.sao-result-body::-webkit-scrollbar-thumb:hover{
+ background:rgba(255,255,255,.2);
+}
+
+/* swarm SVG icon */
+.swarm-icon{display:inline-block;vertical-align:middle;fill:currentColor;flex-shrink:0}
+.swarm-icon-lg{vertical-align:-3px}
+.nav-tab .swarm-icon{vertical-align:-2px}
+.swarm-panel-icon .swarm-icon{vertical-align:middle}
+.btnAggregate .swarm-icon{vertical-align:-1px;margin-right:4px}
+.settings-tab-icon.swarm-icon{vertical-align:-1px;margin-right:2px}
+
+
+/* ── swarm as sidebar panel (replaces overlay) ────────────────────────── */
+#panelSwarm.panel-view{
+  display:none;flex-direction:column;height:100%;overflow:hidden;
+  font-family:'Varela Round',sans-serif;
+}
+#panelSwarm.panel-view.active{display:flex;}
+
+/* in sidebar, the wrap takes full panel width */
+#panelSwarm .swarm-panel-wrap{
+  width:100%;height:100%;
+  background:transparent;
+  border-left:none;
+}
+
+/* hide close btn in sidebar mode (panel system handles it) */
+#panelSwarm .sp-close-btn{display:none;}
+
+/* narrower sidebar adjustments */
+#panelSwarm .swarm-panel-wrap{position:relative;}
+#panelSwarm .swarm-panel-header{
+  position:absolute;
+  top:0;
+  right:0;
+  left:0;
+  padding:0;
+  border:none;
+  min-height:0;
+  overflow:visible;
+}
+#panelSwarm .swarm-panel-title-row{display:none;}
+#panelSwarm .swarm-panel-actions{position:absolute;top:10px;right:12px;}
+#panelSwarm .sp-close-btn{display:none;}
+#panelSwarm .swarm-panel-body{padding-top:44px;}
+#panelSwarm .swarm-list-view{padding:8px 10px;}
+#panelSwarm .sc-head{padding:10px 12px;}
+#panelSwarm .swarm-new-form{padding:10px 12px;}
+#panelSwarm .swarm-chat{padding:8px 10px;}
+#panelSwarm .swarm-chat-input{padding:8px 10px;}
+#panelSwarm #swarmDetailHeader{padding:0 12px 8px;}
+#panelSwarm .swarm-detail-tabs{padding:6px 10px;}
+#panelSwarm .sdt{padding:5px 8px;font-size:11px;}
+#panelSwarm #swarmAgentsList{padding:8px 10px;}
+#panelSwarm .agent-card{padding:8px 10px;}
+
+/* swarm panel header in sidebar — inline with nav */
+#panelSwarm .swarm-panel-header{
+  border-bottom:1px solid var(--border,#1e1e1e);
+}
+
+/* status badge for active swarms in the header */
+.swarm-active-badge{
+  font-size:10px;font-weight:700;
+  background:rgba(233,69,96,.15);color:var(--accent,#f5af12);
+  padding:2px 8px;border-radius:6px;
+  text-transform:lowercase;letter-spacing:.03em;
+}
+
+/* make the launch button fit sidebar width */
+#panelSwarm .sp-launch-btn{width:100%;}
+
+/* templates dropdown in sidebar */
+#panelSwarm .template-select-wrap{
+  padding:8px 12px;
+  border-bottom:1px solid var(--border,#1e1e1e);
+}
+#panelSwarm .template-select{
+  width:100%;
+  background:var(--bg,#050505);
+  border:1px solid var(--border,#1e1e1e);
+  border-radius:6px;color:var(--text,#e0e0e0);
+  padding:6px 8px;font-size:11px;font-family:inherit;
+  outline:none;cursor:pointer;
+}

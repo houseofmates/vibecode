@@ -56,7 +56,7 @@ _SUPPORTED_PROVIDER_SETUPS = {
     "custom": {
         "label": "Custom OpenAI-compatible",
         "env_var": "OPENAI_API_KEY",
-        "default_model": "gpt-4o-mini",
+        "default_model": "deepseek-ai/deepseek-v4-pro",
         "requires_base_url": True,
         "models": [],
     },

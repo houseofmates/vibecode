@@ -1,5 +1,5 @@
 #!/bin/bash
-# Check for and install VibeCode updates
+# Check for and install vibecode updates
 # This script can be run manually or via cron
 
 set -e
@@ -9,7 +9,7 @@ REPO_NAME="vibecode"
 CURRENT_FILE="${HOME}/Applications/vibecode.appimage"
 RELEASES_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest"
 
-echo "=== VibeCode Update Checker ==="
+echo "=== vibecode Update Checker ==="
 echo ""
 
 # Check if AppImage is installed
@@ -82,7 +82,7 @@ if [ "$LATEST_TAG" != "$CURRENT_VERSION" ]; then
             curl -L -o "$TEMP_FILE" "$LATEST_URL"
             chmod +x "$TEMP_FILE"
             mv "$TEMP_FILE" "$CURRENT_FILE"
-            echo "Update complete! Restart VibeCode to use the new version."
+            echo "Update complete! Restart vibecode to use the new version."
         else
             echo "Download URL not found. Please download manually from:"
             echo "  $RELEASES_URL"

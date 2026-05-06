@@ -29,6 +29,40 @@ from api.helpers import redact_session_data
 # save/restore around the entire agent run.
 _ENV_LOCK = threading.Lock()
 
+# Round-robin API key rotation for NVIDIA NIM
+_nvidia_key_lock = threading.Lock()
+_nvidia_key_index = 0
+
+def _get_nvidia_api_key_round_robin() -> tuple[str, int]:
+    """
+    Get the next NVIDIA API key using round-robin rotation.
+    Returns (api_key, index_used).
+    """
+    global _nvidia_key_index
+    
+    # Try to get API keys from config
+    try:
+        from api.config import cfg
+        nvidia_config = cfg.get("nvidia", {})
+        if isinstance(nvidia_config, dict):
+            api_keys = nvidia_config.get("api_keys", [])
+            if isinstance(api_keys, list) and len(api_keys) > 0:
+                with _nvidia_key_lock:
+                    # Get current index and increment for next request
+                    idx = _nvidia_key_index % len(api_keys)
+                    _nvidia_key_index = (_nvidia_key_index + 1) % len(api_keys)
+                    return api_keys[idx], idx
+            # Fallback to single api_key if no api_keys list
+            single_key = nvidia_config.get("api_key", "")
+            if single_key:
+                return single_key, 0
+    except Exception:
+        pass
+    
+    # Fallback to environment variable
+    env_key = os.getenv("NVIDIA_API_KEY", os.getenv("NGC_API_KEY", ""))
+    return env_key, 0
+
 # Lazy import to avoid circular deps -- hermes-agent is on sys.path via api/config.py
 try:
     from run_agent import AIAgent
@@ -57,7 +91,7 @@ from api.workspace import set_last_workspace
 # Fields that are safe to send to LLM provider APIs.
 # Everything else (attachments, timestamp, _ts, etc.) is display-only
 # metadata added by the webui and must be stripped before the API call.
-_API_SAFE_MSG_KEYS = {'role', 'content', 'tool_calls', 'tool_call_id', 'name', 'refusal'}
+_API_SAFE_MSG_KEYS = {'role', 'content', 'tool_calls', 'tool_call_id', 'name', 'refusal', 'reasoning', 'reasoning_content', 'finish_reason', 'id', 'call_id', 'response_item_id', 'extra_content', 'codex_reasoning_items', 'codex_message_items', 'reasoning_details'}
 
 
 def _strip_thinking_markup(text: str) -> str:
@@ -66,6 +100,8 @@ def _strip_thinking_markup(text: str) -> str:
         return ''
     s = str(text)
     s = re.sub(r'<think>.*?</think>', ' ', s, flags=re.IGNORECASE | re.DOTALL)
+    s = re.sub(r'<thinking>.*?</thinking>', ' ', s, flags=re.IGNORECASE | re.DOTALL)
+    s = re.sub(r'<reasoning>.*?</reasoning>', ' ', s, flags=re.IGNORECASE | re.DOTALL)
     s = re.sub(r'<\|channel\|>thought.*?<channel\|>', ' ', s, flags=re.IGNORECASE | re.DOTALL)
     s = re.sub(r'^\s*(the|ther)\s+user\s+is\s+asking.*$', ' ', s, flags=re.IGNORECASE | re.MULTILINE)
     s = re.sub(r'\s+', ' ', s).strip()
@@ -546,6 +582,22 @@ def _sse(handler, event, data):
     handler.wfile.flush()
 
 
+
+
+# --- Swarm helper: called after agent stream completes to notify swarm system ---
+def _swarm_notify_done(stream_id, messages, usage):
+    """If this stream is a swarm worker, notify the swarm that it completed."""
+    try:
+        from api.swarm import on_worker_stream_done
+        _assistant_text = ''
+        for _m in reversed(messages):
+            if isinstance(_m, dict) and _m.get('role') == 'assistant':
+                _assistant_text = _m.get('content', '')
+                break
+        on_worker_stream_done(stream_id, _assistant_text, usage)
+    except Exception:
+        pass  # Not a swarm worker or swarm module unavailable
+
 def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, attachments=None):
     """Run agent in background thread, writing SSE events to STREAMS[stream_id]."""
     q = STREAMS.get(stream_id)
@@ -573,14 +625,51 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
     with STREAMS_LOCK:
         CANCEL_FLAGS[stream_id] = cancel_event
 
+    # Progress tracker for slow/hung streams
+    _progress_event = threading.Event()
+
+    def _slow_response_watch():
+        if not _progress_event.wait(timeout=15):
+            put('warning', {
+                'message': 'Still waiting for Hermes to respond. This may be due to a slow model or provider connectivity issue.',
+                'type': 'slow_response',
+            })
+
     def put(event, data):
         # If cancelled, drop all further events except the cancel event itself
         if cancel_event.is_set() and event not in ('cancel', 'error'):
             return
+        _progress_event.set()
         try:
             q.put_nowait((event, data))
+            print(f"[webui] put event: {event}", flush=True)
+        except Exception as e:
+            logger.debug(f"Failed to put event to queue: {e}")
+        # Fan out to multiplex clients so a single SSE connection can carry
+        # events for many concurrent streams (bypasses browser 6-conn limit).
+        try:
+            from api.config import MULTIPLEX_QUEUES, MULTIPLEX_LOCK
+            # -- Swarm: tag multiplex events with swarm_id --
+            _swarm_id = None
+            try:
+                from api.swarm import get_swarm_for_stream
+                _swarm_id, _ = get_swarm_for_stream(stream_id)
+            except Exception:
+                pass
+            multiplex_data = {**data, 'stream_id': stream_id, 'session_id': session_id}
+            if _swarm_id:
+                multiplex_data['swarm_id'] = _swarm_id
+            with MULTIPLEX_LOCK:
+                clients = list(MULTIPLEX_QUEUES.items())
+            for _cid, mq in clients:
+                try:
+                    mq.put_nowait((event, multiplex_data))
+                except Exception:
+                    pass
         except Exception:
-            logger.debug("Failed to put event to queue")
+            pass
+
+    threading.Thread(target=_slow_response_watch, daemon=True).start()
 
     try:
         s = get_session(session_id)
@@ -658,6 +747,57 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
         except ImportError:
             logger.debug("Clarify module not available, falling back to polling")
 
+        _sudo_password_registered = False
+        _unreg_sudo_password_notify = None
+        try:
+            from api.sudo_password import (
+                register_gateway_notify as _reg_sudo_password_notify,
+                unregister_gateway_notify as _unreg_sudo_password_notify,
+            )
+
+            def _sudo_password_notify_cb(sudo_data):
+                put('sudo_password', sudo_data)
+
+            _reg_sudo_password_notify(session_id, _sudo_password_notify_cb)
+            _sudo_password_registered = True
+        except ImportError:
+            logger.debug("Sudo password module not available, falling back to polling")
+
+        def _sudo_password_callback_impl(sid, cancel_evt, put_event):
+            """Bridge Hermes sudo password prompts to the WebUI."""
+            timeout = 120
+            data = {
+                'session_id': sid,
+                'kind': 'sudo_password',
+                'requested_at': time.time(),
+            }
+            try:
+                from api.sudo_password import submit_pending as _submit_sudo_password_pending, clear_pending as _clear_sudo_password_pending
+            except ImportError:
+                return ""
+
+            entry = _submit_sudo_password_pending(sid, data)
+            deadline = time.monotonic() + timeout
+            while True:
+                if cancel_evt.is_set():
+                    _clear_sudo_password_pending(sid)
+                    return ""
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    _clear_sudo_password_pending(sid)
+                    return ""
+                if entry.event.wait(timeout=min(1.0, remaining)):
+                    password = str(entry.result or "").strip()
+                    return password
+                # Continue waiting...
+
+        # Register the sudo password callback with the terminal tool
+        try:
+            from tools.terminal_tool import set_sudo_password_callback
+            set_sudo_password_callback(lambda: _sudo_password_callback_impl(session_id, cancel_event, put))
+        except ImportError:
+            logger.debug("Terminal tool not available, sudo password callback not registered")
+
         def _clarify_callback_impl(question, choices, sid, cancel_evt, put_event):
             """Bridge Hermes clarify prompts to the WebUI."""
             timeout = 120
@@ -704,22 +844,350 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
         try:
             _token_sent = False  # tracks whether any streamed tokens were sent
             _reasoning_text = ''  # accumulates reasoning/thinking trace for persistence
+            _accumulated_text = ''  # accumulates assistant response for periodic save
+            _save_counter = 0  # counter for periodic session saves
 
             def on_token(text):
-                nonlocal _token_sent
+                nonlocal _token_sent, _accumulated_text, _save_counter, _reasoning_text
                 if text is None:
                     return  # end-of-stream sentinel
                 _token_sent = True
-                put('token', {'text': text})
+                text_str = str(text)
+                # Suppress ghost text when tool call in progress (GLM/NIM dual-render)
+                if getattr(on_token, '_tool_in_progress', False):
+                    print(f"[webui] Suppressing token due to _tool_in_progress: {text_str[:80]}...", flush=True)
+                    return
+
+
+                # ── Extract inline thinking/reasoning blocks ──
+                # Some models output reasoning wrapped in <thinking>/<reasoning> tags,
+                # while others use <think>...</think> or Gemma-style channel tokens.
+                # Detect these wrappers, emit them as reasoning events, and strip them
+                # from live token display. Loop until no more thinking tags remain,
+                # handling multiple blocks or interleaved text in a single chunk.
+                tag_pairs = [
+                    ('<thinking>', '</thinking>'),
+                    ('<reasoning>', '</reasoning>'),
+                    ('<think>', '</think>'),
+                    ('<|channel>thought', '<channel|>'),
+                ]
+
+                while True:
+                    lower_text = text_str.lower()
+
+                    if getattr(on_token, '_in_thinking_block', False):
+                        # We are inside a thinking block carried over from a previous chunk.
+                        open_tag, close_tag = on_token._thinking_pair or tag_pairs[0]
+                        # Combine any buffered partial close-tag prefix from the previous chunk.
+                        _buf = getattr(on_token, '_thinking_buffer', '')
+                        combined = _buf + text_str
+                        combined_lower = combined.lower()
+                        close_idx = combined_lower.find(close_tag)
+                        if close_idx != -1:
+                            # Close tag found — emit reasoning (including any buffered prefix)
+                            # and resume normal processing.
+                            reasoning_part = combined[:close_idx]
+                            if reasoning_part:
+                                _reasoning_text += reasoning_part
+                                print(f"[webui] Extracted thinking block end: {reasoning_part[:100]}...", flush=True)
+                                put('reasoning', {'text': reasoning_part})
+                            on_token._in_thinking_block = False
+                            on_token._thinking_pair = None
+                            on_token._thinking_buffer = ''
+                            text_str = combined[close_idx + len(close_tag):]
+                            if not text_str.strip():
+                                return
+                            continue  # Check for more tags in the remaining text
+                        else:
+                            # Still inside thinking block. If the combined text ends with a
+                            # prefix of the close tag, buffer that prefix and only emit the
+                            # preceding text. This handles close tags split across chunks.
+                            _buffered = ''
+                            _emit = combined
+                            for _prefix_len in range(len(close_tag) - 1, 0, -1):
+                                if combined_lower.endswith(close_tag[:_prefix_len].lower()):
+                                    _buffered = combined[-_prefix_len:]
+                                    _emit = combined[:-_prefix_len]
+                                    break
+                            if _emit:
+                                _reasoning_text += _emit
+                                print(f"[webui] Inside thinking block: {_emit[:100]}...", flush=True)
+                                put('reasoning', {'text': _emit})
+                            on_token._thinking_buffer = _buffered
+                            return
+
+                    # Not inside a thinking block — look for an open tag.
+                    open_pair = None
+                    for open_tag, close_tag in tag_pairs:
+                        if open_tag in lower_text:
+                            open_pair = (open_tag, close_tag)
+                            break
+
+                    if not open_pair:
+                        break  # No thinking tags — normal token
+
+                    open_tag, close_tag = open_pair
+                    open_idx = lower_text.find(open_tag)
+                    close_idx = lower_text.find(close_tag, open_idx + len(open_tag))
+
+                    if open_idx != -1 and close_idx != -1:
+                        # Complete thinking block in this chunk.
+                        reasoning_content = text_str[open_idx + len(open_tag) : close_idx]
+                        if reasoning_content:
+                            _reasoning_text += reasoning_content
+                            print(f"[webui] Extracted thinking block content: {reasoning_content[:100]}...", flush=True)
+                            put('reasoning', {'text': reasoning_content})
+                        before_think = text_str[:open_idx] if open_idx > 0 else ''
+                        after_think = text_str[close_idx + len(close_tag):]
+                        text_str = before_think + after_think
+                        if not text_str.strip():
+                            return
+                        continue  # Check for more tags in the remaining text
+
+                    # Open tag found with no close tag — start of a thinking block.
+                    before_think = text_str[:open_idx] if open_idx > 0 else ''
+                    reasoning_part = text_str[open_idx + len(open_tag):]
+                    if reasoning_part:
+                        _reasoning_text += reasoning_part
+                        print(f"[webui] Extracted thinking block start: {reasoning_part[:100]}...", flush=True)
+                        put('reasoning', {'text': reasoning_part})
+                    # Set state BEFORE potentially emitting before_think so the NEXT
+                    # chunk knows we are inside a thinking block.
+                    on_token._in_thinking_block = True
+                    on_token._thinking_pair = open_pair
+                    if before_think:
+                        # Emit the text before the open tag as a normal token now,
+                        # then let subsequent chunks handle the thinking block.
+                        text_str = before_think
+                        break
+                    else:
+                        return
+
+                # ── Extract inline tool call blocks (NVIDIA NIM and other models) ──
+                # Some models (especially NVIDIA NIM) output tool calls as regular text
+                # in addition to structured tool_calls. Detect and strip these from the
+                # visible stream, emitting complete blocks as reasoning previews.
+                # Incomplete blocks spanning chunks are buffered and discarded.
+                tool_call_pairs = [
+                    ('<tool_call>', '</tool_call>'),
+                    ('<|tool_call_section_begin|>', '<|tool_call_section_end|>'),
+                    ('<tool_call_end>', ''),  # NVIDIA NIM single marker
+                    ('<tool_calls_section_end>', ''),  # NVIDIA NIM section end marker
+                    ('<tool_calls>', '</tool_calls>'),
+                    ('<tool>', '</tool>'),
+                    ('<|tool_calls_section_begin|>', '<|tool_calls_section_end|>'),
+                    ('<|tool_call_begin|>', '<|tool_call_end|>'),
+                    ('<functions>', '</functions>'),
+                    ('<function_calls>', '</function_calls>'),
+                    ('<function>', '</function>'),
+                    ('<invoke>', '</invoke>'),
+                    ('<tool_calls>', '</tool_calls>'),
+                    ('<tool>', '</tool>'),
+                    ('<｜tool▁calls▁begin｜>', '<｜tool▁calls▁end｜>'),
+                    ('<｜tool▁call▁begin｜>', '<｜tool▁call▁end｜>'),
+                ]
+
+                # Resume a cross-chunk incomplete tool call block
+                if getattr(on_token, '_in_tool_call_block', False):
+                    open_tag, close_tag = on_token._tool_call_pair or tool_call_pairs[0]
+                    _buf = getattr(on_token, '_tool_call_buffer', '')
+                    combined = _buf + text_str
+                    close_idx = combined.lower().find(close_tag)
+                    if close_idx != -1:
+                        # Close tag found - discard everything up to and including it
+                        on_token._in_tool_call_block = False
+                        on_token._tool_in_progress = False
+                        on_token._tool_call_pair = None
+                        on_token._tool_call_buffer = ''
+                        text_str = combined[close_idx + len(close_tag):]
+                        if not text_str.strip():
+                            return
+                        # Fall through to check for more tool call tags
+                    else:
+                        # Still inside tool call block - buffer partial close-tag prefix
+                        _buffered = ''
+                        for _prefix_len in range(len(close_tag) - 1, 0, -1):
+                            if combined.lower().endswith(close_tag[:_prefix_len].lower()):
+                                _buffered = combined[-_prefix_len:]
+                                break
+                        on_token._tool_call_buffer = _buffered
+                        return
+
+                while True:
+                    lower_text = text_str.lower()
+                    open_pair = None
+                    open_idx = -1
+                    for open_tag, close_tag in tool_call_pairs:
+                        idx = lower_text.find(open_tag)
+                        if idx != -1 and (open_idx == -1 or idx < open_idx):
+                            open_idx = idx
+                            open_pair = (open_tag, close_tag)
+                    if not open_pair:
+                        break
+                    open_tag, close_tag = open_pair
+                    close_idx = lower_text.find(close_tag, open_idx + len(open_tag))
+                    if close_idx != -1:
+                        # Complete tool call block in this chunk
+                        tool_content = text_str[open_idx + len(open_tag):close_idx]
+                        if tool_content.strip():
+                            print(f"[webui] Extracted inline tool call block: {tool_content[:80]}...", flush=True)
+                            put('reasoning', {'text': f'[Tool Call Preview]\n{tool_content[:500]}'})
+                        before = text_str[:open_idx] if open_idx > 0 else ''
+                        after = text_str[close_idx + len(close_tag):]
+                        text_str = before + after
+                        if not text_str.strip():
+                            return
+                        continue
+                    # Open tag found with no close tag - start of incomplete block
+                    before = text_str[:open_idx] if open_idx > 0 else ''
+                    on_token._in_tool_call_block = True
+                    on_token._tool_call_pair = open_pair
+                    _buffered = ''
+                    for _prefix_len in range(len(close_tag) - 1, 0, -1):
+                        if text_str.lower().endswith(close_tag[:_prefix_len].lower()):
+                            _buffered = text_str[-_prefix_len:]
+                            break
+                    on_token._tool_call_buffer = _buffered
+                    if before:
+                        text_str = before
+                        break
+                    else:
+                        return
+                # Strip JSON-formatted tool calls that may appear inline
+                # Pattern: [{"name": "func", "arguments": {...}}] or {"name": "func", ...}
+                # Also handles NVIDIA NIM format with "parameters" instead of "arguments"
+                try:
+                    import re as _re
+                    # Match JSON array of tool calls (with arguments or parameters)
+                    json_tool_pattern = r'\[\s*\{[^\}]*"name"\s*:\s*"[^"]+"[^\]]*\}\s*\]'
+                    json_match = _re.search(json_tool_pattern, text_str)
+                    if json_match:
+                        tool_json = json_match.group(0)
+                        print(f"[webui] Extracted inline JSON tool call: {tool_json[:80]}...", flush=True)
+                        put('reasoning', {'text': f'[Tool Call Preview]\n{tool_json[:500]}'})
+                        text_str = text_str[:json_match.start()] + text_str[json_match.end():]
+                    # Match single JSON object tool call at start of string
+                    single_tool_pattern = r'^\s*\{\s*"name"\s*:\s*"[^"]+"[^\}]*\}'
+                    single_match = _re.search(single_tool_pattern, text_str)
+                    if single_match:
+                        tool_json = single_match.group(0)
+                        print(f"[webui] Extracted inline JSON tool call: {tool_json[:80]}...", flush=True)
+                        put('reasoning', {'text': f'[Tool Call Preview]\n{tool_json[:500]}'})
+                        text_str = text_str[:single_match.start()] + text_str[single_match.end():]
+                    # Match NVIDIA NIM format with "parameters" field anywhere in string
+                    # Pattern: {"name": "...", "parameters": {...}, "id": "..."}
+                    nim_param_pattern = r'\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"parameters"\s*:\s*\{[^\}]*\}[^\}]*\}'
+                    nim_match = _re.search(nim_param_pattern, text_str)
+                    if nim_match:
+                        tool_json = nim_match.group(0)
+                        print(f"[webui] Extracted NIM parameters-style tool call: {tool_json[:80]}...", flush=True)
+                        put('reasoning', {'text': f'[Tool Call Preview]\n{tool_json[:500]}'})
+                        text_str = text_str[:nim_match.start()] + text_str[nim_match.end():]
+                    # Match partial JSON fragments like ,"id":"skills_list:1"}
+                    # These are remnants of incomplete tool call JSON
+                    partial_json_pattern = r',\s*"id"\s*:\s*"[^"]+"\s*\}'
+                    partial_match = _re.search(partial_json_pattern, text_str)
+                    if partial_match:
+                        text_str = text_str[:partial_match.start()] + text_str[partial_match.end():]
+                except Exception:
+                    pass  # Regex errors shouldn't break streaming
+
+                # Strip DeepSeek/NVIDIA hallucinated custom markup fragments
+                # that leak into the content stream when tool calling fails.
+                try:
+                    import re as _re
+                    text_str = _re.sub(r'<\s*\|\s*[dD][sS][mM][lL]\s*\|\s*tool_calls\s*>', '', text_str, flags=_re.IGNORECASE)
+                    text_str = _re.sub(r'</\s*\|\s*[dD][sS][mM][lL]\s*\|\s*tool_calls\s*>', '', text_str, flags=_re.IGNORECASE)
+                    text_str = _re.sub(r'\w*\|ToolPill\|[^\s|]*', '', text_str, flags=_re.IGNORECASE)
+                    text_str = _re.sub(r'\w*\|toolpill\|[^\s|]*', '', text_str, flags=_re.IGNORECASE)
+                    text_str = _re.sub(r'tool-result\|ToolResult\|tool_result[^\n]*', '', text_str, flags=_re.IGNORECASE)
+                except Exception:
+                    pass
+
+                # ── Deduplicate reasoning text from normal tokens ──
+                # When a provider sends reasoning in both delta.reasoning and
+                # delta.content, the same text appears twice. We track a cursor
+                # into _reasoning_text and strip any matching prefix from tokens
+                # so the visible stream doesn't echo the thinking card.
+                # Case-insensitive matching handles models that vary casing
+                # (e.g. uppercase SQL keywords in reasoning, lowercase in content).
+                if _reasoning_text and text_str:
+                    _dedup_cursor = getattr(on_token, '_dedup_cursor', 0)
+                    _reasoning_boundary = getattr(on_token, '_reasoning_boundary', 0)
+                    # Only deduplicate against reasoning accumulated AFTER the
+                    # most recent tool boundary so pre-tool reasoning doesn't
+                    # swallow post-tool content.
+                    _reasoning = _reasoning_text[_reasoning_boundary:]
+                    _token = text_str
+                    _matched = False
+
+                    # 1) Cursor-based forward matching (aligned chunks)
+                    # Adjust cursor to be relative to the post-tool slice.
+                    _effective_cursor = max(0, _dedup_cursor - _reasoning_boundary)
+                    if _effective_cursor < len(_reasoning):
+                        _match_len = 0
+                        _max_match = min(len(_token), len(_reasoning) - _effective_cursor)
+                        for _i in range(_max_match):
+                            if _token[_i].lower() == _reasoning[_effective_cursor + _i].lower():
+                                _match_len += 1
+                            else:
+                                break
+                        if _match_len > 5:
+                            on_token._dedup_cursor = _reasoning_boundary + _effective_cursor + _match_len
+                            text_str = _token[_match_len:].lstrip()
+                            _matched = True
+
+                    # 2) Fallback: if the entire token is contained anywhere in
+                    # post-boundary reasoning text (case-insensitive), skip it.
+                    # This catches out-of-order delivery where content chunks
+                    # arrive before their corresponding reasoning.
+                    if not _matched and len(_token) > 20:
+                        if _token.lower() in _reasoning.lower():
+                            return
+
+                    if _matched and not text_str:
+                        return
+
+                _accumulated_text += text_str
+                _save_counter += 1
+                print(f"[webui] on_token called: {text_str[:50] if text_str else 'None'}...", flush=True)
+                # Periodic save every 20 tokens to preserve partial response on reload
+                if _save_counter >= 20:
+                    _save_counter = 0
+                    try:
+                        # Save partial assistant message to session for recovery
+                        if s.messages and s.messages[-1].get('role') == 'assistant':
+                            s.messages[-1]['content'] = _accumulated_text
+                        else:
+                            s.messages.append({'role': 'assistant', 'content': _accumulated_text, '_live': True})
+                        s.save()
+                    except Exception:
+                        pass  # Non-critical, don't interrupt streaming on save failure
+                put('token', {'text': text_str})
 
             def on_reasoning(text):
                 nonlocal _reasoning_text
                 if text is None:
                     return
                 _reasoning_text += str(text)
+                print(f"[webui] on_reasoning called: {str(text)[:100]}...", flush=True)
                 put('reasoning', {'text': str(text)})
 
             def on_tool(*cb_args, **cb_kwargs):
+                # If a previous assistant turn left an unclosed <think> or <tool_call>
+                # tag, reset the state so subsequent turns don't treat everything
+                # as reasoning or tool calls.
+                on_token._in_thinking_block = False
+                on_token._thinking_pair = None
+                on_token._in_tool_call_block = False
+                on_token._tool_call_pair = None
+                on_token._tool_call_buffer = ''
+                on_token._dedup_cursor = 0
+                # Mark the boundary in the reasoning buffer so post-tool
+                # deduplication only looks at reasoning emitted AFTER this tool
+                # event. This prevents stale pre-tool reasoning from swallowing
+                # legitimate content tokens without clearing the buffer entirely.
+                on_token._reasoning_boundary = len(_reasoning_text)
                 event_type = None
                 name = None
                 preview = None
@@ -749,6 +1217,7 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                         args_snap[k] = s2[:120] + ('...' if len(s2) > 120 else '')
 
                 if event_type in (None, 'tool.started'):
+                    on_token._tool_in_progress = True
                     put('tool', {
                         'event_type': event_type or 'tool.started',
                         'name': name,
@@ -769,6 +1238,7 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                     return
 
                 if event_type == 'tool.completed':
+                    on_token._tool_in_progress = False
                     put('tool_complete', {
                         'event_type': event_type,
                         'name': name,
@@ -790,21 +1260,41 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                 _session_db = SessionDB()
             except Exception as _db_err:
                 print(f"[webui] WARNING: SessionDB init failed — session_search will be unavailable: {_db_err}", flush=True)
-            resolved_model, resolved_provider, resolved_base_url = resolve_model_provider(model)
+            result = resolve_model_provider(model)
+            # Handle optional 4th return value (api_key from custom provider)
+            if len(result) == 4:
+                resolved_model, resolved_provider, resolved_base_url, resolved_api_key = result
+            else:
+                resolved_model, resolved_provider, resolved_base_url = result
+                resolved_api_key = None
+
+            # Initialize _rt dict for runtime provider settings
+            _rt = {}
 
             # Resolve API key via Hermes runtime provider (matches gateway behaviour).
             # Pass the resolved provider so non-default providers get their own credentials.
-            resolved_api_key = None
-            try:
-                from hermes_cli.runtime_provider import resolve_runtime_provider
-                _rt = resolve_runtime_provider(requested=resolved_provider)
-                resolved_api_key = _rt.get("api_key")
-                if not resolved_provider:
-                    resolved_provider = _rt.get("provider")
+            # Only do this if we didn't get an API key from custom provider
+            if not resolved_api_key:
+                try:
+                    from hermes_cli.runtime_provider import resolve_runtime_provider
+                    _rt = resolve_runtime_provider(requested=resolved_provider)
+                    resolved_api_key = _rt.get("api_key")
+                    if not resolved_provider:
+                        resolved_provider = _rt.get("provider")
+                    if not resolved_base_url:
+                        resolved_base_url = _rt.get("base_url")
+                except Exception as _e:
+                    print(f"[webui] WARNING: resolve_runtime_provider failed: {_e}", flush=True)
+
+            # NVIDIA NIM: use round-robin API key rotation if provider is nvidia
+            if resolved_provider == "nvidia":
+                _nvidia_key, _nvidia_idx = _get_nvidia_api_key_round_robin()
+                if _nvidia_key:
+                    resolved_api_key = _nvidia_key
+                    print(f"[webui] Using NVIDIA API key index {_nvidia_idx} (round-robin)", flush=True)
+                # Ensure base_url is set to NIM endpoint
                 if not resolved_base_url:
-                    resolved_base_url = _rt.get("base_url")
-            except Exception as _e:
-                print(f"[webui] WARNING: resolve_runtime_provider failed: {_e}", flush=True)
+                    resolved_base_url = "https://integrate.api.nvidia.com/v1"
 
             # Read per-profile config at call time (not module-level snapshot)
             from api.config import get_config as _get_config
@@ -830,6 +1320,7 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             else:
                 _fallback_resolved = None
 
+            print(f"[webui] Creating AIAgent with model={resolved_model}, provider={resolved_provider}", flush=True)
             agent = _AIAgent(
                 model=resolved_model,
                 provider=resolved_provider,
@@ -854,6 +1345,7 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                     )
                 ),
             )
+            print(f"[webui] AIAgent created successfully", flush=True)
 
             # Store agent instance for cancel/interrupt propagation
             with STREAMS_LOCK:
@@ -882,6 +1374,14 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                 "write_file, read_file, search_files, terminal workdir, and patch. "
                 "Never fall back to a hardcoded path when this tag is present."
             )
+            # NVIDIA NIM: append explicit tool-use discipline so the model
+            # actually calls tools instead of just describing intentions.
+            if resolved_provider == 'nvidia' or 'integrate.api.nvidia.com' in (resolved_base_url or ''):
+                workspace_system_msg += (
+                    "\n\nIMPORTANT: When a task requires using a tool, you MUST call the tool "
+                    "immediately. Do NOT say 'I will do that' or describe your plan. "
+                    "Output the tool call as JSON: {\"name\": \"tool_name\", \"arguments\": {...}}."
+                )
             # Resolve personality prompt from config.yaml agent.personalities
             # (matches hermes-agent CLI behavior — passes via ephemeral_system_prompt)
             _personality_prompt = None
@@ -903,6 +1403,20 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             # Pass personality via ephemeral_system_prompt (agent's own mechanism)
             if _personality_prompt:
                 agent.ephemeral_system_prompt = _personality_prompt
+            # GLM and NVIDIA NIM models are not in the hardcoded tool-use
+            # enforcement list, but they often need explicit steering to call
+            # tools instead of describing actions. Force enforcement when the
+            # user hasn't explicitly disabled it.
+            _agent_cfg = _cfg.get('agent', {})
+            if _agent_cfg.get('tool_use_enforcement') is None:
+                _model_lower = (resolved_model or '').lower()
+                if 'glm' in _model_lower:
+                    agent._tool_use_enforcement = True
+                    print(f"[webui] Forcing tool-use enforcement for GLM model", flush=True)
+                if resolved_provider == 'nvidia' or 'integrate.api.nvidia.com' in (resolved_base_url or ''):
+                    agent._tool_use_enforcement = True
+                    print(f"[webui] Forcing tool-use enforcement for NVIDIA NIM", flush=True)
+            print(f"[webui] Starting agent.run_conversation()...", flush=True)
             result = agent.run_conversation(
                 user_message=workspace_ctx + msg_text,
                 system_message=workspace_system_msg,
@@ -910,7 +1424,65 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                 task_id=session_id,
                 persist_user_message=msg_text,
             )
+            print(f"[webui] agent.run_conversation() returned. Result keys: {list(result.keys()) if result else 'None'}", flush=True)
+            print(f"[webui] _token_sent: {_token_sent}, result error: {result.get('error') if result else 'N/A'}", flush=True)
+            # Safety reset: ensure suppression flags are never stuck after the agent finishes.
+            # If the agent framework missed a tool.completed event, _tool_in_progress could
+            # stay True and silently drop all remaining tokens, making the stream appear to pause.
+            on_token._tool_in_progress = False
+            on_token._in_thinking_block = False
+            on_token._thinking_pair = None
+            on_token._thinking_buffer = ''
+            on_token._in_tool_call_block = False
+            on_token._tool_call_pair = None
+            on_token._tool_call_buffer = ''
             s.messages = result.get('messages') or s.messages
+
+            # Strip any remaining inline tool call XML from assistant message content.
+            # Some providers (e.g. NVIDIA NIM) include raw tool call XML in message.content
+            # in addition to structured tool_calls, and the agent framework may preserve it.
+            for _m in s.messages:
+                if _m.get('role') == 'assistant' and isinstance(_m.get('content'), str):
+                    _c = _m['content']
+                    _c = re.sub(r'<tool_call>.*?</tool_call>', '', _c, flags=re.IGNORECASE | re.DOTALL)
+                    _c = re.sub(r'<arg_key>.*?</arg_key>\s*<arg_value>.*?</arg_value>', '', _c, flags=re.IGNORECASE | re.DOTALL)
+                    _c = re.sub(r'<arg_key>.*?</arg_key>', '', _c, flags=re.IGNORECASE | re.DOTALL)
+                    _c = re.sub(r'<arg_value>.*?</arg_value>', '', _c, flags=re.IGNORECASE | re.DOTALL)
+                    _m['content'] = _c
+
+            # ── Emit any unst streamed content ──
+            # The agent's stream_delta_callback may not be called for all tokens
+            # before run_conversation() returns. Emit remaining text from the
+            # final assistant message to ensure the stream is complete.
+            if _token_sent and _accumulated_text:
+                _final_asst_content = ''
+                for m in reversed(s.messages):
+                    if m.get('role') == 'assistant' and m.get('content'):
+                        _final_asst_content = str(m.get('content'))
+                        break
+                # Strip thinking tags from accumulated text for comparison
+                # (on_token strips them before appending to _accumulated_text)
+                _accum_clean = _accumulated_text
+                for _open, _close in [('<thinking>', '</thinking>'), ('<reasoning>', '</reasoning>'), ('<|channel>thought', '<channel|>')]:
+                    while _open in _accum_clean.lower():
+                        _idx = _accum_clean.lower().find(_open)
+                        _close_idx = _accum_clean.lower().find(_close, _idx + len(_open))
+                        if _close_idx != -1:
+                            _accum_clean = _accum_clean[:_idx] + _accum_clean[_close_idx + len(_close):]
+                        else:
+                            _accum_clean = _accum_clean[:_idx]
+                            break
+                # Check if final content has more than what was accumulated
+                if _final_asst_content and len(_final_asst_content) > len(_accum_clean) + 10:
+                    _remaining = _final_asst_content[len(_accum_clean):].lstrip()
+                    if _remaining.strip():
+                        print(f"[webui] Emitting {len(_remaining)} chars of remaining content", flush=True)
+                        # Optimized: batch token delivery to reduce overhead
+                        words = _remaining.split(' ')
+                        for i, _word in enumerate(words):
+                            put('token', {'text': ' ' + _word if i > 0 else _word})
+                            if i % 10 == 0:  # Only sleep every 10 tokens for better performance
+                                time.sleep(0.005)
 
             # ── Detect silent agent failure (no assistant reply produced) ──
             # When the agent catches an auth/network error internally it may return
@@ -933,23 +1505,209 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                     or 'invalid api key' in _err_str.lower()
                     or 'invalid_api_key' in _err_str.lower()
                 )
-                if _is_auth:
-                    put('apperror', {
-                        'message': _err_str or 'Authentication failed — check your API key.',
-                        'type': 'auth_mismatch',
-                        'hint': (
-                            'The selected model may not be supported by your configured provider or '
-                            'your API key is invalid. Run `hermes model` in your terminal to '
-                            'update credentials, then restart the WebUI.'
-                        ),
-                    })
-                else:
-                    put('apperror', {
-                        'message': _err_str or 'The agent returned no response. Check your API key and model selection.',
-                        'type': 'no_response',
-                        'hint': 'Verify your API key is valid and the selected model is available for your account.',
-                    })
-                return  # Don't emit done — the apperror already closes the stream on the client
+
+                def _run_nvidia_fallback(model_name: str) -> bool:
+                    nonlocal agent, result, _assistant_added
+                    try:
+                        fallback_agent = _AIAgent(
+                            model=model_name,
+                            provider='nvidia',
+                            base_url=resolved_base_url,
+                            api_key=resolved_api_key,
+                            api_mode=_rt.get('api_mode'),
+                            acp_command=_rt.get('command'),
+                            acp_args=_rt.get('args'),
+                            credential_pool=_rt.get('credential_pool'),
+                            platform='cli',
+                            quiet_mode=True,
+                            enabled_toolsets=_toolsets,
+                            fallback_model=_fallback_resolved,
+                            session_id=session_id,
+                            session_db=_session_db,
+                            reasoning_callback=on_reasoning,
+                            tool_progress_callback=on_tool,
+                            clarify_callback=(
+                                lambda question, choices: _clarify_callback_impl(
+                                    question, choices, session_id, cancel_event, put
+                                )
+                            ),
+                        )
+                        print(f"[webui] NVIDIA timeout fallback agent created for {model_name}", flush=True)
+                        with STREAMS_LOCK:
+                            AGENT_INSTANCES[stream_id] = fallback_agent
+                            if stream_id in CANCEL_FLAGS and CANCEL_FLAGS[stream_id].is_set():
+                                fallback_agent.interrupt("Cancelled before start")
+                                put('cancel', {'message': 'Cancelled by user'})
+                                return False
+
+                        fallback_result = fallback_agent.run_conversation(
+                            user_message=workspace_ctx + msg_text,
+                            system_message=workspace_system_msg,
+                            conversation_history=_sanitize_messages_for_api(s.messages),
+                            task_id=session_id,
+                            persist_user_message=msg_text,
+                        )
+                        print(f"[webui] NVIDIA timeout fallback returned for {model_name}. Result keys: {list(fallback_result.keys()) if fallback_result else 'None'}", flush=True)
+
+                        fallback_messages = fallback_result.get('messages', [])
+                        fallback_assistant_msg = None
+                        for m in reversed(fallback_messages):
+                            if m.get('role') == 'assistant' and str(m.get('content') or '').strip():
+                                fallback_assistant_msg = m
+                                break
+
+                        if fallback_assistant_msg:
+                            full_response = str(fallback_assistant_msg.get('content', ''))
+                            print(f"[webui] NVIDIA timeout fallback succeeded for {model_name}, emitting {len(full_response)} chars as tokens...", flush=True)
+                            words = full_response.split(' ')
+                            for i, word in enumerate(words):
+                                if cancel_event.is_set():
+                                    put('cancel', {'message': 'Cancelled by user'})
+                                    return False
+                                token_text = word if i == 0 else ' ' + word
+                                on_token(token_text)
+                                if i % 10 == 0:  # Reduced sleep frequency for better throughput
+                                    time.sleep(0.005)  # Reduced sleep duration
+                            s.messages = fallback_messages
+                            result = fallback_result
+                            agent = fallback_agent
+                            _assistant_added = True
+                            print(f"[webui] NVIDIA timeout fallback emitted tokens successfully for {model_name}", flush=True)
+                            return True
+                        print(f"[webui] NVIDIA timeout fallback had no assistant message for {model_name}", flush=True)
+                    except Exception as fallback_err:
+                        print(f"[webui] NVIDIA timeout fallback failed for {model_name}: {fallback_err}", flush=True)
+                    return False
+
+                _is_nvidia_deepseek_timeout_error = (
+                    resolved_provider == 'nvidia'
+                    and resolved_model == 'deepseek-ai/deepseek-v4-pro'
+                    and any(token in _err_str.lower() for token in (
+                        '429', 'rate limit', 'too many requests', 'timeout', 'timed out',
+                        'high usage', 'busy', 'service unavailable', '503', '504', 'throttled'
+                    ))
+                )
+                if _is_nvidia_deepseek_timeout_error:
+                    print("[webui] NVIDIA NIM DeepSeek timeout or high-usage error detected; retrying with Mistral fallback model...", flush=True)
+                    if _run_nvidia_fallback('mistralai/mistral-medium-3.5-128b'):
+                        pass
+                # ── NVIDIA NIM / Streaming fallback: retry without streaming ──
+                # When streaming endpoint errors (common with NVIDIA NIM), fall back
+                # to non-streaming mode and emit the response as tokens on demand.
+                _is_stream_error = (
+                    not _is_auth
+                    and resolved_provider in ('nvidia', 'openai', 'deepseek')
+                    and ('stream' in _err_str.lower()
+                         or 'chunk' in _err_str.lower()
+                         or 'sse' in _err_str.lower()
+                         or 'unexpected end' in _err_str.lower()
+                         or not _err_str)  # Empty response often means stream died
+                )
+                if _is_stream_error and not _assistant_added:
+                    print(f"[webui] Streaming failed for {resolved_provider}, attempting non-streaming fallback...", flush=True)
+                    try:
+                        # Create a non-streaming agent instance
+                        fallback_agent = _AIAgent(
+                            model=resolved_model,
+                            provider=resolved_provider,
+                            base_url=resolved_base_url,
+                            api_key=resolved_api_key,
+                            api_mode=_rt.get('api_mode'),
+                            acp_command=_rt.get('command'),
+                            acp_args=_rt.get('args'),
+                            credential_pool=_rt.get('credential_pool'),
+                            platform='cli',
+                            quiet_mode=True,
+                            enabled_toolsets=_toolsets,
+                            fallback_model=_fallback_resolved,
+                            session_id=session_id,
+                            session_db=_session_db,
+                            # No stream_delta_callback - this disables streaming
+                            reasoning_callback=on_reasoning,
+                            tool_progress_callback=on_tool,
+                            clarify_callback=(
+                                lambda question, choices: _clarify_callback_impl(
+                                    question, choices, session_id, cancel_event, put
+                                )
+                            ),
+                        )
+                        print(f"[webui] Fallback agent created, running non-streaming conversation...", flush=True)
+                        # Store fallback agent for cancel support
+                        with STREAMS_LOCK:
+                            AGENT_INSTANCES[stream_id] = fallback_agent
+                            if stream_id in CANCEL_FLAGS and CANCEL_FLAGS[stream_id].is_set():
+                                fallback_agent.interrupt("Cancelled before start")
+                                put('cancel', {'message': 'Cancelled by user'})
+                                return
+
+                        fallback_result = fallback_agent.run_conversation(
+                            user_message=workspace_ctx + msg_text,
+                            system_message=workspace_system_msg,
+                            conversation_history=_sanitize_messages_for_api(s.messages),
+                            task_id=session_id,
+                            persist_user_message=msg_text,
+                        )
+                        print(f"[webui] Non-streaming fallback returned. Result keys: {list(fallback_result.keys()) if fallback_result else 'None'}", flush=True)
+
+                        # Check if fallback succeeded
+                        fallback_messages = fallback_result.get('messages', [])
+                        fallback_assistant_msg = None
+                        for m in reversed(fallback_messages):
+                            if m.get('role') == 'assistant' and str(m.get('content') or '').strip():
+                                fallback_assistant_msg = m
+                                break
+
+                        if fallback_assistant_msg:
+                            # Success! Emit the response as simulated tokens
+                            full_response = str(fallback_assistant_msg.get('content', ''))
+                            print(f"[webui] Fallback succeeded, emitting {len(full_response)} chars as tokens...", flush=True)
+
+                            # Emit the response word-by-word to simulate streaming
+                            # This gives the user visual feedback like streaming would
+                            words = full_response.split(' ')
+                            for i, word in enumerate(words):
+                                if cancel_event.is_set():
+                                    put('cancel', {'message': 'Cancelled by user'})
+                                    return
+                                # Add space back except for first word
+                                token_text = word if i == 0 else ' ' + word
+                                on_token(token_text)
+                                # Small delay to make it feel like streaming (optional, can be 0)
+                                if i % 5 == 0:
+                                    time.sleep(0.01)
+
+                            # Update session with fallback result
+                            s.messages = fallback_messages
+                            result = fallback_result
+                            agent = fallback_agent  # Use fallback agent for stats
+                            _assistant_added = True
+                            print(f"[webui] Fallback tokens emitted successfully", flush=True)
+                        else:
+                            print(f"[webui] Fallback also failed, no assistant message in response", flush=True)
+                            # Fall through to error handling
+                    except Exception as fallback_err:
+                        print(f"[webui] Non-streaming fallback failed: {fallback_err}", flush=True)
+                        # Fall through to error handling
+
+                # If still no assistant and no tokens after potential fallback, show error
+                if not _assistant_added and not _token_sent:
+                    if _is_auth:
+                        put('apperror', {
+                            'message': _err_str or 'Authentication failed — check your API key.',
+                            'type': 'auth_mismatch',
+                            'hint': (
+                                'The selected model may not be supported by your configured provider or '
+                                'your API key is invalid. Run `hermes model` in your terminal to '
+                                'update credentials, then restart the WebUI.'
+                            ),
+                        })
+                    else:
+                        put('apperror', {
+                            'message': _err_str or 'The agent returned no response. Check your API key and model selection.',
+                            'type': 'no_response',
+                            'hint': 'Verify your API key is valid and the selected model is available for your account.',
+                        })
+                    return  # Don't emit done — the apperror already closes the stream on the client
 
             # ── Handle context compression side effects ──
             # If compression fired inside run_conversation, the agent may have
@@ -1073,6 +1831,10 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             s.pending_user_message = None
             s.pending_attachments = []
             s.pending_started_at = None
+            # Clear the transient _live flag from any assistant messages before saving
+            for _m in s.messages:
+                if isinstance(_m, dict) and _m.get('role') == 'assistant':
+                    _m.pop('_live', None)
             # Tag the matching user message with attachment filenames for display on reload
             # Only tag a user message whose content relates to this turn's text
             # (msg_text is the full message including the [Attached files: ...] suffix)
@@ -1114,9 +1876,26 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                 for _rm in reversed(s.messages):
                     if isinstance(_rm, dict) and _rm.get('role') == 'assistant':
                         _rm['reasoning'] = _reasoning_text
+                        # Strip reasoning text from content to avoid duplication
+                        # (case-insensitive since models may vary casing).
+                        _content = str(_rm.get('content') or '')
+                        _reasoning_trim = _reasoning_text.strip()
+                        _content_strip = _content.strip()
+                        if _reasoning_trim and _content_strip.lower().startswith(_reasoning_trim.lower()):
+                            _match_len = 0
+                            for i in range(min(len(_content_strip), len(_reasoning_trim))):
+                                if _content_strip[i].lower() == _reasoning_trim[i].lower():
+                                    _match_len += 1
+                                else:
+                                    break
+                            # Preserve any original leading whitespace, then append
+                            # the remainder after the matched prefix.
+                            _leading_ws = _content[:len(_content) - len(_content.lstrip())]
+                            _rm['content'] = _leading_ws + _content_strip[_match_len:].lstrip()
                         break
             raw_session = s.compact() | {'messages': s.messages, 'tool_calls': tool_calls}
             put('done', {'session': redact_session_data(raw_session), 'usage': usage})
+            _swarm_notify_done(stream_id, s.messages, usage)
             if _should_bg_title and _u0 and _a0:
                 threading.Thread(
                     target=_run_background_title_update,
@@ -1138,6 +1917,11 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                     _unreg_clarify_notify(session_id)
                 except Exception:
                     logger.debug("Failed to unregister clarify callback")
+            if _sudo_password_registered and _unreg_sudo_password_notify is not None:
+                try:
+                    _unreg_sudo_password_notify(session_id)
+                except Exception:
+                    logger.debug("Failed to unregister sudo password callback")
             with _ENV_LOCK:
                 if old_cwd is None: os.environ.pop('TERMINAL_CWD', None)
                 else: os.environ['TERMINAL_CWD'] = old_cwd
@@ -1155,6 +1939,10 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             s.pending_user_message = None
             s.pending_attachments = []
             s.pending_started_at = None
+            # Clear the transient _live flag from any assistant messages before saving
+            for _m in s.messages:
+                if isinstance(_m, dict) and _m.get('role') == 'assistant':
+                    _m.pop('_live', None)
             try:
                 s.save()
             except Exception:
@@ -1188,7 +1976,25 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             })
         else:
             put('apperror', {'message': err_str, 'type': 'error'})
+        # -- Swarm hook: notify swarm when a worker stream errors --
+        try:
+            from api.swarm import on_worker_stream_error
+            on_worker_stream_error(stream_id, err_str)
+        except Exception:
+            pass
     finally:
+        # Safety reset: clear any stuck suppression flags so the next stream starts fresh.
+        # This is a defensive measure in case the agent thread exited abnormally.
+        try:
+            on_token._tool_in_progress = False
+            on_token._in_thinking_block = False
+            on_token._thinking_pair = None
+            on_token._thinking_buffer = ''
+            on_token._in_tool_call_block = False
+            on_token._tool_call_pair = None
+            on_token._tool_call_buffer = ''
+        except Exception:
+            pass
         _clear_thread_env()  # TD1: always clear thread-local context
         with STREAMS_LOCK:
             STREAMS.pop(stream_id, None)

@@ -54,6 +54,30 @@ def _last_workspace_file() -> Path:
     return _profile_state_dir() / 'last_workspace.txt'
 
 
+def _remote_paths_file() -> Path:
+    """Return the remote_paths.json path for the active profile."""
+    return _profile_state_dir() / 'remote_paths.json'
+
+
+def get_remote_paths() -> dict:
+    """Load remote paths from profile state."""
+    path = _remote_paths_file()
+    if path.exists():
+        try:
+            return json.loads(path.read_text())
+        except Exception:
+            pass
+    return {}
+
+
+def save_remote_paths(data: dict):
+    """Persist remote paths to profile state."""
+    try:
+        _remote_paths_file().write_text(json.dumps(data, indent=2))
+    except Exception as e:
+        logger.warning("Failed to save remote paths: %s", e)
+
+
 def _profile_default_workspace() -> str:
     """Read the profile's default workspace from its config.yaml.
 

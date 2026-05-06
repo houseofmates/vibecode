@@ -1,21 +1,107 @@
-async function api(path,opts={}){
-  // Strip leading slash so URL resolves relative to location.href (supports subpath mounts)
-  const rel = path.startsWith('/') ? path.slice(1) : path;
-  const url=new URL(rel,location.href);
-  console.log('[api] Calling:', path, opts.method||'GET');
-  const res=await fetch(url.href,{credentials:'include',headers:{'Content-Type':'application/json'},...opts});
-  if(!res.ok){
-    const text=await res.text();
-    console.log('[api] Error response:', res.status, text);
-    // Parse JSON error body and surface the human-readable message,
-    // rather than showing raw JSON like {"error":"Profile 'x' does not exist."}
-    try{const j=JSON.parse(text);throw new Error(j.error||j.message||text);}
-    catch(e){if(e instanceof SyntaxError)throw new Error(text);throw e;}
+function _normalizeApiBase(base){
+  if(!base) return null;
+  try{
+    const href=new URL(base, location.href).href;
+    return href.endsWith('/') ? href : href + '/';
+  }catch{
+    return null;
   }
-  const ct=res.headers.get('content-type')||'';
-  const result = ct.includes('application/json')?res.json():res.text();
-  console.log('[api] Response:', result);
-  return result;
+}
+
+function _getApiBaseCandidates(isCapacitorApp, isTauri){
+  const candidates=[];
+  const seen=new Set();
+  const isHostedWeb = /^https?:$/.test(location.protocol) && !isCapacitorApp && !isTauri;
+  const add=base=>{
+    const normalized=_normalizeApiBase(base);
+    if(!normalized || seen.has(normalized)) return;
+    if(isHostedWeb){
+      try{
+        const parsed = new URL(normalized, location.href);
+        if(parsed.origin !== location.origin) return;
+      }catch{
+        return;
+      }
+    }
+    seen.add(normalized);
+    candidates.push(normalized);
+  };
+
+  add(window.HERMES_API_BASE);
+  try { add(localStorage.getItem('hermes-api-base')); } catch (e) {}
+  try { add(localStorage.getItem('hermes-api-origin')); } catch (e) {}
+  add(typeof window.WEBVIEW_SERVER_URL==='string' ? window.WEBVIEW_SERVER_URL : '');
+
+  if(/^https?:$/.test(location.protocol)) add(location.origin + '/');
+
+  if(isCapacitorApp || isTauri){
+    add('http://localhost:8786/');
+    add('http://127.0.0.1:8786/');
+  }
+  // Only use localhost fallbacks in packaged or local-webview contexts.
+  if(!isHostedWeb){
+    add('http://localhost:8786/');
+    add('http://127.0.0.1:8786/');
+  }
+  if(isCapacitorApp){
+    add('https://vc.houseofmates.space/');
+  }
+
+  if(!candidates.length) add(location.href);
+  return candidates;
+}
+
+async function api(path,opts={}){
+  const rel = path.startsWith('/') ? path.slice(1) : path;
+  const isCapacitorApp = !!(window.Capacitor || window.__capacitor || location.protocol==='capacitor:' || document.documentElement.classList.contains('apk-force-mobile') || document.documentElement.classList.contains('capacitor'));
+  const isTauri = !isCapacitorApp && (
+    window.__TAURI__ ||
+    location.protocol==='tauri:' ||
+    location.protocol==='file:' ||
+    location.hostname==='tauri.localhost' ||
+    location.host==='tauri.localhost' ||
+    location.hostname.includes('tauri')
+  );
+  const baseCandidates = _getApiBaseCandidates(isCapacitorApp, isTauri);
+  const fetchOpts = {credentials:'include',...opts};
+  if(opts.headers){
+    fetchOpts.headers = opts.headers;
+  }else if(!(opts.body instanceof FormData)){
+    fetchOpts.headers = {'Content-Type':'application/json'};
+  }
+
+  let lastError = null;
+  for(let i=0;i<baseCandidates.length;i++){
+    const baseUrl=baseCandidates[i];
+    const url=new URL(rel,baseUrl);
+    console.log('[api] Calling:', path, opts.method||'GET', 'base:', baseUrl, 'isTauri:', isTauri);
+    let res;
+    try{
+      res=await fetch(url.href,fetchOpts);
+    }catch(err){
+      lastError = err;
+      console.warn('[api] Network error:', url.href, err.message);
+      continue;
+    }
+    if(!res.ok){
+      const text=await res.text();
+      console.log('[api] Error response:', res.status, text);
+      // If there are more candidates, try the next one (e.g. Tauri bundled origin returns 404)
+      if(i<baseCandidates.length-1){
+        lastError = new Error(text);
+        continue;
+      }
+      // Parse JSON error body and surface the human-readable message,
+      // rather than showing raw JSON like {"error":"Profile 'x' does not exist."}
+      try{const j=JSON.parse(text);throw new Error(j.error||j.message||text);}
+      catch(e){if(e instanceof SyntaxError)throw new Error(text);throw e;}
+    }
+    const ct=res.headers.get('content-type')||'';
+    const result = ct.includes('application/json')?await res.json():await res.text();
+    console.log('[api] Response:', result);
+    return result;
+  }
+  throw lastError || new Error('Failed to fetch');
 }
 
 // File extension helper
@@ -47,14 +133,39 @@ function _restoreExpandedDirs(){
 
 async function loadDir(path){
   if(!S.session)return;
+  console.log('[loadDir] Starting for path:', path, 'session:', S.session.session_id, 'machine:', S.session.machine_hostname);
   try{
     if(!path||path==='.'){
       S._dirCache={};
       _restoreExpandedDirs();  // restore per-workspace expanded state on root load
     }
     S.currentDir=path||'.';
-    const data=await api(`/api/list?session_id=${encodeURIComponent(S.session.session_id)}&path=${encodeURIComponent(path)}`);
+
+    // Show cached entries instantly while fetching fresh data
+    const cacheKey = 'hermes-dircache:' + S.session.session_id + ':' + (path || '.');
+    let cached = null;
+    try { cached = localStorage.getItem(cacheKey); } catch (e) {}
+    if (cached && !S._dirCache[path || '.']) {
+      try {
+        const parsed = JSON.parse(cached);
+        S.entries = parsed.entries || [];
+        S._dirCache[path || '.'] = S.entries;
+        renderBreadcrumb();
+        renderFileTree();
+      } catch (e) { /* ignore parse errors */ }
+    }
+
+    const apiUrl = `/api/list?session_id=${encodeURIComponent(S.session.session_id)}&path=${encodeURIComponent(path)}`;
+    console.log('[loadDir] Calling API:', apiUrl);
+    const data=await api(apiUrl);
+    console.log('[loadDir] API response:', data);
     S.entries=data.entries||[];renderBreadcrumb();renderFileTree();
+
+    // Cache the directory contents
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify({entries: S.entries, ts: Date.now()}));
+    } catch (e) { /* ignore quota errors */ }
+
     // Pre-fetch contents of restored expanded dirs so they render without a second click
     if(!path||path==='.'){
       for(const dirPath of (S._expandedDirs||[])){
@@ -62,6 +173,10 @@ async function loadDir(path){
           try{
             const dc=await api(`/api/list?session_id=${encodeURIComponent(S.session.session_id)}&path=${encodeURIComponent(dirPath)}`);
             S._dirCache[dirPath]=dc.entries||[];
+            // Cache subdirectory
+            try {
+              localStorage.setItem('hermes-dircache:' + S.session.session_id + ':' + dirPath, JSON.stringify({entries: dc.entries || [], ts: Date.now()}));
+            } catch (e) {}
           }catch(e2){S._dirCache[dirPath]=[];}
         }
       }
@@ -69,10 +184,9 @@ async function loadDir(path){
     }
     if(typeof clearPreview==='function'){
       if(typeof _previewDirty!=='undefined'&&_previewDirty){
-        showConfirmDialog({title:t('unsaved_confirm'),message:'',confirmLabel:'Discard',danger:true,focusCancel:true}).then(ok=>{if(ok)clearPreview();});
-      }else{
-        clearPreview();
+        await autoSavePreview();
       }
+      clearPreview();
     }
     // Fetch git info for workspace root (non-blocking)
     if(!path||path==='.') _refreshGitBadge();
@@ -197,6 +311,19 @@ function cancelEditMode(){
   updateEditBtn();
 }
 
+async function autoSavePreview(){
+  // Auto-save unsaved changes when navigating away
+  if(!S.session||!_previewCurrentPath||!_previewDirty)return;
+  const content=$('previewEditArea').value;
+  try{
+    await api('/api/file/save',{method:'POST',body:JSON.stringify({
+      session_id:S.session.session_id, path:_previewCurrentPath, content
+    })});
+    _previewDirty=false;
+    showToast(t('saved'));
+  }catch(e){/* silent fail - will be discarded */}
+}
+
 async function openFile(path){
   if(!S.session)return;
   const ext=fileExt(path);
@@ -271,8 +398,24 @@ function _showPreviewPathContextMenu(event,path){
   const menu=document.createElement('div');
   menu.className='preview-context-menu';
   menu.style.cssText='position:fixed;background:#0a0a0a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.6);z-index:1000;min-width:160px;overflow:hidden;';
-  menu.style.left=event.clientX+'px';
-  menu.style.top=event.clientY+'px';
+  
+  // Estimate menu height (2 items ~70px)
+  const menuHeight = 70;
+  const menuWidth = 160;
+  
+  // Adjust position to stay within viewport
+  let x = event.clientX;
+  let y = event.clientY;
+  
+  if (y + menuHeight > window.innerHeight) {
+    y = Math.max(10, y - menuHeight);
+  }
+  if (x + menuWidth > window.innerWidth) {
+    x = Math.max(10, x - menuWidth);
+  }
+  
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
 
   const filename=path.split('/').pop();
 
@@ -365,5 +508,163 @@ function renderFileBreadcrumb(filePath) {
       seg.className = 'breadcrumb-seg breadcrumb-current';
     }
     bar.appendChild(seg);
+  }
+}
+
+// ── Real-time directory type-ahead ───────────────────────────────────────────
+let _dirInputDebounceTimer = null;
+let _lastValidPath = '';
+
+function initDirPathInput() {
+  const input = $('dirPathInput');
+  const pathBar = $('pathInputBar');
+  if (!input || !pathBar) return;
+
+  input.addEventListener('input', (e) => {
+    const value = e.target.value.trim();
+
+    if (_dirInputDebounceTimer) {
+      clearTimeout(_dirInputDebounceTimer);
+    }
+
+    if (!value) {
+      // Empty input - restore breadcrumb view
+      pathBar.style.display = 'none';
+      if (S.session) loadDir('.');
+      return;
+    }
+
+    pathBar.style.display = 'block';
+
+    _dirInputDebounceTimer = setTimeout(() => {
+      loadAbsoluteDir(value);
+    }, 200);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      if (_dirInputDebounceTimer) clearTimeout(_dirInputDebounceTimer);
+      const value = input.value.trim();
+      if (value) loadAbsoluteDir(value);
+    }
+    if (e.key === 'Escape') {
+      input.value = '';
+      pathBar.style.display = 'none';
+      if (S.session) loadDir('.');
+    }
+  });
+
+  // Focus input on Ctrl/Cmd+L
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+      e.preventDefault();
+      input.focus();
+      input.select();
+    }
+  });
+}
+
+async function loadAbsoluteDir(absPath) {
+  if (!S.session) return;
+  const input = $('dirPathInput');
+  const pathBar = $('pathInputBar');
+
+  try {
+    const data = await api(`/api/list-absolute?session_id=${encodeURIComponent(S.session.session_id)}&path=${encodeURIComponent(absPath)}`);
+    S.entries = data.entries || [];
+    S.currentDir = data.path || absPath;
+    _lastValidPath = absPath;
+
+    // Update breadcrumb to show current path
+    renderBreadcrumbFromAbsolute(data.path || absPath);
+    renderFileTree();
+
+    // Visual feedback on success
+    if (input) input.style.borderColor = 'var(--border2)';
+  } catch (err) {
+    // Path doesn't exist or is invalid - show empty state but keep trying
+    S.entries = [];
+    renderFileTree();
+    if (input) input.style.borderColor = '#e74c3c'; // Red border for invalid path
+  }
+}
+
+function renderBreadcrumbFromAbsolute(relPath) {
+  const bar = $('breadcrumbBar');
+  if (!bar) return;
+  bar.style.display = 'flex';
+  const upBtn = $('btnUpDir');
+  if (upBtn) upBtn.style.display = 'none'; // Hide up button for absolute paths
+
+  bar.innerHTML = '';
+
+  // Show full path segments
+  const parts = relPath.split('/').filter(p => p && p !== '.');
+  let accumulated = '';
+
+  for (let i = 0; i < parts.length; i++) {
+    if (i > 0) {
+      const sep = document.createElement('span');
+      sep.className = 'breadcrumb-sep';
+      sep.textContent = '/';
+      bar.appendChild(sep);
+    }
+
+    accumulated += (accumulated ? '/' : '') + parts[i];
+    const seg = document.createElement('span');
+    seg.textContent = parts[i];
+    if (i < parts.length - 1) {
+      seg.className = 'breadcrumb-seg breadcrumb-link';
+      const target = accumulated;
+      seg.onclick = () => loadAbsoluteDirFromWorkspace(target);
+    } else {
+      seg.className = 'breadcrumb-seg breadcrumb-current';
+    }
+    bar.appendChild(seg);
+  }
+}
+
+async function loadAbsoluteDirFromWorkspace(relPath) {
+  if (!S.session) return;
+  const workspace = S.session.workspace;
+  const absPath = workspace + '/' + relPath;
+  $('dirPathInput').value = absPath;
+  await loadAbsoluteDir(absPath);
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', initDirPathInput);
+
+// Try to render file tree from cache when session becomes available
+function _tryRenderFileTreeFromCache(attempt = 1) {
+  const MAX_ATTEMPTS = 50; // 5 seconds max
+
+  if (!S.session || !S.session.session_id) {
+    if (attempt < MAX_ATTEMPTS) {
+      setTimeout(() => _tryRenderFileTreeFromCache(attempt + 1), 100);
+    }
+    return;
+  }
+
+  // Try to load root directory from cache
+  const cacheKey = 'hermes-dircache:' + S.session.session_id + ':.';
+  let cached = null;
+  try { cached = localStorage.getItem(cacheKey); } catch (e) {}
+  if (cached && (!S.entries || S.entries.length === 0)) {
+    try {
+      const parsed = JSON.parse(cached);
+      if (parsed.entries && parsed.entries.length) {
+        S.currentDir = '.';
+        S.entries = parsed.entries;
+        S._dirCache = S._dirCache || {};
+        S._dirCache['.'] = parsed.entries;
+        _restoreExpandedDirs();
+        if (typeof renderBreadcrumb === 'function') renderBreadcrumb();
+        if (typeof renderFileTree === 'function') {
+          renderFileTree();
+          console.log('[workspace] File tree rendered from cache:', parsed.entries.length);
+        }
+      }
+    } catch (e) { /* ignore parse errors */ }
   }
 }

@@ -54,6 +54,30 @@ def _last_workspace_file() -> Path:
     return _profile_state_dir() / 'last_workspace.txt'
 
 
+def _remote_paths_file() -> Path:
+    """Return the remote_paths.json path for the active profile."""
+    return _profile_state_dir() / 'remote_paths.json'
+
+
+def get_remote_paths() -> dict:
+    """Load remote paths from profile state."""
+    path = _remote_paths_file()
+    if path.exists():
+        try:
+            return json.loads(path.read_text())
+        except Exception:
+            pass
+    return {}
+
+
+def save_remote_paths(data: dict):
+    """Persist remote paths to profile state."""
+    try:
+        _remote_paths_file().write_text(json.dumps(data, indent=2))
+    except Exception as e:
+        logger.warning("Failed to save remote paths: %s", e)
+
+
 def _profile_default_workspace() -> str:
     """Read the profile's default workspace from its config.yaml.
 
@@ -146,6 +170,9 @@ def _migrate_global_workspaces() -> list:
             _GLOBAL_WS_FILE.write_text(
                 json.dumps(cleaned, ensure_ascii=False, indent=2), encoding='utf-8'
             )
+        # If the global file is now empty after cleaning, delete it to prevent re-migration
+        if not cleaned:
+            _GLOBAL_WS_FILE.unlink(missing_ok=True)
         return cleaned
     except Exception:
         return []
@@ -165,7 +192,11 @@ def load_workspaces() -> list:
                     )
                 except Exception:
                     logger.debug("Failed to persist cleaned workspace list")
-            return cleaned or [{'path': _profile_default_workspace(), 'name': 'Home'}]
+            # If the file exists but is empty after cleaning, return empty list
+            # (user deleted all workspaces, don't fall back to default)
+            if cleaned:
+                return cleaned
+            return []
         except Exception:
             logger.debug("Failed to load workspaces from %s", ws_file)
     # No profile-local file yet.
@@ -179,8 +210,33 @@ def load_workspaces() -> list:
     if is_default:
         migrated = _migrate_global_workspaces()
         if migrated:
+            # Save migrated workspaces to profile-local file to prevent re-migration
+            try:
+                ws_file.parent.mkdir(parents=True, exist_ok=True)
+                ws_file.write_text(
+                    json.dumps(migrated, ensure_ascii=False, indent=2), encoding='utf-8'
+                )
+            except Exception:
+                logger.debug("Failed to save migrated workspaces to profile-local file")
             return migrated
+        # If migration returned empty (global file was empty or deleted), 
+        # save empty list to prevent re-migration
+        try:
+            ws_file.parent.mkdir(parents=True, exist_ok=True)
+            ws_file.write_text('[]', encoding='utf-8')
+        except Exception:
+            logger.debug("Failed to save empty workspace list")
+        return []
     # Fresh start: single entry from the profile's configured workspace, labeled "Home"
+    # Save this default to prevent re-migration
+    try:
+        ws_file.parent.mkdir(parents=True, exist_ok=True)
+        default_ws = [{'path': _profile_default_workspace(), 'name': 'Home'}]
+        ws_file.write_text(
+            json.dumps(default_ws, ensure_ascii=False, indent=2), encoding='utf-8'
+        )
+    except Exception:
+        logger.debug("Failed to save default workspace to profile-local file")
     return [{'path': _profile_default_workspace(), 'name': 'Home'}]
 
 

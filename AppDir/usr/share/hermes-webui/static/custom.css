@@ -235,6 +235,23 @@ select,
   text-transform: lowercase !important;
 }
 
+/* Additional uppercase elements to lowercase */
+.panel-header,
+.cron-last-header,
+.field-label,
+.pre-header,
+.preview-badge,
+.wmb-card-category,
+.skill-linked-section h4,
+.settings-kicker,
+.settings-field label,
+.wb-tab,
+.wb-mem-cat,
+.wb-wiki-cat,
+.wb-backlinks-title {
+  text-transform: lowercase !important;
+}
+
 /* ── Larger Icons & UI Elements ── */
 .nav-tab svg {
   width: 22px !important;
@@ -532,27 +549,44 @@ textarea#msg {
 .api-keys-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   max-height: 300px;
   overflow-y: auto;
   padding-right: 4px;
 }
 
 .api-key-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: 40px 1fr 50px;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 0;
+  padding: 0;
   background: var(--code-bg);
   border: 1px solid var(--border2);
-  border-radius: 8px;
+  border-bottom: none;
+  border-radius: 0;
   cursor: grab;
   transition: border-color 0.15s ease, transform 0.1s ease;
   user-select: none;
 }
 
+.api-key-item:first-child {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.api-key-item:last-child {
+  border-bottom: 1px solid var(--border2);
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
 .api-key-item:hover {
   border-color: var(--accent);
+}
+
+.api-key-item:hover + .api-key-item {
+  border-top-color: var(--accent);
 }
 
 .api-key-item.dragging {
@@ -564,16 +598,16 @@ textarea#msg {
 }
 
 .api-key-number {
-  width: 24px;
-  height: 24px;
+  width: 100%;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(246, 176, 18, 0.15);
+  background: rgba(246, 176, 18, 0.1);
   color: var(--accent);
-  border-radius: 6px;
   font-size: 11px;
   font-weight: 600;
+  border-right: 1px solid var(--border2);
   flex-shrink: 0;
 }
 
@@ -585,6 +619,11 @@ textarea#msg {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding: 0 12px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  border-right: 1px solid var(--border2);
 }
 
 .api-key-delete {
@@ -592,8 +631,11 @@ textarea#msg {
   border: none;
   color: var(--muted);
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
+  width: 50px;
+  height: 44px;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -603,6 +645,14 @@ textarea#msg {
 .api-key-delete:hover {
   color: #ef4444;
   background: rgba(239, 68, 68, 0.1);
+}
+
+.api-key-item:first-child .api-key-delete:hover {
+  border-radius: 0 8px 0 0;
+}
+
+.api-key-item:last-child .api-key-delete:hover {
+  border-radius: 0 0 8px 0;
 }
 
 .api-keys-meta {
@@ -1309,4 +1359,331 @@ textarea#msg {
 
 .session-item.remote-session:hover .session-remote-badge {
   background: rgba(59, 130, 246, 0.25);
+}
+
+/* ── tight thinking-card spacing ── */
+.msg-row.thinking-card-row {
+  padding: 4px 0 0 0;
+}
+
+/* thinking animation row - match collapsed thinking block spacing */
+.msg-row:has(.thinking) {
+  padding: 4px 0 0 0;
+}
+
+.msg-row.thinking-card-row + .msg-row {
+  padding-top: 4px;
+}
+
+/* thinking animation right after thinking card - zero top padding */
+.thinking-card-row + #thinkingRow {
+  padding-top: 0;
+  margin-top: -12px;
+}
+
+.thinking-card-row + #thinkingRow .thinking {
+  padding: 0;
+}
+
+.thinking-preview {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  opacity: 0.65;
+  color: var(--text-secondary, #a0a0a0);
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.thinking-card {
+  margin: 0;
+}
+
+.thinking-card-body {
+  padding: 4px 12px 6px;
+  max-height: 240px;
+}
+
+/* ── compact tool cards ── */
+.tool-card-row {
+  padding: 1px 0;
+}
+
+/* Pull tool card rows closer to their parent message (counteract the flex gap) */
+.msg-row + .tool-card-row {
+  margin-top: -20px !important;
+}
+
+.tool-card {
+  margin: 1px 0 1px 40px;
+}
+
+.tool-card-header {
+  padding: 3px 8px;
+  gap: 6px;
+}
+
+.tool-card-detail {
+  padding: 4px 10px 6px;
+}
+
+.tool-card-args {
+  margin-bottom: 3px;
+}
+
+.tool-cards-toggle {
+  margin: 2px 0 0 40px;
+}
+
+.tool-cards-toggle button {
+  font-size: 10px;
+}
+
+/* no empty message placeholder for tool button */
+.msg-tool-badge {
+  margin: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+
+/* hide empty message bodies (assistant messages with only tool calls) */
+.msg-body:empty {
+  display: none;
+}
+
+/* tight thinking-card header */
+.thinking-card-header {
+  padding: 4px 10px;
+}
+
+/* ── Terminal Panel Styles ───────────────────────────────────────────────── */
+
+.terminal-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg);
+}
+
+.terminal-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.terminal-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.terminal-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.terminal-tab:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.terminal-tab.active {
+  background: rgba(53, 199, 255, 0.15);
+  border-color: rgba(53, 199, 255, 0.4);
+  color: #35c7ff;
+}
+
+.terminal-tab-name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.terminal-tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  opacity: 0.6;
+  transition: all 0.15s ease;
+}
+
+.terminal-tab-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 1;
+}
+
+.terminal-tab-close svg {
+  width: 12px;
+  height: 12px;
+}
+
+.terminal-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  background: #0d0d0d;
+  min-height: 0;
+}
+
+.terminal-container > div {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.terminal-instance {
+  width: 100%;
+  height: 100%;
+}
+
+/* Terminal context menu */
+.terminal-context-menu {
+  background: var(--sidebar) !important;
+  border: 1px solid var(--border) !important;
+}
+
+.terminal-menu-item {
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.terminal-menu-item:hover {
+  background: var(--hover-bg);
+}
+
+.terminal-menu-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* Topbar terminal button */
+.terminal-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.terminal-toggle-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Mobile terminal adjustments */
+@media (max-width: 768px) {
+  .terminal-tabs {
+    padding: 6px 8px 4px;
+  }
+
+  .terminal-tab {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+
+  .terminal-tab-name {
+    max-width: 80px;
+  }
+
+  .terminal-cwd {
+    display: none;
+  }
+
+  .terminal-btn span {
+    display: none;
+  }
+}
+
+/* xterm.js integration */
+.xterm {
+  padding: 8px;
+}
+
+.xterm-viewport {
+  background: #0d0d0d !important;
+}
+
+.xterm-screen {
+  background: #0d0d0d !important;
+}
+
+
+/* Terminal connection status dot */
+.terminal-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.terminal-status-dot.connected {
+  background-color: #27c93f;
+  box-shadow: 0 0 4px rgba(39, 201, 63, 0.5);
+}
+
+.terminal-status-dot.connecting {
+  background-color: #f6b012;
+  box-shadow: 0 0 4px rgba(246, 176, 18, 0.5);
+  animation: terminal-pulse 1.2s ease-in-out infinite;
+}
+
+.terminal-status-dot.disconnected {
+  background-color: #ff5f56;
+  box-shadow: 0 0 4px rgba(255, 95, 86, 0.4);
+}
+
+@keyframes terminal-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Tab status text (copy/paste feedback) */
+.terminal-tab-status {
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Terminal search overlay */
+.terminal-search-overlay {
+  animation: terminal-fade-in 0.15s ease;
+}
+
+.terminal-search-overlay input::placeholder {
+  color: var(--muted);
+}
+
+@keyframes terminal-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* xterm link hover */
+.xterm-overlay__link {
+  text-decoration: underline;
+  cursor: pointer;
 }

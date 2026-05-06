@@ -186,6 +186,20 @@ from api.workspace import (
 )
 from api.upload import handle_upload, handle_transcribe
 from api.streaming import _sse, _run_agent_streaming, cancel_stream
+
+from api.swarm import (
+    list_all_swarms, list_active_swarms, get_swarm_status,
+    cancel_swarm, cancel_worker, kill_worker,
+    aggregate_results,
+    list_swarm_templates, save_swarm_template, load_swarm_template, delete_swarm_template,
+    set_swarm_context, get_swarm_context, clear_swarm_context,
+    _post_coord_message, _get_coord_messages,
+    SWARMS, SWARMS_LOCK, SWARM_CONTEXT,
+)
+from api.terminal import (
+    create_terminal, get_terminal, list_terminals, close_terminal, rename_terminal,
+    TERMINAL_SESSIONS, TERMINAL_LOCK,
+)
 from api.onboarding import (
     apply_onboarding_setup,
     get_onboarding_status,
@@ -443,6 +457,64 @@ def _handle_list_absolute(handler, parsed):
         return bad(handler, str(e), 400)
 
 
+# ── Slash commands catalog ────────────────────────────────────────────────────
+
+def _handle_commands_catalog(handler):
+    """Return the hermes-agent COMMAND_REGISTRY as a JSON catalog for the webui.
+
+    Mirrors the TUI gateway's commands.catalog RPC: includes name, description,
+    category, aliases, args_hint, subcommands, and whether the command is
+    cli_only or gateway_only.  The frontend merges this with its local handlers.
+    """
+    try:
+        from hermes_cli.commands import COMMAND_REGISTRY, SUBCOMMANDS
+    except ImportError:
+        return j(handler, {"commands": [], "sub": {}, "warning": "hermes_cli not available"})
+
+    all_cmds = []
+    for cmd in COMMAND_REGISTRY:
+        all_cmds.append({
+            "name": cmd.name,
+            "description": cmd.description,
+            "category": cmd.category,
+            "aliases": list(cmd.aliases),
+            "args_hint": cmd.args_hint,
+            "subcommands": list(cmd.subcommands),
+            "cli_only": cmd.cli_only,
+            "gateway_only": cmd.gateway_only,
+        })
+
+    sub = {k: v[:] for k, v in SUBCOMMANDS.items()}
+    return j(handler, {"commands": all_cmds, "sub": sub})
+
+
+
+def _handle_apikeys_get(handler):
+    try:
+        import subprocess, json
+        result = subprocess.run(['/home/house/.hermes/hermes-agent/hermes', 'auth', 'list', '--format', 'json'], capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            return j(handler, {'error': 'Failed to list API keys', 'details': result.stderr}, status=500)
+        data = json.loads(result.stdout)
+        return j(handler, {'apikeys': data})
+    except Exception as e:
+        return j(handler, {'error': str(e)}, status=500)
+
+def _handle_apikeys_post(handler, body):
+    try:
+        provider = body.get('provider')
+        api_key = body.get('api_key')
+        if not provider or not api_key:
+            return j(handler, {'error': 'provider and api_key required'}, status=400)
+        import subprocess
+        result = subprocess.run(['/home/house/.hermes/hermes-agent/hermes', 'auth', 'add', '--provider', provider, '--api-key', api_key], capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            return j(handler, {'error': 'Failed to add API key', 'details': result.stderr}, status=500)
+        return j(handler, {'ok': True})
+    except Exception as e:
+        return j(handler, {'error': str(e)}, status=500)
+
+
 def handle_get(handler, parsed) -> bool:
     """Handle all GET routes. Returns True if handled, False for 404."""
 
@@ -488,6 +560,14 @@ def handle_get(handler, parsed) -> bool:
             cv = parse_cookie(handler)
             logged_in = bool(cv and verify_session(cv))
         return j(handler, {"auth_enabled": is_auth_enabled(), "logged_in": logged_in})
+    if parsed.path == "/api/apikeys": return _handle_apikeys_get(handler)
+    if parsed.path == "/api/config":
+        from api.config import get_config as _get_cfg
+        cfg = _get_cfg()
+        # Remove sensitive fields
+        if "agent" in cfg and "password_hash" in cfg["agent"]:
+            del cfg["agent"]["password_hash"]
+        return j(handler, cfg)
 
     if parsed.path == "/favicon.ico":
         handler.send_response(204)
@@ -695,6 +775,12 @@ def handle_get(handler, parsed) -> bool:
     if parsed.path == "/api/chat/stream":
         return _handle_sse_stream(handler, parsed)
 
+    if parsed.path == "/api/chat/stream/all":
+        return _handle_multiplex_sse_stream(handler, parsed)
+
+    if parsed.path == "/api/terminal/stream":
+        return _handle_terminal_sse_stream(handler, parsed)
+
     if parsed.path == '/api/sessions/gateway/stream':
         return _handle_gateway_sse_stream(handler)
 
@@ -736,6 +822,10 @@ def handle_get(handler, parsed) -> bool:
 
     if parsed.path == "/api/crons/recent":
         return _handle_cron_recent(handler, parsed)
+
+    # ── Commands catalog (GET) ──
+    if parsed.path == "/api/commands":
+        return _handle_commands_catalog(handler)
 
     # ── Skills API (GET) ──
     if parsed.path == "/api/skills":
@@ -804,13 +894,122 @@ def handle_get(handler, parsed) -> bool:
             {"name": get_active_profile_name(), "path": str(get_active_hermes_home())},
         )
 
-    # ── Remote Sessions API ──────────────────────────────────────────────────────
+
+    # ── Remote Paths API (GET) ──────────────────────────────────────────────────
+    if parsed.path == "/api/remote_paths":
+        from api.workspace import get_remote_paths
+        return j(handler, {"paths": get_remote_paths()})
+
+    # ── Swarm API (GET) ──
+    if parsed.path == "/api/swarm/list":
+        return j(handler, {"swarms": list_all_swarms()})
+
+    if parsed.path == "/api/swarm/status":
+        _sid = parse_qs(parsed.query).get("id", [""])[0]
+        if not _sid:
+            return j(handler, {"error": "id query param required"}, status=400)
+        _status = get_swarm_status(_sid)
+        if _status is None:
+            return j(handler, {"error": "Swarm not found"}, status=404)
+        return j(handler, _status)
+
+    if parsed.path.startswith("/api/swarm/") and parsed.path.endswith("/messages"):
+        _p = parsed.path.split("/")
+        _sid = _p[3] if len(_p) >= 4 else ""
+        _after_ts = float(parse_qs(parsed.query).get("after", ["0"])[0])
+        _msgs = _get_coord_messages(_sid, after_ts=_after_ts)
+        return j(handler, {"messages": _msgs})
+
+    if parsed.path.startswith("/api/swarm/") and parsed.path.endswith("/context"):
+        _p = parsed.path.split("/")
+        _sid = _p[3] if len(_p) >= 4 else ""
+        _ctx = get_swarm_context(_sid)
+        return j(handler, _ctx or {"context": {}})
+
+    if parsed.path.startswith("/api/swarm/") and parsed.path.endswith("/aggregate"):
+        _p = parsed.path.split("/")
+        _sid = _p[3] if len(_p) >= 4 else ""
+        _agg = aggregate_results(_sid)
+        if _agg is None:
+            return j(handler, {"error": "Swarm not found"}, status=404)
+        return j(handler, _agg)
+    if parsed.path == "/api/swarm/templates":
+        return j(handler, {"templates": list_swarm_templates()})
+
+    # ── Terminal API (GET) ──
+    if parsed.path == "/api/terminal/list":
+        _sid = parse_qs(parsed.query).get("session_id", [""])[0]
+        return j(handler, {"terminals": list_terminals(_sid if _sid else None)})
+
+    if parsed.path.startswith("/api/terminal/") and parsed.path.endswith("/output"):
+        _p = parsed.path.split("/")
+        _tid = _p[3] if len(_p) >= 4 else ""
+        _term = get_terminal(_tid)
+        if _term is None:
+            return j(handler, {"error": "Terminal not found"}, status=404)
+        _output = _term.get_output()
+        return j(handler, _output or {"type": "no_output"})
+
+ # ── Remote Sessions API ──────────────────────────────────────────────────────
     if parsed.path == "/api/remote/sessions":
         return _handle_remote_sessions_list(handler)
     
     if parsed.path.startswith("/api/remote/sessions/"):
         session_id = parsed.path.split("/")[-1]
         return _handle_remote_session_get(handler, session_id)
+
+    # ── Wiki/Memory GET routes ───────────────────────────────────────────────────
+    if parsed.path.startswith("/api/wiki/") or parsed.path.startswith("/api/memory/") or parsed.path.startswith("/api/sp/"):
+        from api.wiki_memory_api import (
+            list_wiki_pages, get_wiki_page, search_wiki_pages, get_wiki_categories, get_wiki_tags,
+            list_memster_memories, search_memster_memories, get_memster_categories, get_memster_tags,
+            get_memster_briefing, get_sp_members, get_sp_status
+        )
+        try:
+            if parsed.path == "/api/wiki/pages":
+                return j(handler, list_wiki_pages(category="all", limit=50))
+            if parsed.path.startswith("/api/wiki/pages/"):
+                slug = parsed.path.split("/")[-1]
+                return j(handler, get_wiki_page(slug))
+            if parsed.path == "/api/memory/list":
+                return j(handler, list_memster_memories(limit=50))
+            if parsed.path == "/api/wiki/search":
+                q = parse_qs(parsed.query).get("q", [""])[0]
+                return j(handler, search_wiki_pages(q, limit=10))
+            if parsed.path == "/api/memory/search":
+                q = parse_qs(parsed.query).get("q", [""])[0]
+                return j(handler, search_memster_memories(q, limit=10))
+            if parsed.path == "/api/wiki/categories":
+                return j(handler, get_wiki_categories())
+            if parsed.path == "/api/wiki/tags":
+                return j(handler, get_wiki_tags())
+            if parsed.path == "/api/memory/categories":
+                return j(handler, get_memster_categories())
+            if parsed.path == "/api/memory/tags":
+                return j(handler, get_memster_tags())
+            if parsed.path == "/api/memory/briefing":
+                return j(handler, get_memster_briefing())
+            if parsed.path == "/api/sp/members":
+                return j(handler, get_sp_members())
+            if parsed.path == "/api/sp/status":
+                return j(handler, get_sp_status())
+        except Exception as e:
+            logger.exception("Wiki/memory GET handler failed")
+            return j(handler, {"error": str(e)}, status=500)
+
+    # ── Sudo password prompts (optional -- graceful fallback if module not available) ──
+    if parsed.path == "/api/sudo_password/pending":
+        try:
+            from api.sudo_password import get_pending as get_sudo_password_pending
+        except ImportError:
+            return j(handler, {"pending": None})
+        sid = parse_qs(parsed.query).get("session_id", [""])[0]
+        pending = get_sudo_password_pending(sid)
+        if pending:
+            return j(handler, {"pending": pending})
+        return j(handler, {"pending": None})
+
+    return False  # 404
 
 
 # ─────────────────────────────────────────────────────────────────────────────────────────
@@ -880,47 +1079,6 @@ def _handle_remote_session_get(handler, session_id):
     
     return j(handler, {'ok': False, 'error': 'Session not found', 'session_id': session_id}, status=404)
 
-    # ── Wiki/Memory GET routes ───────────────────────────────────────────────────
-    if parsed.path.startswith("/api/wiki/") or parsed.path.startswith("/api/memory/") or parsed.path.startswith("/api/sp/"):
-        from api.wiki_memory_api import (
-            list_wiki_pages, get_wiki_page, search_wiki_pages, get_wiki_categories, get_wiki_tags,
-            list_memster_memories, search_memster_memories, get_memster_categories, get_memster_tags,
-            get_memster_briefing, get_sp_members, get_sp_status
-        )
-        try:
-            if parsed.path == "/api/wiki/pages":
-                return j(handler, list_wiki_pages(category="all", limit=50))
-            if parsed.path.startswith("/api/wiki/pages/"):
-                slug = parsed.path.split("/")[-1]
-                return j(handler, get_wiki_page(slug))
-            if parsed.path == "/api/memory/list":
-                return j(handler, list_memster_memories(limit=50))
-            if parsed.path == "/api/wiki/search":
-                q = parse_qs(parsed.query).get("q", [""])[0]
-                return j(handler, search_wiki_pages(q, limit=10))
-            if parsed.path == "/api/memory/search":
-                q = parse_qs(parsed.query).get("q", [""])[0]
-                return j(handler, search_memster_memories(q, limit=10))
-            if parsed.path == "/api/wiki/categories":
-                return j(handler, get_wiki_categories())
-            if parsed.path == "/api/wiki/tags":
-                return j(handler, get_wiki_tags())
-            if parsed.path == "/api/memory/categories":
-                return j(handler, get_memster_categories())
-            if parsed.path == "/api/memory/tags":
-                return j(handler, get_memster_tags())
-            if parsed.path == "/api/memory/briefing":
-                return j(handler, get_memster_briefing())
-            if parsed.path == "/api/sp/members":
-                return j(handler, get_sp_members())
-            if parsed.path == "/api/sp/status":
-                return j(handler, get_sp_status())
-        except Exception as e:
-            logger.exception("Wiki/memory GET handler failed")
-            return j(handler, {"error": str(e)}, status=500)
-
-    return False  # 404
-
 
 
 # ── Remote Sessions handlers ───────────────────────────────────────────────────
@@ -939,6 +1097,8 @@ def handle_post(handler, parsed) -> bool:
         return handle_transcribe(handler)
 
     body = read_body(handler)
+    if parsed.path == "/api/apikeys":
+        return _handle_apikeys_post(handler, body)
 
     if parsed.path == "/api/session/new":
         try:
@@ -1541,9 +1701,174 @@ def handle_post(handler, parsed) -> bool:
 
     # ── Wiki/Memory/SP routes ──────────────────────────────────────────
     if parsed.path.startswith("/api/wiki/") or parsed.path.startswith("/api/memory/") or parsed.path.startswith("/api/sp/"):
-        result = _handle_wiki_memory_post(handler, body, parsed.path)
-        if result is not None:
-            return result
+        pass
+
+    # ── Swarm API (POST) ──
+    if parsed.path == "/api/swarm/start":
+        _body = read_body(handler)
+        _task = _body.get("task", "")
+        _model = _body.get("model", "")
+        _count = int(_body.get("count", 2))
+        _name = _body.get("name", "")
+        _mode = _body.get("mode", "parallel")
+        _session_id = _body.get("session_id", "")
+        import time as _time
+        _sid = str(uuid.uuid4())[:8]
+        _coord_sid = str(uuid.uuid4())[:8]
+        _workers = []
+        for _i in range(_count):
+            _wid = str(uuid.uuid4())[:8]
+            _workers.append({
+                "worker_id": _wid,
+                "name": f"worker-{_i+1}",
+                "task": _task,
+                "model": _model,
+                "status": "pending",
+                "stream_id": None,
+                "result": None,
+                "started_at": None,
+                "completed_at": None,
+            })
+        with SWARMS_LOCK:
+            SWARMS[_sid] = {
+                "id": _sid,
+                "name": _name or f"swarm-{_sid}",
+                "session_id": _session_id,
+                "coord_session_id": _coord_sid,
+                "task": _task,
+                "mode": _mode,
+                "model": _model,
+                "status": "running",
+                "workers": _workers,
+                "created_at": _time.time(),
+                "completed_at": None,
+                "messages": [],
+                "context": {},
+            }
+        return j(handler, {"id": _sid, "status": "started", "worker_count": _count})
+
+    if parsed.path == "/api/swarm/cancel":
+        _body = read_body(handler)
+        _sid = _body.get("id", "")
+        if not _sid:
+            return j(handler, {"error": "swarm_id required"}, status=400)
+        cancel_swarm(_sid)
+        return j(handler, {"status": "cancelled"})
+
+    if parsed.path.startswith("/api/swarm/") and parsed.path.endswith("/messages"):
+        _body = read_body(handler)
+        _p = parsed.path.split("/")
+        _sid = _p[3] if len(_p) >= 4 else ""
+        _msg = _body.get("message", "")
+        _sender = _body.get("sender", "user")
+        _post_coord_message(_sid, "user", _sender, "user", _msg)
+        return j(handler, {"status": "posted"})
+
+    if parsed.path.startswith("/api/swarm/") and parsed.path.endswith("/context"):
+        _body = read_body(handler)
+        _p = parsed.path.split("/")
+        _sid = _p[3] if len(_p) >= 4 else ""
+        _key = _body.get("key", "")
+        _val = _body.get("value", "")
+        set_swarm_context(_sid, _key, _val)
+        return j(handler, {"status": "injected"})
+
+    if parsed.path == "/api/swarm/templates":
+        return j(handler, {"templates": list_swarm_templates()})
+
+    if parsed.path == "/api/swarm/templates/save":
+        _body = read_body(handler)
+        _name = _body.get("name", "")
+        _config = _body.get("config", {})
+        save_swarm_template(_name, _config)
+        return j(handler, {"status": "saved", "name": _name})
+
+    if parsed.path.startswith("/api/swarm/"):
+        _p = parsed.path.split("/")
+        _sid = _p[3] if len(_p) >= 4 else ""
+        _wid = _p[5] if len(_p) >= 6 else ""
+        if _wid and "workers" in parsed.path:
+            kill_worker(_sid, _wid)
+            return j(handler, {"status": "worker_killed", "worker_id": _wid})
+        with SWARMS_LOCK:
+            if _sid in SWARMS:
+                del SWARMS[_sid]
+                return j(handler, {"status": "deleted", "id": _sid})
+        return j(handler, {"error": "Swarm not found"}, status=404)
+    
+    # ── Terminal API (POST) ──
+    if parsed.path == "/api/terminal/create":
+        _cwd = body.get("cwd", "")
+        _shell = body.get("shell", "")
+        _session_id = body.get("session_id", "")
+        _ssh_host = body.get("ssh_host", "")
+        try:
+            _term = create_terminal(_cwd if _cwd else None, _shell if _shell else None, 
+                                _session_id if _session_id else None, _ssh_host if _ssh_host else None)
+            return j(handler, {
+                "terminal_id": _term.terminal_id,
+                "name": _term.name,
+                "cwd": _term.cwd,
+                "session_id": _term.session_id
+            })
+        except Exception as e:
+            return bad(handler, str(e))
+
+    if parsed.path.startswith("/api/terminal/") and parsed.path.endswith("/write"):
+        _p = parsed.path.split("/")
+        _tid = _p[3] if len(_p) >= 4 else ""
+        _data = body.get("data", "")
+        _term = get_terminal(_tid)
+        if _term is None:
+            return j(handler, {"error": "Terminal not found"}, status=404)
+        if _term.write(_data):
+            return j(handler, {"status": "written"})
+        else:
+            return bad(handler, "Failed to write to terminal")
+
+    if parsed.path.startswith("/api/terminal/") and parsed.path.endswith("/resize"):
+        _p = parsed.path.split("/")
+        _tid = _p[3] if len(_p) >= 4 else ""
+        _cols = body.get("cols", 80)
+        _rows = body.get("rows", 24)
+        _term = get_terminal(_tid)
+        if _term is None:
+            return j(handler, {"error": "Terminal not found"}, status=404)
+        _term.resize(_cols, _rows)
+        return j(handler, {"status": "resized", "cols": _cols, "rows": _rows})
+
+    if parsed.path.startswith("/api/terminal/") and parsed.path.endswith("/rename"):
+        _p = parsed.path.split("/")
+        _tid = _p[3] if len(_p) >= 4 else ""
+        _name = body.get("name", "")
+        _term = get_terminal(_tid)
+        if _term is None:
+            return j(handler, {"error": "Terminal not found"}, status=404)
+        if rename_terminal(_tid, _name):
+            return j(handler, {"status": "renamed", "name": _name})
+        else:
+            return bad(handler, "Failed to rename terminal")
+
+    if parsed.path.startswith("/api/terminal/") and parsed.path.endswith("/close"):
+        _p = parsed.path.split("/")
+        _tid = _p[3] if len(_p) >= 4 else ""
+        if close_terminal(_tid):
+            return j(handler, {"status": "closed", "terminal_id": _tid})
+        else:
+            return j(handler, {"error": "Terminal not found"}, status=404)
+
+    # ── Remote Paths API (POST) ─────────────────────────────────────────────────
+    if parsed.path == "/api/remote_paths":
+        from api.workspace import get_remote_paths, save_remote_paths
+        try:
+            save_remote_paths(body.get("paths", {}))
+            return j(handler, {"ok": True, "paths": get_remote_paths()})
+        except Exception as e:
+            return bad(handler, str(e))
+
+    result = _handle_wiki_memory_post(handler, body, parsed.path)
+    if result is not None:
+        return result
 
     return False  # 404
 
@@ -2966,7 +3291,7 @@ def _handle_sse_stream(handler, parsed):
     try:
         while True:
             try:
-                event, data = q.get(timeout=30)
+                event, data = q.get(timeout=5)
             except queue.Empty:
                 handler.wfile.write(b": heartbeat\n\n")
                 handler.wfile.flush()
@@ -2974,7 +3299,7 @@ def _handle_sse_stream(handler, parsed):
             _sse(handler, event, data)
             if event in ("stream_end", "error", "cancel"):
                 break
-    except (BrokenPipeError, ConnectionResetError):
+    except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
         pass
     return True
 
@@ -3052,4 +3377,130 @@ def _serve_static(handler, parsed):
     handler.send_header("Content-Length", str(len(raw)))
     handler.end_headers()
     handler.wfile.write(raw)
+    return True
+
+
+def _handle_multiplex_sse_stream(handler, parsed):
+    """Multiplexed SSE: one connection carries events for ALL active streams.
+    This bypasses the browser's 6-connections-per-domain limit, allowing
+    dozens of concurrent agent sessions to stream simultaneously."""
+    from api.streaming import _sse
+    from api.config import MULTIPLEX_QUEUES, MULTIPLEX_LOCK
+    import queue
+
+    client_id = parse_qs(parsed.query).get("client_id", [""])[0] or "default"
+    mq = queue.Queue()
+    with MULTIPLEX_LOCK:
+        MULTIPLEX_QUEUES[client_id] = mq
+
+    handler.send_response(200)
+    handler.send_header("Content-Type", "text/event-stream; charset=utf-8")
+    handler.send_header("Cache-Control", "no-cache, no-transform")
+    handler.send_header("X-Accel-Buffering", "no")
+    handler.send_header("Connection", "keep-alive")
+    handler.end_headers()
+    handler.wfile.write(b": connected\n\n")
+    handler.wfile.flush()
+    print(f"[webui] Multiplex SSE started for client_id={client_id}", flush=True)
+    try:
+        while True:
+            try:
+                event, data = mq.get(timeout=5)
+            except queue.Empty:
+                handler.wfile.write(b": heartbeat\n\n")
+                handler.wfile.flush()
+                continue
+            _sse(handler, event, data)
+            if event in ("stream_end", "error", "cancel"):
+                # Keep the connection alive for other streams; just log
+                print(f"[webui] Multiplex stream_end for stream_id={data.get('stream_id')}", flush=True)
+    except (BrokenPipeError, ConnectionResetError) as e:
+        print(f"[webui] Multiplex SSE disconnected: {e}", flush=True)
+    except Exception as e:
+        print(f"[webui] Multiplex SSE error: {e}", flush=True)
+    finally:
+        with MULTIPLEX_LOCK:
+            # Only pop if this handler's queue is still the current one
+            if MULTIPLEX_QUEUES.get(client_id) is mq:
+                MULTIPLEX_QUEUES.pop(client_id, None)
+    print(f"[webui] Multiplex SSE closed for client_id={client_id}", flush=True)
+    return True
+
+
+def _handle_terminal_sse_stream(handler, parsed):
+    """Terminal SSE stream: streams output from a specific terminal session."""
+    import time
+    
+    terminal_id = parse_qs(parsed.query).get("terminal_id", [""])[0]
+    client_id = parse_qs(parsed.query).get("client_id", [""])[0] or "default"
+    
+    if not terminal_id:
+        handler.send_response(400)
+        handler.send_header("Content-Type", "application/json")
+        handler.end_headers()
+        handler.wfile.write(b'{"error": "terminal_id required"}')
+        return True
+    
+    # Get terminal session
+    from api.terminal import get_terminal
+    term = get_terminal(terminal_id)
+    if term is None:
+        handler.send_response(404)
+        handler.send_header("Content-Type", "application/json")
+        handler.end_headers()
+        handler.wfile.write(b'{"error": "Terminal not found"}')
+        return True
+    
+    # Add client to terminal session
+    term.add_client(client_id)
+    
+    handler.send_response(200)
+    handler.send_header("Content-Type", "text/event-stream; charset=utf-8")
+    handler.send_header("Cache-Control", "no-cache, no-transform")
+    handler.send_header("X-Accel-Buffering", "no")
+    handler.send_header("Connection", "keep-alive")
+    handler.end_headers()
+    
+    # Send ready event
+    handler.wfile.write(b"event: ready\n")
+    handler.wfile.write(f"data: {json.dumps({'terminal_id': terminal_id, 'name': term.name})}\n\n".encode())
+    handler.wfile.flush()
+    
+    print(f"[webui] Terminal SSE started for terminal_id={terminal_id}, client_id={client_id}", flush=True)
+    
+    try:
+        last_heartbeat = time.time()
+        while True:
+            now = time.time()
+            # Send keepalive every 5 seconds to prevent proxy timeouts
+            if now - last_heartbeat > 5:
+                handler.wfile.write(b": keepalive\n\n")
+                handler.wfile.flush()
+                last_heartbeat = now
+            
+            # Block waiting for output (0.5s max) instead of polling every 100ms
+            output = term.get_output(timeout=0.5)
+            if output:
+                handler.wfile.write(b"event: output\n")
+                handler.wfile.write(f"data: {json.dumps(output)}\n\n".encode())
+                handler.wfile.flush()
+                last_heartbeat = now
+            else:
+                # No output, check if terminal exited
+                if term.pid is None:
+                    # Terminal exited
+                    handler.wfile.write(b"event: output\n")
+                    handler.wfile.write(f"data: {json.dumps({'type': 'exit', 'code': 0})}\n\n".encode())
+                    handler.wfile.flush()
+                    break
+                    
+    except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError) as e:
+        print(f"[webui] Terminal SSE disconnected: {e}", flush=True)
+    except Exception as e:
+        print(f"[webui] Terminal SSE error: {e}", flush=True)
+    finally:
+        # Remove client from terminal session
+        term.remove_client(client_id)
+        print(f"[webui] Terminal SSE closed for terminal_id={terminal_id}, client_id={client_id}", flush=True)
+    
     return True

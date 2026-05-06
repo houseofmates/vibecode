@@ -165,7 +165,9 @@ from api.models import (
     title_from,
     _rebuild_session_index,
     _upsert_session_index,
+    _remove_session_from_index,
     SESSION_INDEX_FILE,
+    REMOTE_SESSIONS_CACHE_FILE,
     load_projects,
     save_projects,
     import_cli_session,
@@ -184,11 +186,26 @@ from api.workspace import (
 )
 from api.upload import handle_upload, handle_transcribe
 from api.streaming import _sse, _run_agent_streaming, cancel_stream
+
+from api.swarm import (
+    list_all_swarms, list_active_swarms, get_swarm_status,
+    cancel_swarm, cancel_worker, kill_worker,
+    aggregate_results,
+    list_swarm_templates, save_swarm_template, load_swarm_template, delete_swarm_template,
+    set_swarm_context, get_swarm_context, clear_swarm_context,
+    _post_coord_message, _get_coord_messages,
+    SWARMS, SWARMS_LOCK, SWARM_CONTEXT,
+)
+from api.terminal import (
+    create_terminal, get_terminal, list_terminals, close_terminal, rename_terminal,
+    TERMINAL_SESSIONS, TERMINAL_LOCK,
+)
 from api.onboarding import (
     apply_onboarding_setup,
     get_onboarding_status,
     complete_onboarding,
 )
+from api._wiki_memory_handlers import _handle_wiki_memory_post
 
 # Approval system (optional -- graceful fallback if agent not available)
 try:
@@ -376,6 +393,128 @@ button:hover{background:rgba(124,185,255,.25)}
 # ── GET routes ────────────────────────────────────────────────────────────────
 
 
+def _handle_list_dir(handler, parsed):
+    """List directory contents within a session's workspace."""
+    qs = parse_qs(parsed.query)
+    sid = qs.get("session_id", [""])[0]
+    if not sid:
+        return bad(handler, "session_id is required")
+    try:
+        s = get_session(sid)
+    except KeyError:
+        return bad(handler, "Session not found", 404)
+    rel = qs.get("path", ["."])[0] or "."
+    try:
+        entries = list_dir(Path(s.workspace), rel)
+        return j(handler, {"entries": entries, "path": rel})
+    except FileNotFoundError as e:
+        return bad(handler, str(e), 404)
+    except ValueError as e:
+        return bad(handler, str(e), 400)
+
+
+def _handle_list_absolute(handler, parsed):
+    """List directory contents at an absolute path (within allowed roots)."""
+    qs = parse_qs(parsed.query)
+    sid = qs.get("session_id", [""])[0]
+    if not sid:
+        return bad(handler, "session_id is required")
+    try:
+        s = get_session(sid)
+    except KeyError:
+        return bad(handler, "Session not found", 404)
+    abs_path = qs.get("path", [""])[0]
+    if not abs_path:
+        return bad(handler, "path is required")
+    try:
+        target = Path(abs_path).resolve()
+        # Security: ensure path is within allowed roots
+        allowed = [Path(s.workspace).resolve()]
+        for root in allowed:
+            try:
+                target.relative_to(root)
+                break
+            except ValueError:
+                continue
+        else:
+            return bad(handler, "Access denied", 403)
+        if not target.is_dir():
+            return bad(handler, "Not a directory", 404)
+        entries = []
+        for item in sorted(target.iterdir(), key=lambda p: (p.is_file(), p.name.lower())):
+            entries.append({
+                'name': item.name,
+                'path': str(item),
+                'type': 'dir' if item.is_dir() else 'file',
+                'size': item.stat().st_size if item.is_file() else None,
+            })
+            if len(entries) >= 200:
+                break
+        return j(handler, {"entries": entries, "path": str(target)})
+    except FileNotFoundError as e:
+        return bad(handler, str(e), 404)
+    except ValueError as e:
+        return bad(handler, str(e), 400)
+
+
+# ── Slash commands catalog ────────────────────────────────────────────────────
+
+def _handle_commands_catalog(handler):
+    """Return the hermes-agent COMMAND_REGISTRY as a JSON catalog for the webui.
+
+    Mirrors the TUI gateway's commands.catalog RPC: includes name, description,
+    category, aliases, args_hint, subcommands, and whether the command is
+    cli_only or gateway_only.  The frontend merges this with its local handlers.
+    """
+    try:
+        from hermes_cli.commands import COMMAND_REGISTRY, SUBCOMMANDS
+    except ImportError:
+        return j(handler, {"commands": [], "sub": {}, "warning": "hermes_cli not available"})
+
+    all_cmds = []
+    for cmd in COMMAND_REGISTRY:
+        all_cmds.append({
+            "name": cmd.name,
+            "description": cmd.description,
+            "category": cmd.category,
+            "aliases": list(cmd.aliases),
+            "args_hint": cmd.args_hint,
+            "subcommands": list(cmd.subcommands),
+            "cli_only": cmd.cli_only,
+            "gateway_only": cmd.gateway_only,
+        })
+
+    sub = {k: v[:] for k, v in SUBCOMMANDS.items()}
+    return j(handler, {"commands": all_cmds, "sub": sub})
+
+
+
+def _handle_apikeys_get(handler):
+    try:
+        import subprocess, json
+        result = subprocess.run(['/home/house/.hermes/hermes-agent/hermes', 'auth', 'list', '--format', 'json'], capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            return j(handler, {'error': 'Failed to list API keys', 'details': result.stderr}, status=500)
+        data = json.loads(result.stdout)
+        return j(handler, {'apikeys': data})
+    except Exception as e:
+        return j(handler, {'error': str(e)}, status=500)
+
+def _handle_apikeys_post(handler, body):
+    try:
+        provider = body.get('provider')
+        api_key = body.get('api_key')
+        if not provider or not api_key:
+            return j(handler, {'error': 'provider and api_key required'}, status=400)
+        import subprocess
+        result = subprocess.run(['/home/house/.hermes/hermes-agent/hermes', 'auth', 'add', '--provider', provider, '--api-key', api_key], capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            return j(handler, {'error': 'Failed to add API key', 'details': result.stderr}, status=500)
+        return j(handler, {'ok': True})
+    except Exception as e:
+        return j(handler, {'error': str(e)}, status=500)
+
+
 def handle_get(handler, parsed) -> bool:
     """Handle all GET routes. Returns True if handled, False for 404."""
 
@@ -385,6 +524,9 @@ def handle_get(handler, parsed) -> bool:
             _INDEX_HTML_PATH.read_text(encoding="utf-8"),
             content_type="text/html; charset=utf-8",
         )
+
+    if parsed.path.startswith("/api/"):
+        logger.debug(f"API path: {parsed.path}")
 
     if parsed.path == "/login":
         _settings = load_settings()
@@ -418,6 +560,14 @@ def handle_get(handler, parsed) -> bool:
             cv = parse_cookie(handler)
             logged_in = bool(cv and verify_session(cv))
         return j(handler, {"auth_enabled": is_auth_enabled(), "logged_in": logged_in})
+    if parsed.path == "/api/apikeys": return _handle_apikeys_get(handler)
+    if parsed.path == "/api/config":
+        from api.config import get_config as _get_cfg
+        cfg = _get_cfg()
+        # Remove sensitive fields
+        if "agent" in cfg and "password_hash" in cfg["agent"]:
+            del cfg["agent"]["password_hash"]
+        return j(handler, cfg)
 
     if parsed.path == "/favicon.ico":
         handler.send_response(204)
@@ -534,6 +684,12 @@ def handle_get(handler, parsed) -> bool:
     if parsed.path == "/api/list":
         return _handle_list_dir(handler, parsed)
 
+    if parsed.path == "/api/list-absolute":
+        return _handle_list_absolute(handler, parsed)
+
+    if parsed.path == "/api/workspaces/path-suggest":
+        return _handle_path_suggest(handler, parsed)
+
     if parsed.path == "/api/personalities":
         # Read personalities from config.yaml agent.personalities section
         # (matches hermes-agent CLI behavior, not filesystem SOUL.md approach)
@@ -619,6 +775,12 @@ def handle_get(handler, parsed) -> bool:
     if parsed.path == "/api/chat/stream":
         return _handle_sse_stream(handler, parsed)
 
+    if parsed.path == "/api/chat/stream/all":
+        return _handle_multiplex_sse_stream(handler, parsed)
+
+    if parsed.path == "/api/terminal/stream":
+        return _handle_terminal_sse_stream(handler, parsed)
+
     if parsed.path == '/api/sessions/gateway/stream':
         return _handle_gateway_sse_stream(handler)
 
@@ -660,6 +822,10 @@ def handle_get(handler, parsed) -> bool:
 
     if parsed.path == "/api/crons/recent":
         return _handle_cron_recent(handler, parsed)
+
+    # ── Commands catalog (GET) ──
+    if parsed.path == "/api/commands":
+        return _handle_commands_catalog(handler)
 
     # ── Skills API (GET) ──
     if parsed.path == "/api/skills":
@@ -728,7 +894,63 @@ def handle_get(handler, parsed) -> bool:
             {"name": get_active_profile_name(), "path": str(get_active_hermes_home())},
         )
 
-    # ── Remote Sessions API ──────────────────────────────────────────────────────
+
+    # ── Remote Paths API (GET) ──────────────────────────────────────────────────
+    if parsed.path == "/api/remote_paths":
+        from api.workspace import get_remote_paths
+        return j(handler, {"paths": get_remote_paths()})
+
+    # ── Swarm API (GET) ──
+    if parsed.path == "/api/swarm/list":
+        return j(handler, {"swarms": list_all_swarms()})
+
+    if parsed.path == "/api/swarm/status":
+        _sid = parse_qs(parsed.query).get("id", [""])[0]
+        if not _sid:
+            return j(handler, {"error": "id query param required"}, status=400)
+        _status = get_swarm_status(_sid)
+        if _status is None:
+            return j(handler, {"error": "Swarm not found"}, status=404)
+        return j(handler, _status)
+
+    if parsed.path.startswith("/api/swarm/") and parsed.path.endswith("/messages"):
+        _p = parsed.path.split("/")
+        _sid = _p[3] if len(_p) >= 4 else ""
+        _after_ts = float(parse_qs(parsed.query).get("after", ["0"])[0])
+        _msgs = _get_coord_messages(_sid, after_ts=_after_ts)
+        return j(handler, {"messages": _msgs})
+
+    if parsed.path.startswith("/api/swarm/") and parsed.path.endswith("/context"):
+        _p = parsed.path.split("/")
+        _sid = _p[3] if len(_p) >= 4 else ""
+        _ctx = get_swarm_context(_sid)
+        return j(handler, _ctx or {"context": {}})
+
+    if parsed.path.startswith("/api/swarm/") and parsed.path.endswith("/aggregate"):
+        _p = parsed.path.split("/")
+        _sid = _p[3] if len(_p) >= 4 else ""
+        _agg = aggregate_results(_sid)
+        if _agg is None:
+            return j(handler, {"error": "Swarm not found"}, status=404)
+        return j(handler, _agg)
+    if parsed.path == "/api/swarm/templates":
+        return j(handler, {"templates": list_swarm_templates()})
+
+    # ── Terminal API (GET) ──
+    if parsed.path == "/api/terminal/list":
+        _sid = parse_qs(parsed.query).get("session_id", [""])[0]
+        return j(handler, {"terminals": list_terminals(_sid if _sid else None)})
+
+    if parsed.path.startswith("/api/terminal/") and parsed.path.endswith("/output"):
+        _p = parsed.path.split("/")
+        _tid = _p[3] if len(_p) >= 4 else ""
+        _term = get_terminal(_tid)
+        if _term is None:
+            return j(handler, {"error": "Terminal not found"}, status=404)
+        _output = _term.get_output()
+        return j(handler, _output or {"type": "no_output"})
+
+ # ── Remote Sessions API ──────────────────────────────────────────────────────
     if parsed.path == "/api/remote/sessions":
         return _handle_remote_sessions_list(handler)
     
@@ -775,286 +997,91 @@ def handle_get(handler, parsed) -> bool:
             logger.exception("Wiki/memory GET handler failed")
             return j(handler, {"error": str(e)}, status=500)
 
+    # ── Sudo password prompts (optional -- graceful fallback if module not available) ──
+    if parsed.path == "/api/sudo_password/pending":
+        try:
+            from api.sudo_password import get_pending as get_sudo_password_pending
+        except ImportError:
+            return j(handler, {"pending": None})
+        sid = parse_qs(parsed.query).get("session_id", [""])[0]
+        pending = get_sudo_password_pending(sid)
+        if pending:
+            return j(handler, {"pending": pending})
+        return j(handler, {"pending": None})
+
     return False  # 404
 
 
-# ── Remote Sessions handlers ───────────────────────────────────────────────────
-
-def _handle_remote_sessions_list(handler):
-    """List sessions from remote .250 and .233 machines via SSH"""
-    import paramiko
-    import json
-    import os
-    
-    MEMSTER_HOST = '192.168.4.250'
-    MEMSTER_HOST_LEGACY = '192.168.4.233'
-    MEMSTER_USER = 'house'
-    SSH_KEY_PATH = '/home/house/.ssh/id_ed25519'
-    REMOTE_SESSIONS_DIR = '/home/house/.hermes/sessions'
-    
-    all_sessions = {}
-    errors = []
-    debug_info = []
-    
-    # Check if SSH key exists
-    if not os.path.exists(SSH_KEY_PATH):
-        errors.append(f"SSH key not found at {SSH_KEY_PATH}")
-    
-    def get_ssh_client(host):
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        try:
-            ssh.connect(host, username=MEMSTER_USER, key_filename=SSH_KEY_PATH, timeout=10)
-            debug_info.append(f"{host}: Connected with key")
-            return ssh
-        except Exception as e:
-            debug_info.append(f"{host}: Key auth failed: {str(e)[:50]}")
-            try:
-                ssh.connect(host, username=MEMSTER_USER, timeout=10)
-                debug_info.append(f"{host}: Connected without key")
-                return ssh
-            except Exception as e2:
-                errors.append(f"{host}: {str(e2)[:100]}")
-                return None
-    
-    def list_sessions_on_host(ssh, host_label):
-        """List all session files on a host, return list of filenames"""
-        files = []
-        try:
-            # First check if directory exists
-            check_cmd = f'test -d {REMOTE_SESSIONS_DIR} && echo "EXISTS" || echo "MISSING"'
-            stdin, stdout, stderr = ssh.exec_command(check_cmd)
-            dir_status = stdout.read().decode().strip()
-            
-            if dir_status != "EXISTS":
-                errors.append(f"{host_label}: Directory {REMOTE_SESSIONS_DIR} does not exist")
-                return files
-            
-            # List files with full details
-            cmd = f'ls -la {REMOTE_SESSIONS_DIR}/ 2>/dev/null'
-            stdin, stdout, stderr = ssh.exec_command(cmd)
-            out = stdout.read().decode().strip()
-            err = stderr.read().decode().strip()
-            
-            if err:
-                errors.append(f"{host_label} ls stderr: {err[:100]}")
-            
-            debug_info.append(f"{host_label} raw ls output: {len(out)} chars")
-            
-            if out:
-                for line in out.split('\n'):
-                    parts = line.split()
-                    if len(parts) < 9:
-                        continue
-                    filename = parts[-1]
-                    if filename.startswith('.'):
-                        continue
-                    if filename.endswith('.json') or filename.endswith('.jsonl'):
-                        files.append(filename)
-            
-            debug_info.append(f"{host_label}: Found {len(files)} session files")
-            
-        except Exception as e:
-            errors.append(f"{host_label} list error: {str(e)[:100]}")
-        
-        return files
-    
-    def fetch_session_data(ssh, filename, source):
-        """Fetch session metadata from file"""
-        session_id = filename.replace('.json', '').replace('.jsonl', '')
-        session_data = {
-            "session_id": session_id,
-            "filename": filename,
-            "title": session_id,
-            "source": source
-        }
-        
-        try:
-            # Read first 50KB of file to get metadata
-            cmd = f'cat {REMOTE_SESSIONS_DIR}/{filename} 2>/dev/null | head -c 51200'
-            stdin, stdout, stderr = ssh.exec_command(cmd)
-            content = stdout.read().decode().strip()
-            err = stderr.read().decode().strip()
-            
-            if err:
-                debug_info.append(f"{source} cat error for {filename}: {err[:50]}")
-            
-            if content:
-                try:
-                    data = json.loads(content)
-                    # Handle both array format (jsonl) and object format
-                    if isinstance(data, list) and len(data) > 0:
-                        # It's a jsonl file with message array
-                        first_msg = data[0]
-                        if isinstance(first_msg, dict):
-                            if 'title' in first_msg:
-                                session_data['title'] = first_msg['title']
-                            if 'session_title' in first_msg:
-                                session_data['title'] = first_msg['session_title']
-                            if 'created_at' in first_msg:
-                                session_data['created_at'] = first_msg['created_at']
-                            if 'updated_at' in first_msg:
-                                session_data['updated_at'] = first_msg['updated_at']
-                    elif isinstance(data, dict):
-                        # It's a json file with session object
-                        if 'title' in data:
-                            session_data['title'] = data['title']
-                        elif 'session_title' in data:
-                            session_data['title'] = data['session_title']
-                        if 'created_at' in data:
-                            session_data['created_at'] = data['created_at']
-                        if 'updated_at' in data:
-                            session_data['updated_at'] = data['updated_at']
-                        if 'messages' in data and isinstance(data['messages'], list) and len(data['messages']) > 0:
-                            # Try to extract from first message
-                            first_msg = data['messages'][0]
-                            if isinstance(first_msg, dict):
-                                if 'title' in first_msg and not session_data.get('title'):
-                                    session_data['title'] = first_msg['title']
-                except json.JSONDecodeError as e:
-                    debug_info.append(f"{source} JSON parse error for {filename}: {str(e)[:50]}")
-        except Exception as e:
-            debug_info.append(f"{source} fetch error for {filename}: {str(e)[:50]}")
-        
-        return session_data
-    
-    # Primary: .250 - get all sessions with metadata
-    try:
-        ssh = get_ssh_client(MEMSTER_HOST)
-        if ssh:
-            files = list_sessions_on_host(ssh, ".250")
-            
-            for filename in files[:200]:  # Get up to 200 from .250
-                session_data = fetch_session_data(ssh, filename, "192.168.4.250")
-                all_sessions[session_data['session_id']] = session_data
-            
-            ssh.close()
-        else:
-            errors.append("Failed to connect to .250")
-    except Exception as e:
-        errors.append(f".250 exception: {str(e)[:100]}")
-    
-    # Legacy: .233 - get sessions not in .250
-    try:
-        ssh = get_ssh_client(MEMSTER_HOST_LEGACY)
-        if ssh:
-            files = list_sessions_on_host(ssh, ".233")
-            
-            for filename in files[:200]:  # Get up to 200 from .233
-                session_id = filename.replace('.json', '').replace('.jsonl', '')
-                # Only add if not already in .250
-                if session_id not in all_sessions:
-                    session_data = fetch_session_data(ssh, filename, "192.168.4.233")
-                    all_sessions[session_id] = session_data
-            
-            ssh.close()
-        else:
-            errors.append("Failed to connect to .233")
-    except Exception as e:
-        errors.append(f".233 exception: {str(e)[:100]}")
-    
-    sessions = list(all_sessions.values())
-    # Sort by updated_at or created_at (newest first)
-    sessions.sort(key=lambda x: x.get('updated_at', 0) or x.get('created_at', 0) or 0, reverse=True)
-    
-    return j(handler, {
-        'ok': True,
-        'sessions': sessions[:150],
-        'count': len(sessions),
-        'source': f'{MEMSTER_HOST}:{REMOTE_SESSIONS_DIR}',
-        'errors': errors if errors else None,
-        'debug': debug_info if debug_info else None
-    })
-
-
+# ─────────────────────────────────────────────────────────────────────────────────────────
+# Remote session get - fetch single session from remote .250
+# ─────────────────────────────────────────────────────────────────────────────────────────
 def _handle_remote_session_get(handler, session_id):
-    """Get a specific session from remote .250 or .233 machine"""
-    import paramiko
+    """Fetch a specific session from remote machine with optimized timeouts."""
+    import subprocess
+    import json
     
     MEMSTER_HOST = '192.168.4.250'
-    MEMSTER_HOST_LEGACY = '192.168.4.233'
     MEMSTER_USER = 'house'
-    SSH_KEY_PATH = '/home/house/.ssh/id_ed25519'
-    REMOTE_SESSIONS_DIR = '/home/house/.hermes/sessions'
+    STATE_DB = '/home/house/.hermes/state.db'
+    SESSIONS_DIR = '/home/house/.hermes/sessions'
     
-    def get_ssh_client(host):
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        try:
-            ssh.connect(host, username=MEMSTER_USER, key_filename=SSH_KEY_PATH, timeout=10)
-        except Exception:
-            try:
-                ssh.connect(host, username=MEMSTER_USER, timeout=10)
-            except:
-                return None
-        return ssh
-    
-    # First try .250
+    # Try state.db first - query for the specific session with tight timeout
     try:
-        ssh = get_ssh_client(MEMSTER_HOST)
-        for ext in ['.json', '.jsonl']:
-            filepath = f"{REMOTE_SESSIONS_DIR}/{session_id}{ext}"
-            cmd = f'cat {filepath} 2>/dev/null || echo ""'
-            stdin, stdout, stderr = ssh.exec_command(cmd)
-            content = stdout.read().decode().strip()
-            
-            if content:
-                data = json.loads(content)
-                ssh.close()
-                if isinstance(data, list):
-                    return j(handler, {
-                        'ok': True,
-                        'session': {
-                            'session_id': session_id,
-                            'messages': data,
-                            'title': session_id,
-                            '_remote_source': f'{MEMSTER_HOST}:{filepath}'
-                        }
-                    })
-                elif isinstance(data, dict):
-                    data['_remote_source'] = f'{MEMSTER_HOST}:{filepath}'
-                    if 'session_id' not in data:
-                        data['session_id'] = session_id
-                    return j(handler, {'ok': True, 'session': data})
-        ssh.close()
+        cmd = f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 {MEMSTER_USER}@{MEMSTER_HOST} 'echo \"SELECT id, source, started_at, title FROM sessions WHERE id = \\\"{session_id}\\\";\" | sqlite3 -csv {STATE_DB}'"
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=20)
+        
+        if result.returncode == 0 and result.stdout.strip():
+            lines = result.stdout.strip().split('\n')
+            if len(lines) > 1:  # Skip header
+                parts = lines[1].split(',')
+                if parts[0].strip() == session_id:
+                    source = parts[1].strip() if len(parts) > 1 else 'cli'
+                    
+                    # Get messages
+                    if source in ('tui', 'cli', 'cron'):
+                        msg_cmd = f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 {MEMSTER_USER}@{MEMSTER_HOST} 'echo \"SELECT role, content FROM messages WHERE session_id = \\\"{session_id}\\\" ORDER BY timestamp;\" | sqlite3 -csv {STATE_DB}'"
+                        msg_result = subprocess.run(msg_cmd, shell=True, capture_output=True, text=True, timeout=20)
+                        
+                        messages = []
+                        if msg_result.returncode == 0:
+                            for line in msg_result.stdout.strip().split('\n')[1:]:
+                                if line.strip():
+                                    msg_parts = line.split(',', 1)
+                                    if len(msg_parts) >= 2:
+                                        messages.append({
+                                            'role': msg_parts[0].strip(),
+                                            'content': msg_parts[1].strip()
+                                        })
+                    
+                    session_data = {
+                        'session_id': session_id,
+                        'title': parts[3].strip() if len(parts) > 3 else session_id,
+                        'workspace': '/home/house',
+                        'model': 'moonshotai/kimi-k2.5',
+                        'messages': messages,
+                        'created_at': float(parts[2])/1000000000 if len(parts) > 2 and parts[2].strip() else None,
+                    }
+                    return j(handler, {'ok': True, 'session': session_data})
+        
+        # Fall back to sessions dir - try JSON files directly (faster for file-based sessions)
+        for filename in [f"{session_id}.json", f"session_{session_id}.json"]:
+            cmd = f'ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 {MEMSTER_USER}@{MEMSTER_HOST} "cat {SESSIONS_DIR}/{filename}"'
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
+            if result.returncode == 0 and result.stdout.strip():
+                try:
+                    session_data = json.loads(result.stdout)
+                    if isinstance(session_data, dict):
+                        return j(handler, {'ok': True, 'session': session_data})
+                except:
+                    pass
     except Exception as e:
-        logger.debug(f"Failed to get session from .250: {e}")
+        pass
     
-    # Try .233 if not found on .250
-    try:
-        ssh = get_ssh_client(MEMSTER_HOST_LEGACY)
-        for ext in ['.json', '.jsonl']:
-            filepath = f"{REMOTE_SESSIONS_DIR}/{session_id}{ext}"
-            cmd = f'cat {filepath} 2>/dev/null || echo ""'
-            stdin, stdout, stderr = ssh.exec_command(cmd)
-            content = stdout.read().decode().strip()
-            
-            if content:
-                data = json.loads(content)
-                ssh.close()
-                if isinstance(data, list):
-                    return j(handler, {
-                        'ok': True,
-                        'session': {
-                            'session_id': session_id,
-                            'messages': data,
-                            'title': session_id,
-                            '_remote_source': f'{MEMSTER_HOST_LEGACY}:{filepath}'
-                        }
-                    })
-                elif isinstance(data, dict):
-                    data['_remote_source'] = f'{MEMSTER_HOST_LEGACY}:{filepath}'
-                    if 'session_id' not in data:
-                        data['session_id'] = session_id
-                    return j(handler, {'ok': True, 'session': data})
-        ssh.close()
-    except Exception as e:
-        logger.debug(f"Failed to get session from .233: {e}")
-    
-    return j(handler, {'ok': False, 'error': 'Session not found'}, status=404)
+    return j(handler, {'ok': False, 'error': 'Session not found', 'session_id': session_id}, status=404)
 
 
-# ── POST routes ───────────────────────────────────────────────────────────────
+
+# ── Remote Sessions handlers ───────────────────────────────────────────────────
 
 
 def handle_post(handler, parsed) -> bool:
@@ -1070,6 +1097,8 @@ def handle_post(handler, parsed) -> bool:
         return handle_transcribe(handler)
 
     body = read_body(handler)
+    if parsed.path == "/api/apikeys":
+        return _handle_apikeys_post(handler, body)
 
     if parsed.path == "/api/session/new":
         try:
@@ -1090,13 +1119,22 @@ def handle_post(handler, parsed) -> bool:
             require(body, "session_id", "title")
         except ValueError as e:
             return bad(handler, str(e))
+        sid = body["session_id"]
+        is_remote = body.get("remote", False)
+        new_title = str(body["title"]).strip()[:80] or "Untitled"
+        
+        # Handle remote session rename on .250
+        if is_remote:
+            success = _rename_remote_session(sid, new_title)
+            return j(handler, {"ok": success})
+        
         try:
-            s = get_session(body["session_id"])
+            s = _get_or_import_session(sid)
         except KeyError:
             return bad(handler, "Session not found", 404)
-        s.title = str(body["title"]).strip()[:80] or "Untitled"
+        s.title = new_title
         s.save()
-        return j(handler, {"session": s.compact()})
+        return j(handler, {"ok": True, "session": s.compact()})
 
     if parsed.path == "/api/personality/set":
         try:
@@ -1108,7 +1146,7 @@ def handle_post(handler, parsed) -> bool:
         sid = body["session_id"]
         name = body["name"].strip()
         try:
-            s = get_session(sid)
+            s = _get_or_import_session(sid)
         except KeyError:
             return bad(handler, "Session not found", 404)
         # Resolve personality from config.yaml agent.personalities section
@@ -1148,7 +1186,7 @@ def handle_post(handler, parsed) -> bool:
         except ValueError as e:
             return bad(handler, str(e))
         try:
-            s = get_session(body["session_id"])
+            s = _get_or_import_session(body["session_id"])
         except KeyError:
             return bad(handler, "Session not found", 404)
         try:
@@ -1163,31 +1201,61 @@ def handle_post(handler, parsed) -> bool:
 
     if parsed.path == "/api/session/delete":
         sid = body.get("session_id", "")
+        is_remote = body.get("remote", False)
         if not sid:
             return bad(handler, "session_id is required")
         if not all(c in '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWxyz_-' for c in sid):
             return bad(handler, "Invalid session_id", 400)
-        # Delete from WebUI session store
-        with LOCK:
-            SESSIONS.pop(sid, None)
+        
+        # Handle remote session deletion on .250
+        if is_remote:
+            success = _delete_remote_session(sid)
+            return j(handler, {"ok": success})
+        
+        # Try to get/import session first (for CLI sessions)
         try:
-            p = (SESSION_DIR / f"{sid}.json").resolve()
-            p.relative_to(SESSION_DIR.resolve())
-        except Exception:
-            return bad(handler, "Invalid session_id", 400)
+            s = _get_or_import_session(sid)
+            # Delete from WebUI session store
+            with LOCK:
+                SESSIONS.pop(sid, None)
+            # Delete session file (try both naming conventions)
+            for filename in [f"{sid}.json", f"session_{sid}.json"]:
+                try:
+                    p = (SESSION_DIR / filename).resolve()
+                    p.relative_to(SESSION_DIR.resolve())
+                    if p.exists():
+                        p.unlink()
+                        logger.info("Deleted session file: %s", filename)
+                    else:
+                        logger.debug("Session file does not exist: %s", filename)
+                except Exception as e:
+                    logger.warning("Failed to unlink session file %s: %s", filename, e)
+        except KeyError:
+            # Session not found anywhere - still try to clean up
+            with LOCK:
+                SESSIONS.pop(sid, None)
+            # Still try to delete both file variants
+            for filename in [f"{sid}.json", f"session_{sid}.json"]:
+                try:
+                    p = (SESSION_DIR / filename).resolve()
+                    p.relative_to(SESSION_DIR.resolve())
+                    if p.exists():
+                        p.unlink()
+                        logger.info("Deleted session file: %s", filename)
+                    else:
+                        logger.debug("Session file does not exist: %s", filename)
+                except Exception as e:
+                    logger.warning("Failed to unlink session file %s: %s", filename, e)
+        # Remove session from index instead of deleting entire index file
         try:
-            p.unlink(missing_ok=True)
+            _remove_session_from_index(sid)
         except Exception:
-            logger.debug("Failed to unlink session file %s", p)
-        try:
-            SESSION_INDEX_FILE.unlink(missing_ok=True)
-        except Exception:
-            logger.debug("Failed to unlink session index")
+            logger.debug("Failed to remove session from index")
         # Also delete from CLI state.db (for CLI sessions shown in sidebar)
         try:
-            from api.models import delete_cli_session
-
+            from api.models import delete_cli_session, invalidate_sessions_list_cache
             delete_cli_session(sid)
+            invalidate_sessions_list_cache()
         except Exception:
             logger.debug("Failed to delete CLI session %s", sid)
         return j(handler, {"ok": True})
@@ -1198,7 +1266,7 @@ def handle_post(handler, parsed) -> bool:
         except ValueError as e:
             return bad(handler, str(e))
         try:
-            s = get_session(body["session_id"])
+            s = _get_or_import_session(body["session_id"])
         except KeyError:
             return bad(handler, "Session not found", 404)
         s.messages = []
@@ -1215,7 +1283,7 @@ def handle_post(handler, parsed) -> bool:
         if body.get("keep_count") is None:
             return bad(handler, "Missing required field(s): keep_count")
         try:
-            s = get_session(body["session_id"])
+            s = _get_or_import_session(body["session_id"])
         except KeyError:
             return bad(handler, "Session not found", 404)
         keep = int(body["keep_count"])
@@ -1419,7 +1487,7 @@ def handle_post(handler, parsed) -> bool:
         # In Docker, requests arrive from the bridge network (172.x.x.x), not 127.0.0.1,
         # even when the user accesses via localhost:8787 on the host.
         # Behind a reverse proxy (nginx/Caddy/Traefik) or SSH tunnel, X-Forwarded-For
-        # carries the real origin IP — read it first before falling back to the raw socket addr.
+        # carries the real origin IP - read it first before falling back to the raw socket addr.
         # HERMES_WEBUI_ONBOARDING_OPEN=1 lets operators on remote servers explicitly bypass
         # the check when they control network access themselves (e.g. firewall + VPN).
         from api.auth import is_auth_enabled
@@ -1455,7 +1523,7 @@ def handle_post(handler, parsed) -> bool:
         except ValueError as e:
             return bad(handler, str(e))
         try:
-            s = get_session(body["session_id"])
+            s = _get_or_import_session(body["session_id"])
         except KeyError:
             return bad(handler, "Session not found", 404)
         s.pinned = bool(body.get("pinned", True))
@@ -1469,7 +1537,7 @@ def handle_post(handler, parsed) -> bool:
         except ValueError as e:
             return bad(handler, str(e))
         try:
-            s = get_session(body["session_id"])
+            s = _get_or_import_session(body["session_id"])
         except KeyError:
             return bad(handler, "Session not found", 404)
         s.archived = bool(body.get("archived", True))
@@ -1483,7 +1551,7 @@ def handle_post(handler, parsed) -> bool:
         except ValueError as e:
             return bad(handler, str(e))
         try:
-            s = get_session(body["session_id"])
+            s = _get_or_import_session(body["session_id"])
         except KeyError:
             return bad(handler, "Session not found", 404)
         s.project_id = body.get("project_id") or None
@@ -1633,212 +1701,313 @@ def handle_post(handler, parsed) -> bool:
 
     # ── Wiki/Memory/SP routes ──────────────────────────────────────────
     if parsed.path.startswith("/api/wiki/") or parsed.path.startswith("/api/memory/") or parsed.path.startswith("/api/sp/"):
-        result = _handle_wiki_memory_post(handler, body, parsed.path)
-        if result is not None:
-            return result
+        pass
+
+    # ── Swarm API (POST) ──
+    if parsed.path == "/api/swarm/start":
+        _body = read_body(handler)
+        _task = _body.get("task", "")
+        _model = _body.get("model", "")
+        _count = int(_body.get("count", 2))
+        _name = _body.get("name", "")
+        _mode = _body.get("mode", "parallel")
+        _session_id = _body.get("session_id", "")
+        import time as _time
+        _sid = str(uuid.uuid4())[:8]
+        _coord_sid = str(uuid.uuid4())[:8]
+        _workers = []
+        for _i in range(_count):
+            _wid = str(uuid.uuid4())[:8]
+            _workers.append({
+                "worker_id": _wid,
+                "name": f"worker-{_i+1}",
+                "task": _task,
+                "model": _model,
+                "status": "pending",
+                "stream_id": None,
+                "result": None,
+                "started_at": None,
+                "completed_at": None,
+            })
+        with SWARMS_LOCK:
+            SWARMS[_sid] = {
+                "id": _sid,
+                "name": _name or f"swarm-{_sid}",
+                "session_id": _session_id,
+                "coord_session_id": _coord_sid,
+                "task": _task,
+                "mode": _mode,
+                "model": _model,
+                "status": "running",
+                "workers": _workers,
+                "created_at": _time.time(),
+                "completed_at": None,
+                "messages": [],
+                "context": {},
+            }
+        return j(handler, {"id": _sid, "status": "started", "worker_count": _count})
+
+    if parsed.path == "/api/swarm/cancel":
+        _body = read_body(handler)
+        _sid = _body.get("id", "")
+        if not _sid:
+            return j(handler, {"error": "swarm_id required"}, status=400)
+        cancel_swarm(_sid)
+        return j(handler, {"status": "cancelled"})
+
+    if parsed.path.startswith("/api/swarm/") and parsed.path.endswith("/messages"):
+        _body = read_body(handler)
+        _p = parsed.path.split("/")
+        _sid = _p[3] if len(_p) >= 4 else ""
+        _msg = _body.get("message", "")
+        _sender = _body.get("sender", "user")
+        _post_coord_message(_sid, "user", _sender, "user", _msg)
+        return j(handler, {"status": "posted"})
+
+    if parsed.path.startswith("/api/swarm/") and parsed.path.endswith("/context"):
+        _body = read_body(handler)
+        _p = parsed.path.split("/")
+        _sid = _p[3] if len(_p) >= 4 else ""
+        _key = _body.get("key", "")
+        _val = _body.get("value", "")
+        set_swarm_context(_sid, _key, _val)
+        return j(handler, {"status": "injected"})
+
+    if parsed.path == "/api/swarm/templates":
+        return j(handler, {"templates": list_swarm_templates()})
+
+    if parsed.path == "/api/swarm/templates/save":
+        _body = read_body(handler)
+        _name = _body.get("name", "")
+        _config = _body.get("config", {})
+        save_swarm_template(_name, _config)
+        return j(handler, {"status": "saved", "name": _name})
+
+    if parsed.path.startswith("/api/swarm/"):
+        _p = parsed.path.split("/")
+        _sid = _p[3] if len(_p) >= 4 else ""
+        _wid = _p[5] if len(_p) >= 6 else ""
+        if _wid and "workers" in parsed.path:
+            kill_worker(_sid, _wid)
+            return j(handler, {"status": "worker_killed", "worker_id": _wid})
+        with SWARMS_LOCK:
+            if _sid in SWARMS:
+                del SWARMS[_sid]
+                return j(handler, {"status": "deleted", "id": _sid})
+        return j(handler, {"error": "Swarm not found"}, status=404)
+    
+    # ── Terminal API (POST) ──
+    if parsed.path == "/api/terminal/create":
+        _cwd = body.get("cwd", "")
+        _shell = body.get("shell", "")
+        _session_id = body.get("session_id", "")
+        _ssh_host = body.get("ssh_host", "")
+        try:
+            _term = create_terminal(_cwd if _cwd else None, _shell if _shell else None, 
+                                _session_id if _session_id else None, _ssh_host if _ssh_host else None)
+            return j(handler, {
+                "terminal_id": _term.terminal_id,
+                "name": _term.name,
+                "cwd": _term.cwd,
+                "session_id": _term.session_id
+            })
+        except Exception as e:
+            return bad(handler, str(e))
+
+    if parsed.path.startswith("/api/terminal/") and parsed.path.endswith("/write"):
+        _p = parsed.path.split("/")
+        _tid = _p[3] if len(_p) >= 4 else ""
+        _data = body.get("data", "")
+        _term = get_terminal(_tid)
+        if _term is None:
+            return j(handler, {"error": "Terminal not found"}, status=404)
+        if _term.write(_data):
+            return j(handler, {"status": "written"})
+        else:
+            return bad(handler, "Failed to write to terminal")
+
+    if parsed.path.startswith("/api/terminal/") and parsed.path.endswith("/resize"):
+        _p = parsed.path.split("/")
+        _tid = _p[3] if len(_p) >= 4 else ""
+        _cols = body.get("cols", 80)
+        _rows = body.get("rows", 24)
+        _term = get_terminal(_tid)
+        if _term is None:
+            return j(handler, {"error": "Terminal not found"}, status=404)
+        _term.resize(_cols, _rows)
+        return j(handler, {"status": "resized", "cols": _cols, "rows": _rows})
+
+    if parsed.path.startswith("/api/terminal/") and parsed.path.endswith("/rename"):
+        _p = parsed.path.split("/")
+        _tid = _p[3] if len(_p) >= 4 else ""
+        _name = body.get("name", "")
+        _term = get_terminal(_tid)
+        if _term is None:
+            return j(handler, {"error": "Terminal not found"}, status=404)
+        if rename_terminal(_tid, _name):
+            return j(handler, {"status": "renamed", "name": _name})
+        else:
+            return bad(handler, "Failed to rename terminal")
+
+    if parsed.path.startswith("/api/terminal/") and parsed.path.endswith("/close"):
+        _p = parsed.path.split("/")
+        _tid = _p[3] if len(_p) >= 4 else ""
+        if close_terminal(_tid):
+            return j(handler, {"status": "closed", "terminal_id": _tid})
+        else:
+            return j(handler, {"error": "Terminal not found"}, status=404)
+
+    # ── Remote Paths API (POST) ─────────────────────────────────────────────────
+    if parsed.path == "/api/remote_paths":
+        from api.workspace import get_remote_paths, save_remote_paths
+        try:
+            save_remote_paths(body.get("paths", {}))
+            return j(handler, {"ok": True, "paths": get_remote_paths()})
+        except Exception as e:
+            return bad(handler, str(e))
+
+    result = _handle_wiki_memory_post(handler, body, parsed.path)
+    if result is not None:
+        return result
 
     return False  # 404
 
-
-# ── GET route helpers ─────────────────────────────────────────────────────────
-
-
-def _serve_static(handler, parsed):
-    static_root = (Path(__file__).parent.parent / "static").resolve()
-    # Strip the leading '/static/' prefix, then resolve and sandbox
-    rel = parsed.path[len("/static/") :]
-    static_file = (static_root / rel).resolve()
+def _handle_remote_sessions_list(handler):
+    """List sessions from remote .250 state.db via SSH with aggressive caching."""
+    import subprocess
+    import time as time_module
+    
+    MEMSTER_HOST = '192.168.4.250'
+    MEMSTER_USER = 'house'
+    STATE_DB = '/home/house/.hermes/state.db'
+    CACHE_TTL = 120  # 2 minutes cache TTL
+    
+    errors = []
+    sessions = []
+    use_cache = False
+    
+    # Try cache first - if fresh, return immediately without SSH
     try:
-        static_file.relative_to(static_root)
-    except ValueError:
-        return j(handler, {"error": "not found"}, status=404)
-    if not static_file.exists() or not static_file.is_file():
-        return j(handler, {"error": "not found"}, status=404)
-    ext = static_file.suffix.lower()
-    ct = {"css": "text/css", "js": "application/javascript", "html": "text/html"}.get(
-        ext.lstrip("."), "text/plain"
-    )
-    handler.send_response(200)
-    handler.send_header("Content-Type", f"{ct}; charset=utf-8")
-    handler.send_header("Cache-Control", "no-store")
-    raw = static_file.read_bytes()
-    handler.send_header("Content-Length", str(len(raw)))
-    handler.end_headers()
-    handler.wfile.write(raw)
-    return True
-
-
-def _handle_session_export(handler, parsed):
-    sid = parse_qs(parsed.query).get("session_id", [""])[0]
-    if not sid:
-        return bad(handler, "session_id is required")
+        if REMOTE_SESSIONS_CACHE_FILE.exists():
+            cache_data = json.loads(REMOTE_SESSIONS_CACHE_FILE.read_text(encoding='utf-8'))
+            cache_age = time_module.time() - cache_data.get('_cached_at', 0)
+            if cache_age < CACHE_TTL and cache_data.get('sessions'):
+                # Cache is fresh - return cached data but refresh in background
+                return j(handler, {
+                    'ok': True,
+                    'sessions': cache_data.get('sessions', []),
+                    'count': len(cache_data.get('sessions', [])),
+                    'source': cache_data.get('source', f'{MEMSTER_HOST}:{STATE_DB}'),
+                    'from_cache': True,
+                    'cache_age': int(cache_age),
+                })
+    except Exception:
+        pass
+    
+    # Cache missing or stale - try SSH fetch with shorter timeout
     try:
-        s = get_session(sid)
-    except KeyError:
-        return bad(handler, "Session not found", 404)
-    safe = redact_session_data(s.__dict__)
-    payload = json.dumps(safe, ensure_ascii=False, indent=2)
-    handler.send_response(200)
-    handler.send_header("Content-Type", "application/json; charset=utf-8")
-    handler.send_header(
-        "Content-Disposition", f'attachment; filename="hermes-{sid}.json"'
-    )
-    handler.send_header("Content-Length", str(len(payload.encode("utf-8"))))
-    handler.send_header("Cache-Control", "no-store")
-    handler.end_headers()
-    handler.wfile.write(payload.encode("utf-8"))
-    return True
-
-
-def _handle_sessions_search(handler, parsed):
-    qs = parse_qs(parsed.query)
-    q = qs.get("q", [""])[0].lower().strip()
-    content_search = qs.get("content", ["1"])[0] == "1"
-    depth = int(qs.get("depth", ["5"])[0])
-    if not q:
-        safe_sessions = []
-        for s in all_sessions():
-            item = dict(s)
-            if isinstance(item.get("title"), str):
-                item["title"] = _redact_text(item["title"])
-            safe_sessions.append(item)
-        return j(handler, {"sessions": safe_sessions})
-    results = []
-    for s in all_sessions():
-        title_match = q in (s.get("title") or "").lower()
-        if title_match:
-            item = dict(s, match_type="title")
-            if isinstance(item.get("title"), str):
-                item["title"] = _redact_text(item["title"])
-            results.append(item)
-            continue
-        if content_search:
+        cmd = f'ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes {MEMSTER_USER}@{MEMSTER_HOST} "echo \\"SELECT id, title, source, started_at, message_count FROM sessions ORDER BY started_at DESC LIMIT 200;\\" | sqlite3 -csv {STATE_DB}"'
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+        
+        if result.returncode == 0:
+            lines = result.stdout.strip().splitlines()
+            for line in lines[1:]:  # Skip header
+                if not line.strip():
+                    continue
+                parts = line.split(',')
+                if len(parts) >= 2:
+                    sessions.append({
+                        'session_id': parts[0].strip(),
+                        'title': parts[1].strip() if len(parts) > 1 and parts[1].strip() else 'Untitled',
+                        'source': parts[2].strip() if len(parts) > 2 else 'cli',
+                        'created_at': float(parts[3])/1000000000 if len(parts) > 3 and parts[3].strip() else None,
+                        'message_count': int(parts[4]) if len(parts) > 4 and parts[4].strip() else 0,
+                    })
+            
+            # Success - write cache
             try:
-                sess = get_session(s["session_id"])
-                msgs = sess.messages[:depth] if depth else sess.messages
-                for m in msgs:
-                    c = m.get("content") or ""
-                    if isinstance(c, list):
-                        c = " ".join(
-                            p.get("text", "")
-                            for p in c
-                            if isinstance(p, dict) and p.get("type") == "text"
-                        )
-                    if q in str(c).lower():
-                        item = dict(s, match_type="content")
-                        if isinstance(item.get("title"), str):
-                            item["title"] = _redact_text(item["title"])
-                        results.append(item)
-                        break
-            except (KeyError, Exception):
+                cache_entry = {
+                    'sessions': sessions,
+                    'source': f'{MEMSTER_HOST}:{STATE_DB}',
+                    '_cached_at': time_module.time(),
+                }
+                REMOTE_SESSIONS_CACHE_FILE.write_text(
+                    json.dumps(cache_entry, ensure_ascii=False, indent=2),
+                    encoding='utf-8'
+                )
+            except Exception:
                 pass
-    return j(handler, {"sessions": results, "query": q, "count": len(results)})
-
-
-def _handle_list_dir(handler, parsed):
-    qs = parse_qs(parsed.query)
-    sid = qs.get("session_id", [""])[0]
-    if not sid:
-        return bad(handler, "session_id is required")
-    try:
-        s = get_session(sid)
-        workspace = s.workspace
-    except KeyError:
-        # Fallback for CLI sessions not loaded in WebUI memory
+        else:
+            errors.append(f'SSH error: {result.stderr.strip()[:80]}')
+            use_cache = True
+    except subprocess.TimeoutExpired:
+        errors.append('SSH timeout')
+        use_cache = True
+    except Exception as e:
+        errors.append(f'Error: {str(e)[:80]}')
+        use_cache = True
+    
+    # Fall back to cache if SSH failed
+    if use_cache or not sessions:
         try:
-            cli_meta = None
-            for cs in get_cli_sessions():
-                if cs["session_id"] == sid:
-                    cli_meta = cs
-                    break
-            if not cli_meta:
-                return bad(handler, "Session not found", 404)
-            workspace = cli_meta.get("workspace", "")
+            if REMOTE_SESSIONS_CACHE_FILE.exists():
+                cache_data = json.loads(REMOTE_SESSIONS_CACHE_FILE.read_text(encoding='utf-8'))
+                sessions = cache_data.get('sessions', [])
         except Exception:
-            return bad(handler, "Session not found", 404)
+            pass
+    
+    return j(handler, {
+        'ok': True,
+        'sessions': sessions,
+        'count': len(sessions),
+        'source': f'{MEMSTER_HOST}:{STATE_DB}',
+        'from_cache': use_cache,
+        'errors': errors if errors else None
+    })
+
+
+def _delete_remote_session(session_id: str) -> bool:
+    """Delete a session from remote .250 machine via SSH"""
+    import subprocess
+    
+    MEMSTER_HOST = '192.168.4.250'
+    MEMSTER_USER = 'house'
+    STATE_DB = '/home/house/.hermes/state.db'
+    SESSIONS_DIR = '/home/house/.hermes/sessions'
+    
     try:
-        return j(
-            handler,
-            {
-                "entries": list_dir(Path(workspace), qs.get("path", ["."])[0]),
-                "path": qs.get("path", ["."])[0],
-            },
-        )
-    except (FileNotFoundError, ValueError) as e:
-        return bad(handler, _sanitize_error(e), 404)
+        # Delete from state.db with tight timeout
+        cmd = f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 {MEMSTER_USER}@{MEMSTER_HOST} 'echo \"DELETE FROM sessions WHERE id = \\\"{session_id}\\\"; DELETE FROM messages WHERE session_id = \\\"{session_id}\\\";\" | sqlite3 {STATE_DB}'"
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=20)
+        
+        # Also delete session files (fire and forget, parallel)
+        for filename in [f"{session_id}.json", f"{session_id}.jsonl", f"session_{session_id}.json"]:
+            cmd2 = f'ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 {MEMSTER_USER}@{MEMSTER_HOST} "rm -f {SESSIONS_DIR}/{filename}"'
+            subprocess.run(cmd2, shell=True, capture_output=True, text=True, timeout=10)
+        
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to delete remote session {session_id}: {e}")
+        return False
 
 
-def _handle_sse_stream(handler, parsed):
-    stream_id = parse_qs(parsed.query).get("stream_id", [""])[0]
-    q = STREAMS.get(stream_id)
-    if q is None:
-        return j(handler, {"error": "stream not found"}, status=404)
-    handler.send_response(200)
-    handler.send_header("Content-Type", "text/event-stream; charset=utf-8")
-    handler.send_header("Cache-Control", "no-cache")
-    handler.send_header("X-Accel-Buffering", "no")
-    handler.send_header("Connection", "keep-alive")
-    handler.end_headers()
+def _rename_remote_session(session_id: str, new_title: str) -> bool:
+    """Rename a session on remote .250 machine via SSH"""
+    import subprocess
+    
+    MEMSTER_HOST = '192.168.4.250'
+    MEMSTER_USER = 'house'
+    STATE_DB = '/home/house/.hermes/state.db'
+    
     try:
-        while True:
-            try:
-                event, data = q.get(timeout=30)
-            except queue.Empty:
-                handler.wfile.write(b": heartbeat\n\n")
-                handler.wfile.flush()
-                continue
-            _sse(handler, event, data)
-            if event in ("stream_end", "error", "cancel"):
-                break
-    except (BrokenPipeError, ConnectionResetError):
-        pass
-    return True
-
-
-def _handle_gateway_sse_stream(handler):
-    """SSE endpoint for real-time gateway session updates.
-    Streams change events from the gateway watcher background thread.
-    Only active when show_cli_sessions (show_agent_sessions) setting is enabled.
-    """
-    # Check if the feature is enabled
-    settings = load_settings()
-    if not settings.get('show_cli_sessions'):
-        return j(handler, {'error': 'agent sessions not enabled'}, status=404)
-
-    from api.gateway_watcher import get_watcher
-    watcher = get_watcher()
-    if watcher is None:
-        return j(handler, {'error': 'watcher not started'}, status=503)
-
-    handler.send_response(200)
-    handler.send_header('Content-Type', 'text/event-stream; charset=utf-8')
-    handler.send_header('Cache-Control', 'no-cache')
-    handler.send_header('X-Accel-Buffering', 'no')
-    handler.send_header('Connection', 'keep-alive')
-    handler.end_headers()
-
-    q = watcher.subscribe()
-    try:
-        # Send initial snapshot immediately
-        from api.models import get_cli_sessions
-        initial = get_cli_sessions()
-        _sse(handler, 'sessions_changed', {'sessions': initial})
-
-        while True:
-            try:
-                event_data = q.get(timeout=30)
-            except queue.Empty:
-                handler.wfile.write(b': keepalive\n\n')
-                handler.wfile.flush()
-                continue
-            if event_data is None:
-                break  # watcher is stopping
-            _sse(handler, event_data.get('type', 'sessions_changed'), event_data)
-    except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
-        pass
-    finally:
-        watcher.unsubscribe(q)
-    return True
+        # Escape quotes in title for SQL
+        escaped_title = new_title.replace("'", "''")
+        cmd = f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 {MEMSTER_USER}@{MEMSTER_HOST} 'echo \"UPDATE sessions SET title = \\\"{escaped_title}\\\" WHERE id = \\\"{session_id}\\\";\" | sqlite3 {STATE_DB}'"
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=20)
+        return result.returncode == 0
+    except Exception as e:
+        logger.warning(f"Failed to rename remote session {session_id}: {e}")
+        return False
 
 
 def _content_disposition_value(disposition: str, filename: str) -> str:
@@ -2297,7 +2466,7 @@ def _handle_chat_start(handler, body):
     except ValueError as e:
         return bad(handler, str(e))
     try:
-        s = get_session(body["session_id"])
+        s = _get_or_import_session(body["session_id"])
     except KeyError:
         return bad(handler, "Session not found", 404)
     msg = str(body.get("message", "")).strip()
@@ -2352,7 +2521,10 @@ def _handle_chat_sync(handler, body):
     """Fallback synchronous chat endpoint (POST /api/chat). Not used by frontend."""
     from api.config import _get_session_agent_lock
 
-    s = get_session(body["session_id"])
+    try:
+        s = _get_or_import_session(body["session_id"])
+    except KeyError:
+        return bad(handler, "Session not found", 404)
     msg = str(body.get("message", "")).strip()
     if not msg:
         return j(handler, {"error": "empty message"}, status=400)
@@ -2692,6 +2864,20 @@ def _handle_workspace_remove(handler, body):
     wss = load_workspaces()
     wss = [w for w in wss if w["path"] != path_str]
     save_workspaces(wss)
+    
+    # Also remove from legacy global workspaces.json to prevent re-migration
+    from api.config import WORKSPACES_FILE as GLOBAL_WS_FILE
+    if GLOBAL_WS_FILE.exists():
+        try:
+            global_raw = json.loads(GLOBAL_WS_FILE.read_text(encoding='utf-8'))
+            global_cleaned = [w for w in global_raw if w.get("path") != path_str]
+            if len(global_cleaned) != len(global_raw):
+                GLOBAL_WS_FILE.write_text(
+                    json.dumps(global_cleaned, ensure_ascii=False, indent=2), encoding='utf-8'
+                )
+        except Exception:
+            pass
+    
     return j(handler, {"ok": True, "workspaces": wss})
 
 
@@ -2820,6 +3006,153 @@ def _handle_skill_delete(handler, body):
     return j(handler, {"ok": True, "name": body["name"]})
 
 
+def _get_or_import_session(sid):
+    """Try to get a session locally, from CLI, or from remote .250 machine.
+    Optimized with fast remote detection using cache.
+    """
+    # Fast path: check local memory first
+    try:
+        return get_session(sid)
+    except KeyError:
+        pass
+    
+    # Check if it's a known remote session using cache (fast, no SSH needed)
+    try:
+        if REMOTE_SESSIONS_CACHE_FILE.exists():
+            cache_data = json.loads(REMOTE_SESSIONS_CACHE_FILE.read_text(encoding='utf-8'))
+            remote_sessions = cache_data.get('sessions', [])
+            for rs in remote_sessions:
+                if rs.get('session_id') == sid:
+                    # It's a remote session - fetch directly using optimized handler
+                    return _fetch_remote_session_direct(sid)
+    except Exception:
+        pass
+    
+    # Try to import from CLI
+    msgs = get_cli_session_messages(sid)
+    if msgs:
+        # Get metadata from CLI sessions list
+        title = "CLI Session"
+        model = "unknown"
+        profile = None
+        created_at = None
+        updated_at = None
+        for cs in get_cli_sessions():
+            if cs["session_id"] == sid:
+                title = cs.get("title", title_from(msgs, "CLI Session"))
+                model = cs.get("model", "unknown")
+                profile = cs.get("profile")
+                created_at = cs.get("created_at")
+                updated_at = cs.get("updated_at")
+                break
+        s = import_cli_session(sid, title, msgs, model, profile=profile,
+                               created_at=created_at, updated_at=updated_at)
+        s.is_cli_session = True
+        s._cli_origin = sid
+        s.save(touch_updated_at=False)
+        return s
+    
+    # Try to fetch from remote .250 machine
+    try:
+        import subprocess
+        import json
+        
+        MEMSTER_HOST = '192.168.4.250'
+        MEMSTER_HOST_LEGACY = '192.168.4.233'
+        MEMSTER_USER = 'house'
+        REMOTE_SESSIONS_DIR = '/home/house/.hermes/sessions'
+        
+        for host in [MEMSTER_HOST, MEMSTER_HOST_LEGACY]:
+            for ext in ['.json', '.jsonl']:
+                filename = f"{sid}{ext}"
+                cmd = f'ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 {MEMSTER_USER}@{host} "cat {REMOTE_SESSIONS_DIR}/{filename}"'
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
+                if result.returncode == 0 and result.stdout.strip():
+                    try:
+                        data = json.loads(result.stdout)
+                        # Handle both array (jsonl) and object formats
+                        if isinstance(data, list):
+                            msgs = data
+                            title = title_from(msgs, sid)
+                        elif isinstance(data, dict):
+                            msgs = data.get('messages', [])
+                            title = data.get('title') or data.get('session_title') or title_from(msgs, sid)
+                        else:
+                            continue
+                        
+                        # Import as new session
+                        s = new_session(title=title)
+                        s.messages = msgs
+                        s.is_remote_session = True
+                        s._remote_origin = f"{host}:{filename}"
+                        s.save()
+                        return s
+                    except Exception:
+                        continue
+    except Exception:
+        pass
+    
+    raise KeyError(sid)
+
+
+def _fetch_remote_session_direct(sid):
+    """Fast direct fetch of a remote session using the existing handler logic."""
+    import subprocess
+    import json
+    
+    MEMSTER_HOST = '192.168.4.250'
+    MEMSTER_USER = 'house'
+    STATE_DB = '/home/house/.hermes/state.db'
+    SESSIONS_DIR = '/home/house/.hermes/sessions'
+    
+    # Try state.db first with tight timeout
+    try:
+        cmd = f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 {MEMSTER_USER}@{MEMSTER_HOST} 'echo \"SELECT id, source, started_at, title FROM sessions WHERE id = \\\"{sid}\\\";\" | sqlite3 -csv {STATE_DB}'"
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
+        
+        if result.returncode == 0 and result.stdout.strip():
+            lines = result.stdout.strip().split('\n')
+            if len(lines) > 1:
+                parts = lines[1].split(',')
+                if parts[0].strip() == sid:
+                    source = parts[1].strip() if len(parts) > 1 else 'cli'
+                    
+                    # Get messages
+                    if source in ('tui', 'cli', 'cron'):
+                        msg_cmd = f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 {MEMSTER_USER}@{MEMSTER_HOST} 'echo \"SELECT role, content FROM messages WHERE session_id = \\\"{sid}\\\" ORDER BY timestamp;\" | sqlite3 -csv {STATE_DB}'"
+                        msg_result = subprocess.run(msg_cmd, shell=True, capture_output=True, text=True, timeout=15)
+                        
+                        messages = []
+                        if msg_result.returncode == 0:
+                            for line in msg_result.stdout.strip().split('\n')[1:]:
+                                if line.strip():
+                                    msg_parts = line.split(',', 1)
+                                    if len(msg_parts) >= 2:
+                                        messages.append({
+                                            'role': msg_parts[0].strip(),
+                                            'content': msg_parts[1].strip()
+                                        })
+                    
+                    session_data = {
+                        'session_id': sid,
+                        'title': parts[3].strip() if len(parts) > 3 else sid,
+                        'workspace': '/home/house',
+                        'model': 'moonshotai/kimi-k2.5',
+                        'messages': messages,
+                        'created_at': float(parts[2])/1000000000 if len(parts) > 2 and parts[2].strip() else None,
+                    }
+                    s = new_session(title=session_data['title'])
+                    s.messages = messages
+                    s.is_remote_session = True
+                    s._remote_origin = f"{MEMSTER_HOST}:{STATE_DB}"
+                    s.save()
+                    return s
+    except Exception:
+        pass
+    
+    raise KeyError(sid)
+
+
 def _handle_memory_write(handler, body):
     try:
         require(body, "section", "content")
@@ -2938,3 +3271,236 @@ def _handle_session_import(handler, body):
             SESSIONS.popitem(last=False)
     s.save()
     return j(handler, {"ok": True, "session": s.compact() | {"messages": s.messages}})
+
+
+def _handle_sse_stream(handler, parsed):
+    """Handle SSE streaming for chat responses."""
+    from api.streaming import _sse, STREAMS, STREAMS_LOCK, CANCEL_FLAGS, AGENT_INSTANCES
+    import queue
+
+    stream_id = parse_qs(parsed.query).get("stream_id", [""])[0]
+    q = STREAMS.get(stream_id)
+    if q is None:
+        return j(handler, {"error": "stream not found"}, status=404)
+    handler.send_response(200)
+    handler.send_header("Content-Type", "text/event-stream; charset=utf-8")
+    handler.send_header("Cache-Control", "no-cache")
+    handler.send_header("X-Accel-Buffering", "no")
+    handler.send_header("Connection", "keep-alive")
+    handler.end_headers()
+    try:
+        while True:
+            try:
+                event, data = q.get(timeout=5)
+            except queue.Empty:
+                handler.wfile.write(b": heartbeat\n\n")
+                handler.wfile.flush()
+                continue
+            _sse(handler, event, data)
+            if event in ("stream_end", "error", "cancel"):
+                break
+    except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+        pass
+    return True
+
+
+def _handle_gateway_sse_stream(handler):
+    """SSE endpoint for real-time gateway session updates.
+    Streams change events from the gateway watcher background thread.
+    Only active when show_cli_sessions (show_agent_sessions) setting is enabled.
+    """
+    from api.streaming import _sse
+
+    settings = load_settings()
+    if not settings.get('show_cli_sessions'):
+        return j(handler, {'error': 'agent sessions not enabled'}, status=404)
+
+    try:
+        from api.gateway_watcher import get_watcher
+        watcher = get_watcher()
+        if watcher is None:
+            return j(handler, {'error': 'watcher not started'}, status=503)
+    except ImportError:
+        return j(handler, {'error': 'gateway watcher not available'}, status=503)
+
+    handler.send_response(200)
+    handler.send_header('Content-Type', 'text/event-stream; charset=utf-8')
+    handler.send_header('Cache-Control', 'no-cache')
+    handler.send_header('X-Accel-Buffering', 'no')
+    handler.send_header('Connection', 'keep-alive')
+    handler.end_headers()
+
+    import queue
+    q = watcher.subscribe()
+    try:
+        # Send initial snapshot immediately
+        from api.models import get_cli_sessions
+        initial = get_cli_sessions()
+        _sse(handler, 'sessions_changed', {'sessions': initial})
+
+        while True:
+            try:
+                event_data = q.get(timeout=30)
+            except queue.Empty:
+                handler.wfile.write(b': keepalive\n\n')
+                handler.wfile.flush()
+                continue
+            if event_data is None:
+                break  # watcher is stopping
+            _sse(handler, event_data.get('type', 'sessions_changed'), event_data)
+    except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+        pass
+    finally:
+        watcher.unsubscribe(q)
+    return True
+
+
+def _serve_static(handler, parsed):
+    static_root = (Path(__file__).parent.parent / "static").resolve()
+    # Strip the leading '/static/' prefix, then resolve and sandbox
+    rel = parsed.path[len("/static/") :]
+    static_file = (static_root / rel).resolve()
+    try:
+        static_file.relative_to(static_root)
+    except ValueError:
+        return j(handler, {"error": "not found"}, status=404)
+    if not static_file.exists() or not static_file.is_file():
+        return j(handler, {"error": "not found"}, status=404)
+    ext = static_file.suffix.lower()
+    ct = {"css": "text/css", "js": "application/javascript", "html": "text/html"}.get(
+        ext.lstrip("."), "text/plain"
+    )
+    handler.send_response(200)
+    handler.send_header("Content-Type", f"{ct}; charset=utf-8")
+    handler.send_header("Cache-Control", "no-store")
+    raw = static_file.read_bytes()
+    handler.send_header("Content-Length", str(len(raw)))
+    handler.end_headers()
+    handler.wfile.write(raw)
+    return True
+
+
+def _handle_multiplex_sse_stream(handler, parsed):
+    """Multiplexed SSE: one connection carries events for ALL active streams.
+    This bypasses the browser's 6-connections-per-domain limit, allowing
+    dozens of concurrent agent sessions to stream simultaneously."""
+    from api.streaming import _sse
+    from api.config import MULTIPLEX_QUEUES, MULTIPLEX_LOCK
+    import queue
+
+    client_id = parse_qs(parsed.query).get("client_id", [""])[0] or "default"
+    mq = queue.Queue()
+    with MULTIPLEX_LOCK:
+        MULTIPLEX_QUEUES[client_id] = mq
+
+    handler.send_response(200)
+    handler.send_header("Content-Type", "text/event-stream; charset=utf-8")
+    handler.send_header("Cache-Control", "no-cache, no-transform")
+    handler.send_header("X-Accel-Buffering", "no")
+    handler.send_header("Connection", "keep-alive")
+    handler.end_headers()
+    handler.wfile.write(b": connected\n\n")
+    handler.wfile.flush()
+    print(f"[webui] Multiplex SSE started for client_id={client_id}", flush=True)
+    try:
+        while True:
+            try:
+                event, data = mq.get(timeout=5)
+            except queue.Empty:
+                handler.wfile.write(b": heartbeat\n\n")
+                handler.wfile.flush()
+                continue
+            _sse(handler, event, data)
+            if event in ("stream_end", "error", "cancel"):
+                # Keep the connection alive for other streams; just log
+                print(f"[webui] Multiplex stream_end for stream_id={data.get('stream_id')}", flush=True)
+    except (BrokenPipeError, ConnectionResetError) as e:
+        print(f"[webui] Multiplex SSE disconnected: {e}", flush=True)
+    except Exception as e:
+        print(f"[webui] Multiplex SSE error: {e}", flush=True)
+    finally:
+        with MULTIPLEX_LOCK:
+            # Only pop if this handler's queue is still the current one
+            if MULTIPLEX_QUEUES.get(client_id) is mq:
+                MULTIPLEX_QUEUES.pop(client_id, None)
+    print(f"[webui] Multiplex SSE closed for client_id={client_id}", flush=True)
+    return True
+
+
+def _handle_terminal_sse_stream(handler, parsed):
+    """Terminal SSE stream: streams output from a specific terminal session."""
+    import time
+    
+    terminal_id = parse_qs(parsed.query).get("terminal_id", [""])[0]
+    client_id = parse_qs(parsed.query).get("client_id", [""])[0] or "default"
+    
+    if not terminal_id:
+        handler.send_response(400)
+        handler.send_header("Content-Type", "application/json")
+        handler.end_headers()
+        handler.wfile.write(b'{"error": "terminal_id required"}')
+        return True
+    
+    # Get terminal session
+    from api.terminal import get_terminal
+    term = get_terminal(terminal_id)
+    if term is None:
+        handler.send_response(404)
+        handler.send_header("Content-Type", "application/json")
+        handler.end_headers()
+        handler.wfile.write(b'{"error": "Terminal not found"}')
+        return True
+    
+    # Add client to terminal session
+    term.add_client(client_id)
+    
+    handler.send_response(200)
+    handler.send_header("Content-Type", "text/event-stream; charset=utf-8")
+    handler.send_header("Cache-Control", "no-cache, no-transform")
+    handler.send_header("X-Accel-Buffering", "no")
+    handler.send_header("Connection", "keep-alive")
+    handler.end_headers()
+    
+    # Send ready event
+    handler.wfile.write(b"event: ready\n")
+    handler.wfile.write(f"data: {json.dumps({'terminal_id': terminal_id, 'name': term.name})}\n\n".encode())
+    handler.wfile.flush()
+    
+    print(f"[webui] Terminal SSE started for terminal_id={terminal_id}, client_id={client_id}", flush=True)
+    
+    try:
+        last_heartbeat = time.time()
+        while True:
+            now = time.time()
+            # Send keepalive every 5 seconds to prevent proxy timeouts
+            if now - last_heartbeat > 5:
+                handler.wfile.write(b": keepalive\n\n")
+                handler.wfile.flush()
+                last_heartbeat = now
+            
+            # Block waiting for output (0.5s max) instead of polling every 100ms
+            output = term.get_output(timeout=0.5)
+            if output:
+                handler.wfile.write(b"event: output\n")
+                handler.wfile.write(f"data: {json.dumps(output)}\n\n".encode())
+                handler.wfile.flush()
+                last_heartbeat = now
+            else:
+                # No output, check if terminal exited
+                if term.pid is None:
+                    # Terminal exited
+                    handler.wfile.write(b"event: output\n")
+                    handler.wfile.write(f"data: {json.dumps({'type': 'exit', 'code': 0})}\n\n".encode())
+                    handler.wfile.flush()
+                    break
+                    
+    except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError) as e:
+        print(f"[webui] Terminal SSE disconnected: {e}", flush=True)
+    except Exception as e:
+        print(f"[webui] Terminal SSE error: {e}", flush=True)
+    finally:
+        # Remove client from terminal session
+        term.remove_client(client_id)
+        print(f"[webui] Terminal SSE closed for terminal_id={terminal_id}, client_id={client_id}", flush=True)
+    
+    return True

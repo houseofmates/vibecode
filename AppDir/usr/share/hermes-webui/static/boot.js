@@ -2,7 +2,7 @@ async function cancelStream(){
   const streamId = S.activeStreamId;
   if(!streamId) return;
   try{
-    await fetch(new URL(`api/chat/cancel?stream_id=${encodeURIComponent(streamId)}`,location.href).href,{credentials:'include'});
+    await fetch(new URL(`api/chat/cancel?stream_id=${encodeURIComponent(streamId)}`,window.HERMES_API_BASE || location.href).href,{credentials:'include'});
   }catch(e){/* cancel request failed — cleanup below still runs */}
   // Clear status unconditionally after the cancel request completes.
   // The SSE cancel event may also fire, but if the connection is already
@@ -12,6 +12,7 @@ async function cancelStream(){
   setBusy(false);
   if(typeof setComposerStatus==='function') setComposerStatus('');
   else setStatus('');
+  if(typeof updateSendBtn==='function') updateSendBtn();
 }
 
 // ── Mobile navigation ──────────────────────────────────────────────────────
@@ -176,7 +177,56 @@ $('btnSend').onclick=()=>{
   }
   send();
 };
-$('btnAttach').onclick=()=>$('fileInput').click();
+// File attach button - single-flight open guard for Android/WebView touch+click sequences
+(function(){
+  const attachBtn = $('btnAttach');
+  const fileInput = $('fileInput');
+  if(!attachBtn || !fileInput) return;
+  attachBtn.style.touchAction = 'manipulation';
+
+  let chooserOpen = false;
+  let lastOpenAt = 0;
+  let releaseTimer = null;
+
+  function releaseChooserLock(delay){
+    if(releaseTimer) clearTimeout(releaseTimer);
+    releaseTimer = setTimeout(function(){
+      chooserOpen = false;
+      releaseTimer = null;
+    }, delay);
+  }
+
+  function openFileChooser(event){
+    if(event){
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const now = Date.now();
+    if(chooserOpen || (now - lastOpenAt) < 900) return;
+    chooserOpen = true;
+    lastOpenAt = now;
+    fileInput.value = '';
+    fileInput.click();
+    // If the picker is dismissed without a change event, release after focus returns.
+    releaseChooserLock(1600);
+  }
+
+  if(window.PointerEvent){
+    attachBtn.addEventListener('pointerup', openFileChooser, {passive: false});
+  }else if('ontouchend' in window){
+    attachBtn.addEventListener('touchend', openFileChooser, {passive: false});
+  }else{
+    attachBtn.addEventListener('click', openFileChooser, {passive: false});
+  }
+
+  fileInput.addEventListener('change', function(){
+    releaseChooserLock(150);
+  });
+
+  window.addEventListener('focus', function(){
+    if(chooserOpen) releaseChooserLock(250);
+  });
+})();
 
 // ── Voice input (Web Speech API + MediaRecorder fallback) ───────────────────
 (function(){
@@ -226,7 +276,7 @@ $('btnAttach').onclick=()=>$('fileInput').click();
     form.append('file',new File([blob],`voice-input.${ext}`,{type:blob.type||`audio/${ext}`}));
     setComposerStatus('Transcribing…');
     try{
-      const res=await fetch('api/transcribe',{method:'POST',body:form});
+      const res=await fetch((window.HERMES_API_BASE || location.origin + '/') + 'api/transcribe',{method:'POST',body:form});
       const data=await res.json().catch(()=>({}));
       if(!res.ok) throw new Error(data.error||'Transcription failed');
       _commitTranscript(data.transcript||'');
@@ -421,25 +471,29 @@ $('modelSelect').onchange=async()=>{
     const warn=_checkProviderMismatch(selectedModel);
     if(warn&&typeof showToast==='function') showToast(warn,4000);
   }
-  // Notify user that model changes only take effect in the next conversation (#419)
-  if(S.messages && S.messages.length > 0 && typeof showToast==='function'){
-    showToast('Model change takes effect in your next conversation', 3000);
-  }
 };
 $('msg').addEventListener('input',()=>{
+  const msgEl=$('msg');
+  const oldText=msgEl.value;
+  const selectionStart=msgEl.selectionStart||0;
+  const selectionEnd=msgEl.selectionEnd||0;
+  const normalized=expandEmojiShortcodes(oldText);
+  if(normalized!==oldText){
+    msgEl.value=normalized;
+    msgEl.selectionStart = msgEl.selectionEnd = expandEmojiShortcodes(oldText.slice(0,selectionStart)).length;
+  }
   autoResize();
   updateSendBtn();
-  const text=$('msg').value;
+  const text=msgEl.value;
   if(text.startsWith('/')&&text.indexOf('\n')===-1){
     const prefix=text.slice(1);
     const matches=getMatchingCommands(prefix);
     if(matches.length)showCmdDropdown(matches); else hideCmdDropdown();
-  } else {
-    hideCmdDropdown();
+  } else if(!text.startsWith('/')&&typeof handleDirInput==='function'){
+    handleDirInput(text);
   }
 });
 $('msg').addEventListener('keydown',e=>{
-  // Autocomplete navigation when dropdown is open
   const dd=$('cmdDropdown');
   const dropdownOpen=dd&&dd.classList.contains('open');
   if(dropdownOpen){
@@ -451,6 +505,19 @@ $('msg').addEventListener('keydown',e=>{
       if(e.isComposing){return;}
       e.preventDefault();
       selectCmdDropdownItem();
+      return;
+    }
+  }
+  // Directory path dropdown: check if it's open (via .cmd-item with .dir-path-suggest children)
+  if(dd&&dd.classList.contains('open')&&dd.querySelector('.dir-path-suggest')){
+    if(e.key==='ArrowUp'){e.preventDefault();navigateDirDropdown(-1);return;}
+    if(e.key==='ArrowDown'){e.preventDefault();navigateDirDropdown(1);return;}
+    if(e.key==='Tab'){e.preventDefault();selectDirDropdownItem();return;}
+    if(e.key==='Escape'){e.preventDefault();hideDirDropdown();return;}
+    if(e.key==='Enter'&&!e.shiftKey){
+      if(e.isComposing){return;}
+      e.preventDefault();
+      selectDirDropdownItem();
       return;
     }
   }
@@ -536,32 +603,43 @@ window.addEventListener('resize',()=>{
   const SIDEBAR_MIN=180, SIDEBAR_MAX=420;
   const PANEL_MIN=180,   PANEL_MAX=1200;
 
-  function initResize(handleId, targetEl, edge, minW, maxW, storageKey){
+  function initResize(handleId, targetEl, edge, minSize, maxSize, storageKey){
     const handle = $(handleId);
     if(!handle || !targetEl) return;
 
-    // Restore saved width
-    const saved = localStorage.getItem(storageKey);
-    if(saved) targetEl.style.width = saved + 'px';
+    // Restore saved width/height
+    let saved = null;
+    try { saved = localStorage.getItem(storageKey); } catch (e) {}
+    if(saved){
+      if(edge==='top' || edge==='bottom') targetEl.style.height = saved + 'px';
+      else targetEl.style.width = saved + 'px';
+    }
 
-    let startX=0, startW=0;
+    let startPos = 0, startSize = 0;
 
     handle.addEventListener('mousedown', e=>{
+      if(e.target.closest('button, input, textarea, select, a')) return;
       e.preventDefault();
-      startX = e.clientX;
-      startW = targetEl.getBoundingClientRect().width;
+      startPos = edge==='left' || edge==='right' ? e.clientX : e.clientY;
+      const rect = targetEl.getBoundingClientRect();
+      startSize = (edge==='left' || edge==='right') ? rect.width : rect.height;
       handle.classList.add('dragging');
       document.body.classList.add('resizing');
+      document.body.dataset.resizeDirection = (edge==='top' || edge==='bottom') ? 'ns' : 'ew';
 
       const onMove = ev=>{
-        const delta = edge==='right' ? ev.clientX - startX : startX - ev.clientX;
-        const newW = Math.min(maxW, Math.max(minW, startW + delta));
-        targetEl.style.width = newW + 'px';
+        const current = (edge==='left' || edge==='right') ? ev.clientX : ev.clientY;
+        const delta = (edge==='right' || edge==='bottom') ? current - startPos : startPos - current;
+        const newSize = Math.min(maxSize, Math.max(minSize, startSize + delta));
+        if(edge==='top' || edge==='bottom') targetEl.style.height = newSize + 'px';
+        else targetEl.style.width = newSize + 'px';
       };
       const onUp = ()=>{
         handle.classList.remove('dragging');
         document.body.classList.remove('resizing');
-        localStorage.setItem(storageKey, parseInt(targetEl.style.width));
+        delete document.body.dataset.resizeDirection;
+        const finalSize = edge==='top' || edge==='bottom' ? parseInt(targetEl.style.height) : parseInt(targetEl.style.width);
+        localStorage.setItem(storageKey, finalSize);
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
       };
@@ -574,8 +652,10 @@ window.addEventListener('resize',()=>{
   window._initResizePanels = function(){
     const sidebar    = document.querySelector('.sidebar');
     const rightpanel = document.querySelector('.rightpanel');
-    initResize('sidebarResize',    sidebar,    'right', SIDEBAR_MIN, SIDEBAR_MAX, 'hermes-sidebar-w');
-    initResize('rightpanelResize', rightpanel, 'left',  PANEL_MIN,   PANEL_MAX,   'hermes-panel-w');
+    const terminalPanel = document.getElementById('bottomPanel');
+    initResize('sidebarResize',    sidebar,       'right', SIDEBAR_MIN, SIDEBAR_MAX, 'hermes-sidebar-w');
+    initResize('rightpanelResize', rightpanel,    'left',  PANEL_MIN,   PANEL_MAX,   'hermes-panel-w');
+    initResize('terminalResize',   terminalPanel, 'top',   140,         800,         'hermes-terminal-h');
   };
 })();
 
@@ -618,6 +698,14 @@ function applyBotName(){
 }
 
 (async()=>{
+  // IMMEDIATE: Render from cache before ANY async operations
+  // This ensures sessions/file tree appear instantly while APIs load
+  _renderSessionsFromCache();
+  if (typeof _tryRenderFileTreeFromCache === 'function') {
+    _tryRenderFileTreeFromCache();
+  }
+  _prePopulateSidebarPanelsFromCache();
+
   // Load send key preference
   let _bootSettings={};
   try{
@@ -634,9 +722,11 @@ function applyBotName(){
     _applyTheme(_theme);
     document.body.classList.toggle('bubble-layout',!!s.bubble_layout);
     if(typeof setLocale==='function'){
+      let hermesLang = null;
+      try { hermesLang = localStorage.getItem('hermes-lang'); } catch (e) {}
       const _lang=typeof resolvePreferredLocale==='function'
-        ? resolvePreferredLocale(s.language, localStorage.getItem('hermes-lang'))
-        : (s.language || localStorage.getItem('hermes-lang') || 'en');
+        ? resolvePreferredLocale(s.language, hermesLang)
+        : (s.language || hermesLang || 'en');
       setLocale(_lang);
       if(typeof applyLocaleToDOM==='function')applyLocaleToDOM();
     }
@@ -651,9 +741,11 @@ function applyBotName(){
     _bootSettings={check_for_updates:false};
     document.body.classList.remove('bubble-layout');
     if(typeof setLocale==='function'){
+      let hermesLang = null;
+      try { hermesLang = localStorage.getItem('hermes-lang'); } catch (e) {}
       const _lang=typeof resolvePreferredLocale==='function'
-        ? resolvePreferredLocale(null, localStorage.getItem('hermes-lang'))
-        : (localStorage.getItem('hermes-lang') || 'en');
+        ? resolvePreferredLocale(null, hermesLang)
+        : (hermesLang || 'en');
       setLocale(_lang);
       if(typeof applyLocaleToDOM==='function')applyLocaleToDOM();
     }
@@ -664,39 +756,69 @@ function applyBotName(){
   const _testUpdates=new URLSearchParams(location.search).get('test_updates')==='1';
   if(_testUpdates||(_bootSettings.check_for_updates!==false&&!sessionStorage.getItem('hermes-update-checked')&&!sessionStorage.getItem('hermes-update-dismissed'))){
     const _checkUrl='/api/updates/check'+(_testUpdates?'?simulate=1':'');
-    api(_checkUrl).then(d=>{if(!_testUpdates)sessionStorage.setItem('hermes-update-checked','1');if((d.webui&&d.webui.behind>0)||(d.agent&&d.agent.behind>0))_showUpdateBanner(d);}).catch(()=>{});
+    api(_checkUrl).then(async d=>{
+      if(!_testUpdates)sessionStorage.setItem('hermes-update-checked','1');
+      // Auto-apply updates in background instead of showing banner
+      const targets=[];
+      if(d.webui&&d.webui.behind>0) targets.push('webui');
+      if(d.agent&&d.agent.behind>0) targets.push('agent');
+      if(targets.length>0){
+        for(const target of targets){
+          try{
+            await api('/api/updates/apply',{method:'POST',body:JSON.stringify({target})});
+            console.log('[vibecode] Auto-applied update for:', target);
+          }catch(e){
+            console.error('[vibecode] Auto-update failed for', target, e);
+          }
+        }
+      }
+    }).catch(()=>{});
   }
-  // Fetch active profile
+  // Fetch active profile (backend still uses it internally)
   try{const p=await api('/api/profile/active');S.activeProfile=p.name||'default';}catch(e){S.activeProfile='default';}
-  // Update profile chip label immediately
-  const profileLabel=$('profileChipLabel');
-  if(profileLabel) profileLabel.textContent=S.activeProfile||'default';
   // Fetch available models from server and populate dropdown dynamically
   await populateModelDropdown();
   // Restore last-used model preference
-  const savedModel=localStorage.getItem('hermes-webui-model');
+  let savedModel = null;
+  try { savedModel = localStorage.getItem('hermes-webui-model'); } catch (e) {}
   if(savedModel && $('modelSelect')){
     $('modelSelect').value=savedModel;
     // If the value didn't take (model not in list), clear the bad pref
-    if($('modelSelect').value!==savedModel) localStorage.removeItem('hermes-webui-model');
+    if($('modelSelect').value!==savedModel) { try { localStorage.removeItem('hermes-webui-model'); } catch (e) {} }
   }
   // Pre-load workspace list so sidebar name is correct from first render
   await loadWorkspaceList();
+  // Sync remote paths from server so Tauri/browser share the same paths
+  if(typeof _seedRemotePathsIfEmpty==='function') _seedRemotePathsIfEmpty();
   await loadOnboardingWizard();
   _initResizePanels();
+  // Ensure chat panel is active before rendering sessions
+  if(typeof switchPanel==='function') switchPanel('chat');
+  // Restore saved open session tabs before loading the active session.
+  let restoredOpenSessions = [];
+  if(typeof restoreOpenSessions === 'function'){
+    restoredOpenSessions = restoreOpenSessions();
+  }
   // Workspace panel restore happens AFTER loadSession so we know if
   // the session has a workspace — prevents the snap-open-then-closed flash (#576).
-  const saved=localStorage.getItem('hermes-webui-session');
+  let saved = null;
+  try { saved = localStorage.getItem('hermes-webui-session'); } catch (e) {}
+  if(!saved && restoredOpenSessions.length > 0){
+    saved = restoredOpenSessions[0].session_id;
+  }
   if(saved){
     try{
       await loadSession(saved);
-      // Only restore the panel from localStorage when the session actually has a workspace.
-      // Without this guard, sessions without a workspace snap open then immediately closed.
-      if(S.session&&S.session.workspace&&localStorage.getItem('hermes-webui-workspace-panel')==='open'){
-        _workspacePanelMode='browse';
+      syncWorkspacePanelState();
+      // Try to render file tree from cache immediately after session load
+      if (typeof _tryRenderFileTreeFromCache === 'function') {
+        _tryRenderFileTreeFromCache();
       }
-      syncWorkspacePanelState();await renderSessionList();if(typeof startGatewaySSE==='function')startGatewaySSE();await checkInflightOnBoot(saved);return;}
-    catch(e){localStorage.removeItem('hermes-webui-session');}
+      console.log('[boot] ABOUT TO CALL renderSessionList');
+      await renderSessionList();
+      console.log('[boot] renderSessionList DONE');
+      if(typeof startGatewaySSE==='function')startGatewaySSE();await checkInflightOnBoot(saved);return;}
+    catch(e){ try { localStorage.removeItem('hermes-webui-session'); } catch (e2) {} }
   }
   // no saved session - create one with default ubuntu machine workspace
   const defaultWorkspace='/home/house';
@@ -710,6 +832,171 @@ function applyBotName(){
     $('emptyState').style.display='';
   }
   await renderSessionList();
+
+  if((window.Capacitor || window.__capacitor || location.protocol==='capacitor:' || document.documentElement.classList.contains('capacitor') || document.documentElement.classList.contains('apk-force-mobile')) && !S.session){
+    const latestSession = Array.isArray(window._allSessions) && window._allSessions.length ?
+      window._allSessions.reduce((prev, curr) => _sessionTimestampMs(prev) > _sessionTimestampMs(curr) ? prev : curr) : null;
+    if(latestSession){
+      try{
+        await loadSession(latestSession.session_id);
+      }catch(err){
+        console.warn('[boot] Failed to load latest APK session:', err.message || err);
+      }
+    } else {
+      try{
+        await newSession();
+      }catch(err){
+        console.warn('[boot] Failed to create default APK session:', err.message || err);
+      }
+    }
+  }
   // Start real-time gateway session sync if setting is enabled
   if(typeof startGatewaySSE==='function') startGatewaySSE();
 })();
+
+// Render sessions from cache immediately on page load
+function _renderSessionsFromCache() {
+  let cached = null;
+  let projectsCached = null;
+  try { cached = localStorage.getItem('hermes-sessions-cache'); } catch (e) {}
+  try { projectsCached = localStorage.getItem('hermes-projects-cache'); } catch (e) {}
+  if (!cached) return;
+
+  try {
+    const sessions = JSON.parse(cached);
+    if (!sessions || !sessions.length) return;
+
+    // Populate _allSessions if empty
+    if (typeof window._allSessions === 'undefined') {
+      window._allSessions = [];
+    }
+    if (!window._allSessions.length) {
+      window._allSessions = sessions;
+    }
+
+    // Populate _allProjects if empty
+    if (projectsCached && typeof window._allProjects !== 'undefined') {
+      const projects = JSON.parse(projectsCached);
+      if (projects && projects.length && !window._allProjects.length) {
+        window._allProjects = projects;
+      }
+    }
+
+    // Try to render immediately if DOM is ready
+    _tryRenderSessionsFromCache();
+
+  } catch (e) { /* ignore parse errors */ }
+}
+
+// Try to render sessions from cache, retry if DOM/functions not ready
+function _tryRenderSessionsFromCache(attempt = 1) {
+  const MAX_ATTEMPTS = 50; // 5 seconds max (100ms * 50)
+
+  // Check if we have the required function and DOM element
+  const hasFunction = typeof renderSessionListFromCache === 'function';
+  const hasDomElement = !!document.getElementById('sessionList');
+
+  if (hasFunction && hasDomElement && window._allSessions && window._allSessions.length) {
+    renderSessionListFromCache();
+    console.log('[boot] Sessions rendered from cache:', window._allSessions.length);
+    return;
+  }
+
+  // Retry if we haven't exceeded max attempts
+  if (attempt < MAX_ATTEMPTS) {
+    setTimeout(() => _tryRenderSessionsFromCache(attempt + 1), 100);
+  }
+}
+
+// Pre-populate sidebar panels from cache so they appear instantly when clicked
+function _prePopulateSidebarPanelsFromCache() {
+  // Schedule deferred rendering to ensure DOM and functions are ready
+  _deferredRenderPanels(1);
+}
+
+// Init swarm panel (runs once DOM is ready)
+document.addEventListener('DOMContentLoaded', function() {
+  if (window.SwarmApp && typeof window.SwarmApp.init === 'function') {
+    window.SwarmApp.init();
+  }
+}, { once: true });
+
+// Deferred panel rendering with retry logic
+function _deferredRenderPanels(attempt = 1) {
+  const MAX_ATTEMPTS = 30; // 3 seconds max
+
+  // Pre-load crons from cache and render if panel exists
+  let cronsCached = null;
+  try { cronsCached = localStorage.getItem('hermes-crons-cache'); } catch (e) {}
+  if (cronsCached && !window._cronsCache) {
+    try {
+      const crons = JSON.parse(cronsCached);
+      window._cronsCache = crons;
+      const box = document.getElementById('cronList');
+      if (box && typeof _renderCrons === 'function' && box.offsetParent !== null) {
+        _renderCrons(crons);
+        console.log('[boot] Crons rendered from cache');
+      }
+    } catch (e) {}
+  }
+
+  // Pre-load skills from cache and render if panel exists
+  let skillsCached = null;
+  try { skillsCached = localStorage.getItem('hermes-skills-cache'); } catch (e) {}
+  if (skillsCached && !window._skillsData) {
+    try {
+      const skills = JSON.parse(skillsCached);
+      window._skillsData = skills;
+      const box = document.getElementById('skillsList');
+      if (box && typeof renderSkills === 'function' && box.offsetParent !== null) {
+        renderSkills(skills);
+        console.log('[boot] Skills rendered from cache:', skills.length);
+      }
+    } catch (e) {}
+  }
+
+  // Pre-load workspaces from cache and render if panel exists
+  let workspacesCached = null;
+  try { workspacesCached = localStorage.getItem('hermes-workspaces-cache'); } catch (e) {}
+  if (workspacesCached) {
+    try {
+      const workspaces = JSON.parse(workspacesCached);
+      window._workspaceListCache = workspaces;
+      const box = document.getElementById('workspacesPanel');
+      if (box && typeof renderWorkspacesPanel === 'function' && box.offsetParent !== null) {
+        renderWorkspacesPanel(workspaces);
+        console.log('[boot] Workspaces rendered from cache:', workspaces.length);
+      }
+    } catch (e) {}
+  }
+
+  // Pre-load memories/wiki from cache
+  let memoriesCached = null;
+  let wikiCached = null;
+  try { memoriesCached = localStorage.getItem('hermes-memories-cache'); } catch (e) {}
+  try { wikiCached = localStorage.getItem('hermes-wiki-cache'); } catch (e) {}
+  if ((memoriesCached || wikiCached) && typeof WikiMemoryBrowser !== 'undefined') {
+    try {
+      // Initialize with cached data if available
+      if (memoriesCached) {
+        const memories = JSON.parse(memoriesCached);
+        // Cache will be used by WikiMemoryBrowser.loadData()
+        console.log('[boot] Memories cached for WMB:', memories.length);
+      }
+      if (wikiCached) {
+        const wiki = JSON.parse(wikiCached);
+        console.log('[boot] Wiki cached for WMB:', wiki.length || wiki.pages?.length);
+      }
+    } catch (e) {}
+  }
+
+  // Continue retrying if we haven't exceeded max attempts
+  if (attempt < MAX_ATTEMPTS) {
+    setTimeout(() => _deferredRenderPanels(attempt + 1), 100);
+  }
+}
+
+// canvas panel init
+if(typeof initCanvas==='function'){
+ document.addEventListener('DOMContentLoaded',()=>{initCanvas();});
+}

@@ -1,22 +1,30 @@
 {
-  "appId": "app.vibecode.mobile",
-  "appName": "VibeCode",
-  "webDir": "static",
-  "server": {
-    "url": "http://192.168.4.233:8786",
-    "cleartext": true
-  },
+  "appId": "app.vibecode.mobile2",
+  "appName": "vibecode",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
   "android": {
     "buildOptions": {
       "keystorePath": "releases/vibecode.keystore",
       "keystoreAlias": "vibecode",
       "keystorePassword": "vibecode123",
       "keyPassword": "vibecode123"
-    }
+    },
+    "allowMixedContent": true,
+    "captureInput": true,
+    "backgroundColor": "#050505",
+    "webContentsDebuggingEnabled": true
   },
   "plugins": {
+    "CapacitorCookies": {
+      "enabled": true
+    },
+    "CapacitorHttp": {
+      "enabled": true
+    },
     "SplashScreen": {
-      "launchShowDuration": 0
+      "launchShowDuration": 0,
+      "backgroundColor": "#050505"
     }
   }
 }

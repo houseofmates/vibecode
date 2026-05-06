@@ -1,0 +1,43 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "vibecode",
+  "version": "1.0.0",
+  "identifier": "app.vibecode.desktop",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:8786",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": ""
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "vibecode",
+        "width": 2016,
+        "height": 1260,
+        "resizable": true,
+        "fullscreen": false,
+        "minWidth": 1152,
+        "minHeight": 864,
+        "devtools": true
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "withGlobalTauri": true
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["appimage", "deb"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+  }
+}

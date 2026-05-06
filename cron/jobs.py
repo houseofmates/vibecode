@@ -266,30 +266,3 @@ def get_job_output(job_id: str, limit: int = 100) -> list[dict]:
         return []
 
 
-def log_job_output(job_id: str, output: str, exit_code: int = 0) -> bool:
-    """Log output from a job run.
-    
-    Args:
-        job_id: Job ID
-        output: Output text
-        exit_code: Process exit code
-        
-    Returns:
-        True if logged successfully
-    """
-    _ensure_dirs()
-    run_file = JOB_RUNS_DIR / f"{job_id}.jsonl"
-    
-    entry = {
-        "timestamp": time.time(),
-        "job_id": job_id,
-        "output": output[:10000],  # Limit output size
-        "exit_code": exit_code
-    }
-    
-    try:
-        with open(run_file, "a") as f:
-            f.write(json.dumps(entry) + "\n")
-        return True
-    except IOError:
-        return False

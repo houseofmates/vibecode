@@ -32,6 +32,7 @@ def _warmup_session_cache():
 
 class QuietHTTPServer(ThreadingHTTPServer):
     """Custom HTTP server that silently handles common network errors."""
+    request_queue_size = 128  # Allow more pending connections (default is 5)
     
     def handle_error(self, request, client_address):
         """Override to suppress logging for common client disconnect errors."""
@@ -53,7 +54,7 @@ class QuietHTTPServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    timeout = 30  # seconds — kills idle/incomplete connections to prevent thread exhaustion
+    timeout = 0  # disabled — SSE streams must stay open indefinitely; OS handles dead connections
     server_version = 'HermesWebUI/0.50.38'
     def log_message(self, fmt, *args): pass  # suppress default Apache-style log
 
@@ -87,6 +88,12 @@ class Handler(BaseHTTPRequestHandler):
         try:
             parsed = urlparse(self.path)
             if not check_auth(self, parsed): return
+            # Pre-read POST body to prevent rfile.read() hang
+            try:
+                _cl = int(self.headers.get('Content-Length', 0))
+                self._post_body = self.rfile.read(_cl) if _cl else b'{}'
+            except Exception:
+                self._post_body = b'{}'
             result = handle_post(self, parsed)
             if result is False:
                 return j(self, {'error': 'not found'}, status=404)

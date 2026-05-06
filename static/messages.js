@@ -1,5 +1,5 @@
 async function send(){
-  const text=$('msg').value.trim();
+  const text=expandEmojiShortcodes($('msg').value).trim();
   if(!text&&!S.pendingFiles.length)return;
   // Slash command intercept -- local commands handled without agent round-trip
   if(text.startsWith('/')&&!S.pendingFiles.length&&executeCommand(text)){
@@ -15,13 +15,22 @@ async function send(){
       $('msg').value='';autoResize();
       S.pendingFiles=[];renderTray();
       updateQueueBadge(S.session.session_id);
-      showToast(`Queued: "${text.slice(0,40)}${text.length>40?'…':''}"`,2000);
     }
     return;
   }
   if(!S.session){await newSession();await renderSessionList();}
 
   const activeSid=S.session.session_id;
+
+  // Pre-warm the multiplexed SSE connection so it's ready before the agent starts.
+  // Without this, events emitted in the first few ms after chat/start are lost.
+  let directStreamFallback = false;
+  try{
+    await SharedSSE.ensureConnection();
+  }catch(e){
+    console.warn('[SharedSSE] multiplex connection failed, falling back to direct stream', e);
+    directStreamFallback = true;
+  }
 
   setComposerStatus(S.pendingFiles&&S.pendingFiles.length?'Uploading…':'');
   let uploaded=[];
@@ -38,13 +47,14 @@ async function send(){
   const userMsg={role:'user',content:displayText,attachments:uploaded.length?uploaded:undefined,_ts:Date.now()/1000};
   S.toolCalls=[];  // clear tool calls from previous turn
   clearLiveToolCards();  // clear any leftover live cards from last turn
-  S.messages.push(userMsg);renderMessages();appendThinking();setBusy(true);
+  S.messages.push(userMsg);renderMessages();appendThinking();setBusy(true);if(typeof _startComposerElapsedTimer==='function')_startComposerElapsedTimer();
   INFLIGHT[activeSid]={messages:[...S.messages],uploaded,toolCalls:[]};
   if(typeof saveInflightState==='function'){
     saveInflightState(activeSid,{streamId:null,messages:INFLIGHT[activeSid].messages,uploaded,toolCalls:[]});
   }
   startApprovalPolling(activeSid);
   startClarifyPolling(activeSid);
+  startSudoPasswordPolling(activeSid);
   S.activeStreamId = null;  // will be set after stream starts
 
   // Set provisional title from user message immediately so session appears
@@ -87,10 +97,11 @@ async function send(){
       if(typeof clearInflightState==='function') clearInflightState(activeSid);
       stopApprovalPolling();
       stopClarifyPolling();
+      stopSudoPasswordPolling();
       // Keep the user's attempted turn by queueing it for after the current run.
       queueSessionMessage(activeSid,{text:msgText,files:[]});
       updateQueueBadge(activeSid);
-      showToast('Current session is still running. Reconnected and queued your message.',2600);
+      // Message queued - will be sent when current session finishes
       try{
         await loadSession(activeSid);
         setComposerStatus('');
@@ -103,26 +114,174 @@ async function send(){
     delete INFLIGHT[activeSid];
     stopApprovalPolling();
     stopClarifyPolling();
+    stopSudoPasswordPolling();
     // Only hide approval card if it belongs to the session that just finished
     if(!_approvalSessionId || _approvalSessionId===activeSid) hideApprovalCard(true);removeThinking();
     if(!_clarifySessionId || _clarifySessionId===activeSid) hideClarifyCard(true);
     S.messages.push({role:'assistant',content:`**Error:** ${errMsg}`});
-    renderMessages();setBusy(false);setComposerStatus(`Error: ${errMsg}`);
+    renderMessages();setBusy(false);setComposerStatus(`Error: ${errMsg}`);updateSendBtn();
     return;
   }
 
   // Open SSE stream and render tokens live
-  attachLiveStream(activeSid, streamId, uploaded);
+  attachLiveStream(activeSid, streamId, uploaded, {direct: directStreamFallback});
 
 }
 
-const LIVE_STREAMS={};
+// ── Shared Multiplexed SSE ─────────────────────────────────────────────────
+// One EventSource carries events for ALL active streams, bypassing the
+// browser's 6-connections-per-domain limit so you can run 20+ agents at once.
+const SharedSSE = (function(){
+  let source = null;
+  const streams = new Map(); // streamId -> {sessionId, handlers}
+
+  function getClientId(){
+    let cid = null;
+    try { cid = localStorage.getItem('hermes-multiplex-client-id'); } catch (e) {}
+    if(!cid){
+      cid = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      try { localStorage.setItem('hermes-multiplex-client-id', cid); } catch (e) {}
+    }
+    return cid;
+  }
+
+  let openPromise = null;
+  let openPromiseResolve = null;
+  let openPromiseReject = null;
+
+  function connect(){
+    if(source){
+      try{ source.close(); }catch(_){}
+    }
+    const url = new URL('api/chat/stream/all', window.HERMES_API_BASE || location.href);
+    url.searchParams.set('client_id', getClientId());
+    source = new EventSource(url.href, {withCredentials: true});
+
+    openPromise = new Promise((resolve, reject)=>{
+      openPromiseResolve = resolve;
+      openPromiseReject = reject;
+    });
+
+    source.onopen = () => {
+      console.log('[SharedSSE] connected');
+      if(openPromiseResolve){
+        openPromiseResolve();
+      }
+      openPromise = null;
+      openPromiseResolve = null;
+      openPromiseReject = null;
+      // After reconnect, any registered stream that finished while we were
+      // disconnected may have lost its terminal events. Let each stream check.
+      for(const [, stream] of streams){
+        if(typeof stream.onReconnect === 'function'){
+          try{ stream.onReconnect(); }catch(_){}
+        }
+      }
+    };
+
+    const eventTypes = ['token','reasoning','tool','tool_complete','approval','clarify','sudo_password','title','title_status','done','stream_end','compressed','apperror','warning'];
+    for(const et of eventTypes){
+      source.addEventListener(et, e => {
+        try{
+          const d = JSON.parse(e.data);
+          const sid = d.stream_id;
+          if(!sid) return;
+          const stream = streams.get(sid);
+          if(stream && stream.handlers[et]){
+            stream.handlers[et](e);
+          }
+        }catch(err){
+          console.error('[SharedSSE] dispatch error:', err);
+        }
+      });
+    }
+
+ // ── swarm broadcast events (no stream_id required) ────────────────────
+ const swarmEvents=['swarm.started','swarm.worker_started','swarm.worker_completed','swarm.worker_error','swarm.completed','swarm.cancelled'];
+ const swarmHandlerMap={
+  'swarm.started':'onSwarmStarted',
+  'swarm.worker_started':'onSwarmWorkerStarted',
+  'swarm.worker_completed':'onSwarmWorkerCompleted',
+  'swarm.worker_error':'onSwarmWorkerError',
+  'swarm.completed':'onSwarmCompleted',
+  'swarm.cancelled':'onSwarmCancelled',
+ };
+ for(const se of swarmEvents){
+  source.addEventListener(se, e => {
+   try{
+    const d = JSON.parse(e.data);
+    const handler = swarmHandlerMap[se];
+    if(typeof SwarmUI!=='undefined' && SwarmUI[handler]){
+     SwarmUI[handler](d);
+    }
+   }catch(err){
+    console.error('[SharedSSE] swarm event error:', err);
+   }
+  });
+ }
+
+    source.addEventListener('error', e => {
+      if(openPromiseReject){
+        openPromiseReject(new Error('SSE connection failed'));
+      }
+      openPromise = null;
+      openPromiseResolve = null;
+      openPromiseReject = null;
+      // Always schedule a manual reconnect. Relying solely on browser auto-reconnect
+      // is unreliable in Firefox when the connection is interrupted during page load
+      // or when the readyState stays CONNECTING and never resolves.
+      const wasClosed = source && source.readyState === EventSource.CLOSED;
+      console.log('[SharedSSE] connection error' + (wasClosed ? ' (closed)' : '') + ', reconnecting in 1s...');
+      setTimeout(connect, 1000);
+    });
+  }
+
+  function ensureConnection(){
+    if(source && source.readyState === EventSource.OPEN){
+      return Promise.resolve();
+    }
+    if(openPromise){
+      return Promise.race([
+        openPromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('SSE connection timeout')), 10000))
+      ]);
+    }
+    connect();
+    return Promise.race([
+      openPromise || Promise.resolve(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('SSE connection timeout')), 3000))
+    ]);
+  }
+
+  return {
+    register(streamId, sessionId, handlers, onReconnect){
+      ensureConnection();
+      streams.set(streamId, {sessionId, handlers, onReconnect});
+    },
+    unregister(streamId){
+      streams.delete(streamId);
+      // Keep source open so the next stream's events arrive without a reconnect race.
+      // The connection closes naturally on page unload.
+    },
+    hasStream(streamId){
+      return streams.has(streamId);
+    },
+    ensureConnection(){
+      return ensureConnection();
+    },
+  };
+})();
+
+const LIVE_STREAMS={}; // sessionId -> streamId
+
+// ── Initialize swarm UI ──────────────────────────────────────────────────
+if(typeof SwarmUI!=='undefined'&&typeof SwarmUI.init==='function'){SwarmUI.init();}
 
 function closeLiveStream(sessionId, streamId){
-  const live=LIVE_STREAMS[sessionId];
-  if(!live) return;
-  if(streamId&&live.streamId!==streamId) return;
-  try{live.source.close();}catch(_){ }
+  const sid=LIVE_STREAMS[sessionId];
+  if(!sid) return;
+  if(streamId&&sid!==streamId) return;
+  SharedSSE.unregister(sid);
   delete LIVE_STREAMS[sessionId];
 }
 
@@ -138,12 +297,66 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
 
   let assistantText='';
   let reasoningText='';
+  let _xmlToolCalls=[];
+  let directSource = null;
+  // ── Restore accumulated text on reconnect ─────────────────────────────────
+  // When reloading mid-stream, the INFLIGHT state has the partial assistant
+  // message. Restore it so we don't lose already-streamed content.
+  if(reconnecting && INFLIGHT[activeSid] && Array.isArray(INFLIGHT[activeSid].messages)){
+    for(let i=INFLIGHT[activeSid].messages.length-1;i>=0;i--){
+      const msg=INFLIGHT[activeSid].messages[i];
+      if(msg && msg.role==='assistant'){
+        if(msg.content) assistantText=msg.content;
+        if(msg.reasoning) reasoningText=msg.reasoning;
+        break;
+      }
+    }
+    // Also restore from INFLIGHT uploaded if we couldn't find it in messages
+    if(!assistantText && INFLIGHT[activeSid].assistantText){
+      assistantText = INFLIGHT[activeSid].assistantText;
+    }
+    if(!reasoningText && INFLIGHT[activeSid].reasoningText){
+      reasoningText = INFLIGHT[activeSid].reasoningText;
+    }
+  }
+  // ───────────────────────────────────────────────────────────────────────────
   let assistantRow=null;
   let assistantBody=null;
   // Thinking tag patterns for streaming display
   const _thinkPairs=[
     {open:'<think>',close:'</think>'},
-    {open:'<|channel>thought\n',close:'<channel|>'}
+    {open:'<thinking>',close:'</thinking>'},
+    {open:'<reasoning>',close:'</reasoning>'},
+    {open:'<|channel>thought\n',close:'<channel|>'},
+    // Kimi K2 tool call format — hide raw tool call XML from visible stream
+    {open:'<|tool_call_section_begin|>',close:'<|tool_call_section_end|>'},
+    {open:'<|tool_calls_section_begin|>',close:'<|tool_calls_section_end|>'},
+    {open:'<|tool_call_begin|>',close:'<|tool_call_end|>'},
+    {open:'<tool>',close:'</tool>'},
+    // DeepSeek V3 / V3.1
+    {open:'<｜tool▁calls▁begin｜>',close:'<｜tool▁calls▁end｜>'},
+    {open:'<｜tool▁call▁begin｜>',close:'<｜tool▁call▁end｜>'},
+    // Hermes / Qwen / GLM
+    {open:'<tool_call>',close:'</tool_call>'},
+    {open:'<|python_tag|>',close:'<|python_tag|>'},
+    // Mistral
+    {open:'[TOOL_CALLS]',close:'[TOOL_CALLS]'},
+    // NVIDIA NIM / OpenAI-style function calls in content
+    {open:'<function_calls>',close:'</function_calls>'},
+    {open:'<function>',close:'</function>'},
+    {open:'<functions>',close:'</functions>'},
+    {open:'<invoke>',close:'</invoke>'},
+    {open:'<tool_calls>',close:'</tool_calls>'},
+    // JSON array/object markers for tool calls (common in NIM models)
+    {open:'[{"name":',close:']',jsonBlock:true},
+    {open:'{"name":',close:'}',jsonBlock:true,matchBrace:true},
+    // NVIDIA NIM custom markers
+    {open:'<tool_call_end>',close:''},
+    {open:'<tool_calls_section_end>',close:''},
+    {open:'<tool_calls_section_begin>',close:''},
+    {open:'<tool_call_begin|>',close:''},
+    // NVIDIA NIM format with "parameters" field
+    {open:'{"name":',close:'"parameters":',jsonBlock:true},
   ];
 
   function _isActiveSession(){
@@ -160,6 +373,10 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
     });
   }
   function _closeSource(){
+    if(directSource){
+      try{ directSource.close(); }catch(_){ }
+      directSource = null;
+    }
     closeLiveStream(activeSid, streamId);
   }
   function syncInflightAssistantMessage(){
@@ -176,10 +393,12 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       inflight.messages[assistantIdx].content=assistantText;
       inflight.messages[assistantIdx].reasoning=reasoningText||undefined;
       inflight.messages[assistantIdx]._ts=inflight.messages[assistantIdx]._ts||ts;
-      persistInflightState();
-      return;
+    }else{
+      inflight.messages.push({role:'assistant',content:assistantText,reasoning:reasoningText||undefined,_live:true,_ts:ts});
     }
-    inflight.messages.push({role:'assistant',content:assistantText,reasoning:reasoningText||undefined,_live:true,_ts:ts});
+    // Also save raw text for additional recovery safety
+    inflight.assistantText = assistantText;
+    inflight.reasoningText = reasoningText;
     persistInflightState();
   }
   function ensureAssistantRow(){
@@ -197,7 +416,8 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       return;
     }
 
-    removeThinking();
+    // Don't remove thinking indicator yet - it should stay visible until actual content arrives
+    // removeThinking();
     const tr=$('toolRunningRow');if(tr)tr.remove();
     $('emptyState').style.display='none';
     assistantRow=document.createElement('div');assistantRow.className='msg-row';
@@ -206,11 +426,17 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
     const _bn=window._botName||'Hermes';
     const icon=document.createElement('div');icon.className='role-icon assistant';
     // Use hermes.png as avatar with circle cutout
-    icon.innerHTML='<img src="static/hermes.png" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;" alt="'+_bn+'">';
+    icon.innerHTML='<img src="/static/hermes.png" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;" alt="'+_bn+'">';
     const lbl=document.createElement('span');lbl.style.fontSize='12px';lbl.textContent=_bn;
     role.appendChild(icon);role.appendChild(lbl);
     assistantRow.appendChild(role);assistantRow.appendChild(assistantBody);
-    $('msgInner').appendChild(assistantRow);
+    // Insert before thinking row to ensure loading dots appear below the message
+    const thinkingRow=$('thinkingRow');
+    if(thinkingRow){
+      $('msgInner').insertBefore(assistantRow, thinkingRow);
+    }else{
+      $('msgInner').appendChild(assistantRow);
+    }
   }
 
   // ── Shared SSE handler wiring (used for initial connection and reconnect) ──
@@ -222,63 +448,187 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
   // Extract display text from assistantText, stripping completed thinking blocks
   // and hiding content still inside an open thinking block.
   function _streamDisplay(){
-    const raw=assistantText;
-    if(reasoningText) return raw;
-    for(const {open,close} of _thinkPairs){
-      // Trim leading whitespace before checking for the open tag — some models
-      // (e.g. MiniMax) emit newlines before <think>.
-      const trimmed=raw.trimStart();
-      if(trimmed.startsWith(open)){
-        const ci=trimmed.indexOf(close,open.length);
-        if(ci!==-1){
-          // Thinking block complete — strip it, show the rest
-          return trimmed.slice(ci+close.length).replace(/^\s+/,'');
-        }
-        // Still inside thinking block — show placeholder
+    let text=assistantText;
+    // Heuristic: if structured reasoning events delivered the same text that
+    // the provider also sent inside regular tokens (without tags), hide the
+    // duplicate from the visible stream. Check exact match first, then prefix.
+    // Case-insensitive to handle models that vary casing (e.g. uppercase SQL
+    // keywords in reasoning, lowercase in content).
+    if(reasoningText&&text){
+      const tTrim=text.trim();
+      const rTrim=reasoningText.trim();
+      // Exact match — hide everything
+      if(tTrim.toLowerCase()===rTrim.toLowerCase()){
         return '';
       }
-      // Hide partial tag prefixes while streaming so users don't see
-      // `<thi`, `<think`, etc. before the model finishes the token.
-      if(open.startsWith(trimmed)) return '';
+      // Prefix match — strip the matching prefix
+      const tStart=text.trimStart().toLowerCase();
+      const rStart=reasoningText.trim().toLowerCase();
+      let matchLen=0;
+      for(let i=Math.min(tStart.length,rStart.length);i>20;i--){
+        if(tStart.slice(0,i)===rStart.slice(0,i)){
+          matchLen=i;
+          break;
+        }
+      }
+      if(matchLen>20){
+        const leading=text.length-text.trimStart().length;
+        text=text.slice(0,leading)+text.slice(leading+matchLen).replace(/^\s+/,'');
+      }
     }
-    return raw;
+    // Always strip inline thinking tags from the visible stream, even when
+    // reasoning is arriving via structured SSE events. Some providers emit
+    // reasoning both through a dedicated API field AND as inline <think>
+    // tags inside regular tokens (or the tags get split across chunks and
+    // missed by the server-side extractor). Without this, raw <think> tags
+    // leak into the chat bubble.
+    for(const {open,close} of _thinkPairs){
+      // Strip all complete thinking blocks anywhere in the text.
+      let idx;
+      while((idx=text.indexOf(open))!==-1){
+        const closeIdx=text.indexOf(close,idx+open.length);
+        if(closeIdx!==-1){
+          text=text.slice(0,idx)+text.slice(closeIdx+close.length);
+        }else{
+          // Unclosed block — truncate from the open tag onward.
+          text=text.slice(0,idx);
+          break;
+        }
+      }
+      // Hide partial open-tag suffixes at the end of the text so users don't
+      // see `<thi`, `<think`, etc. while the tag is still being streamed.
+      for(let i=open.length-1;i>0;i--){
+        if(text.endsWith(open.slice(0,i))){
+          text=text.slice(0,-i);
+          break;
+        }
+      }
+    }
+    // Strip any orphan tool-call tags that remain after pair stripping.
+    // This handles fragmented output (e.g. a turn that resumes mid-tool-call
+    // or close tags without their matching open tags).
+    const _toolOrphans=[
+      '</tool>','</tool_call>','<|tool_call_section_end|>',
+      '</tool>','<|tool_call_argument_end|>',
+      '<｜tool▁call▁end｜>','<｜tool▁calls▁end｜>','<｜tool▁sep｜>',
+      '</tool_call>','<|python_tag|>','[TOOL_CALLS]',
+      '</function_calls>','</function>','</functions>','</invoke>','</tool_calls>',
+      '<tool_call_end>','<tool_calls_section_end>','<tool_calls_section_begin>',
+      '<tool_call_begin|>','<|tool_call_section_begin|>',
+    ];
+    for(const tag of _toolOrphans){
+      let idx;
+      while((idx=text.indexOf(tag))!==-1){
+        text=text.slice(0,idx)+text.slice(idx+tag.length);
+      }
+    }
+    // Strip JSON tool call fragments that might remain
+    // Match patterns like {"name": "...", "arguments": {...}} or [{"name": ...}]
+    text=text.replace(/\{[^{}]*"name"\s*:\s*"[^"]+"[^{}]*\}/g,'');
+    text=text.replace(/\[\s*\{[^{}]*"name"\s*:\s*"[^"]+"[^\]]*\}\s*\]/g,'');
+    // Match NVIDIA NIM format with "parameters" field: {"name": "...", "parameters": {...}}
+    text=text.replace(/\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"parameters"\s*:\s*\{[^\}]*\}[^\}]*\}/g,'');
+    // Match partial JSON fragments like ,"id":"skills_list:1"}
+    text=text.replace(/,\s*"id"\s*:\s*"[^"]+"\s*\}/g,'');
+    // Strip NVIDIA NIM <tool_call> blocks explicitly (some NIM endpoints emit
+    // tool calls as raw XML in content in addition to structured tool_calls).
+    text=text.replace(/<tool_call>[\s\S]*?<\/tool_call>/gi,'');
+    // Also strip orphaned inner arg_key/arg_value pairs that sometimes remain
+    // when the outer <tool_call> wrapper was fragmented across chunks.
+    text=text.replace(/<arg_key>[\s\S]*?<\/arg_key>\s*<arg_value>[\s\S]*?<\/arg_value>/gi,'');
+    text=text.replace(/<arg_key>[\s\S]*?<\/arg_key>/gi,'');
+    text=text.replace(/<arg_value>[\s\S]*?<\/arg_value>/gi,'');
+    // Strip DeepSeek/NVIDIA hallucinated custom markup (e.g. < | dsml | tool_calls>)
+    text=text.replace(/<\s*\|\s*dsml\s*\|\s*tool_calls\s*>[\s\S]*?<\s*\/\s*\|\s*dsml\s*\|\s*tool_calls\s*>/gi,'');
+    text=text.replace(/<\s*\|\s*DSML\s*\|\s*tool_calls\s*>[\s\S]*?<\s*\/\s*\|\s*DSML\s*\|\s*tool_calls\s*>/gi,'');
+    text=text.replace(/<\s*\|\s*dsml\s*\|\s*tool_calls\s*>/gi,'');
+    text=text.replace(/<\s*\|\s*DSML\s*\|\s*tool_calls\s*>/gi,'');
+    text=text.replace(/<\s*\/\s*\|\s*dsml\s*\|\s*tool_calls\s*>/gi,'');
+    text=text.replace(/<\s*\/\s*\|\s*DSML\s*\|\s*tool_calls\s*>/gi,'');
+    // Strip pipe-delimited tool metadata fragments (ToolPill, tool-result, etc.)
+    text=text.replace(/\w*\|ToolPill\|[^\s|]*/gi,'');
+    text=text.replace(/\w*\|toolpill\|[^\s|]*/gi,'');
+    text=text.replace(/tool-result\|ToolResult\|tool_result[^\n]*/gi,'');
+    // Strip GLM inline tool call text (Tool name key=val...)
+    text=text.replace(/Tool '\w+'.*$/gm,'');
+    // Strip does not exist / Available tools error text from GLM models
+    text=text.replace(/does not exist.*Available tools:.*$/gm,'');
+    // Strip XML pseudo-tool tags (e.g. <terminal>...</terminal>, <read_file>...</read_file>)
+    // that models emit as raw text instead of structured tool_calls.
+    const xmlRegex=/<([a-zA-Z_][a-zA-Z0-9_\-]*)[^>]*>([\s\S]*?)<\/\1>/g;
+    text=text.replace(xmlRegex,(full,tagName)=>_isXmlToolTag(tagName)?'':full);
+    // Hide partial unclosed XML tool open tags at the end of the stream
+    const xmlOpen=/<([a-zA-Z_][a-zA-Z0-9_\-]*)[^>]*>/g;
+    let lastOpen=null,lastOpenMatch=null;
+    let om;
+    while((om=xmlOpen.exec(text))!==null){
+      if(_isXmlToolTag(om[1])){lastOpen=om.index;lastOpenMatch=om;}
+    }
+    if(lastOpenMatch){
+      const afterOpen=text.slice(lastOpenMatch.index+lastOpenMatch[0].length);
+      if(!afterOpen.includes(`</${lastOpenMatch[1]}>`)){
+        text=text.slice(0,lastOpenMatch.index);
+      }
+    }
+    return text.trim();
   }
   function _parseStreamState(){
     const raw=assistantText;
     if(reasoningText){
       return {thinkingText:reasoningText, displayText:_streamDisplay(), inThinking:false};
     }
+    // Find the last thinking block to determine if we're currently inside one.
     for(const {open,close} of _thinkPairs){
-      const trimmed=raw.trimStart();
-      if(trimmed.startsWith(open)){
-        const ci=trimmed.indexOf(close,open.length);
-        if(ci!==-1){
+      const idx=raw.lastIndexOf(open);
+      if(idx!==-1){
+        const afterOpen=raw.slice(idx+open.length);
+        const closeIdx=afterOpen.indexOf(close);
+        if(closeIdx!==-1){
+          // Complete block — _streamDisplay handles stripping all blocks.
           return {
-            thinkingText: trimmed.slice(open.length, ci).trim(),
-            displayText: trimmed.slice(ci+close.length).replace(/^\s+/,''),
+            thinkingText:afterOpen.slice(0,closeIdx).trim(),
+            displayText:_streamDisplay(),
             inThinking:false,
           };
         }
+        // Unclosed block
         return {
-          thinkingText: trimmed.slice(open.length).trim(),
-          displayText:'',
+          thinkingText:afterOpen.trim(),
+          displayText:_streamDisplay(),
           inThinking:true,
         };
       }
-      if(open.startsWith(trimmed)){
+      // Entire text is a prefix of the open tag (e.g. "<thi")
+      if(raw && open.startsWith(raw)){
         return {thinkingText:'', displayText:'', inThinking:true};
       }
     }
-    return {thinkingText:'', displayText:raw, inThinking:false};
+    return {thinkingText:'', displayText:_streamDisplay(), inThinking:false};
   }
   function _renderLiveThinking(parsed){
     const text=(parsed&&parsed.thinkingText)||'';
     if(text||(parsed&&parsed.inThinking)){
       if(typeof updateThinking==='function') updateThinking(text||'Thinking…');
       else appendThinking();
-      return;
     }
-    removeThinking();
+    // Note: Don't remove thinking indicator here - let terminal handlers
+    // (done, apperror, cancel, _handleStreamError) remove it when stream ends.
+    // This keeps the indicator visible throughout the entire streaming process.
+  }
+  function _renderXmlToolCards(){
+    // Parse complete XML tool tags from the raw stream and render them as
+    // collapsible cards in #liveToolCards, mirroring structured tool events.
+    const {toolCalls}=extractXmlToolCalls(assistantText);
+    // Only keep cards that aren't already rendered (dedupe by tid)
+    const container=$('liveToolCards');
+    if(!container) return;
+    const existingTids=new Set(Array.from(container.querySelectorAll('[data-tid]')).map(el=>el.dataset.tid));
+    for(const tc of toolCalls){
+      if(!existingTids.has(tc.tid)){
+        appendLiveToolCard(tc);
+        _xmlToolCalls.push(tc);
+      }
+    }
   }
   function _scheduleRender(){
     if(_renderPending) return;
@@ -287,15 +637,34 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       _renderPending=false;
       const parsed=_parseStreamState();
       _renderLiveThinking(parsed);
+      _renderXmlToolCards();
       if(assistantBody){
-        assistantBody.innerHTML=parsed.displayText?renderMd(parsed.displayText):'';
+        if(parsed.displayText){
+          assistantBody.innerHTML=renderMd(parsed.displayText);
+        }else if(parsed.thinkingText){
+          // Model is sending reasoning but no visible content tokens (common with
+          // DeepSeek / reasoning models). Show the reasoning trace in the bubble
+          // so the stream doesn't appear to freeze.
+          assistantBody.innerHTML='<span style="opacity:.75;font-style:italic;">'+esc(parsed.thinkingText)+'</span>';
+        }else if(assistantText.trim()){
+          // Tokens are arriving but being stripped (tool calls, thinking tags, etc.).
+          // Show a subtle working indicator so the stream doesn't appear frozen.
+          const _hasToolPatterns=/<\|?tool|tool_call|function_call|<functions>|<invoke|\{"name"|\{"name"[^}]*"parameters"|\|ToolPill\||\|toolpill\||tool-result\|ToolResult|<\s*\|\s*[dD][sS][mM][lL]\s*\|\s*tool_calls|tool_call_end|tool_calls_section_end/i.test(assistantText);
+          assistantBody.innerHTML=_hasToolPatterns
+            ?'<span style="opacity:.6;font-style:italic;">working on tools…</span>'
+            :'';
+        }else{
+          assistantBody.innerHTML='';
+        }
       }
       scrollIfPinned();
     });
   }
 
   function _wireSSE(source){
-    source.addEventListener('token',e=>{
+    const handlers={};
+    handlers['token']=e=>{
+      if(_terminalStateReached) return;
       if(!S.session||S.session.session_id!==activeSid) return;
       const d=JSON.parse(e.data);
       assistantText+=d.text;
@@ -304,17 +673,66 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
 
       ensureAssistantRow();
       _scheduleRender();
-    });
+    };
 
-    source.addEventListener('reasoning',e=>{
+    // Track inline tool call previews separately from thinking
+    let _inlineToolPreviews=[];
+
+    handlers['reasoning']=e=>{
+      if(_terminalStateReached) return;
       const d=JSON.parse(e.data);
-      reasoningText += d.text || '';
+      const text=d.text||'';
+      // Check if this is a tool call preview (from inline tool extraction)
+      if(text.startsWith('[Tool Call Preview]')){
+        // Extract the tool call content
+        const previewContent=text.replace('[Tool Call Preview]','').trim();
+        _inlineToolPreviews.push({
+          name:'tool_call_preview',
+          preview:previewContent.substring(0,200),
+          fullContent:previewContent,
+          timestamp:Date.now()
+        });
+        // Don't add to reasoningText - we'll display as tool card
+        syncInflightAssistantMessage();
+        if(!S.session||S.session.session_id!==activeSid) return;
+        // Render inline tool previews as tool cards
+        _renderInlineToolPreviews();
+        return;
+      }
+      reasoningText += text;
       syncInflightAssistantMessage();
       if(!S.session||S.session.session_id!==activeSid) return;
+      ensureAssistantRow();
       _scheduleRender();
-    });
+    };
 
-    source.addEventListener('tool',e=>{
+    function _renderInlineToolPreviews(){
+      if(!assistantRow||!_isActiveSession()) return;
+      // Create or get the inline tool previews container
+      let container=$('inlineToolPreviews');
+      if(!container){
+        container=document.createElement('div');
+        container.id='inlineToolPreviews';
+        container.className='inline-tool-previews';
+        assistantRow.insertBefore(container,assistantBody.nextSibling);
+      }
+      // Build tool cards for each preview
+      container.innerHTML=_inlineToolPreviews.map((tc,i)=>`
+        <div class="tool-card inline-tool-preview collapsed" data-idx="${i}">
+          <div class="tool-card-header" onclick="this.parentElement.classList.toggle('collapsed');this.parentElement.classList.toggle('expanded')">
+            <span class="tool-card-icon">🔧</span>
+            <span class="tool-card-name">Tool Call Preview</span>
+            <span class="tool-card-preview">${esc(tc.preview)}</span>
+            <span class="tool-card-toggle">▸</span>
+          </div>
+          <div class="tool-card-detail">
+            <pre class="tool-call-preview-content">${esc(tc.fullContent)}</pre>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    handlers['tool']=e=>{
       const d=JSON.parse(e.data);
       if(d.name==='clarify') return;
       const tc={name:d.name, preview:d.preview||'', args:d.args||{}, snippet:'', done:false, tid:d.tid||`live-${Date.now()}-${Math.random().toString(36).slice(2,8)}`};
@@ -333,9 +751,9 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       const oldRow=$('toolRunningRow');if(oldRow)oldRow.remove();
       appendLiveToolCard(tc);
       scrollIfPinned();
-    });
+    };
 
-    source.addEventListener('tool_complete',e=>{
+    handlers['tool_complete']=e=>{
       const d=JSON.parse(e.data);
       if(d.name==='clarify') return;
       const inflight=INFLIGHT[activeSid];
@@ -363,25 +781,59 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       if(!S.session||S.session.session_id!==activeSid) return;
       appendLiveToolCard(tc);
       scrollIfPinned();
-    });
 
-    source.addEventListener('approval',e=>{
+      // Check for steering message to send after this tool completes
+      const steeringMsg = typeof window._popSteeringMessage === 'function' ? window._popSteeringMessage() : null;
+      if(steeringMsg){
+        // Send the steering message as a user follow-up
+        setTimeout(()=>{
+          if(S.session && S.session.session_id === activeSid && S.busy){
+            $('msg').value = steeringMsg;
+            send();
+          }
+        }, 100);
+      }
+    };
+
+    handlers['approval']=e=>{
       const d=JSON.parse(e.data);
       d._session_id=activeSid;
-      showApprovalCard(d, 1);
-      playNotificationSound();
-      sendBrowserNotification('Approval required',d.description||'Tool approval needed');
-    });
+      // Auto-approve with "always" choice to skip the popup
+      api("/api/approval/respond", {
+        method: "POST",
+        body: JSON.stringify({ session_id: activeSid, choice: "always", approval_id: d.approval_id || "" })
+      }).catch(err => {
+        // Fallback to showing popup if auto-approve fails
+        showApprovalCard(d, 1);
+        playNotificationSound();
+        sendDesktopNotification('Approval required',d.description||'Tool approval needed');
+      });
+    };
 
-    source.addEventListener('clarify',e=>{
+    handlers['clarify']=e=>{
       const d=JSON.parse(e.data);
       d._session_id=activeSid;
       showClarifyCard(d);
       playNotificationSound();
-      sendBrowserNotification('Clarification needed',d.question||'Tool clarification needed');
-    });
+      sendDesktopNotification('Clarification needed',d.question||'Tool clarification needed');
+    };
 
-    source.addEventListener('title',e=>{
+    handlers['sudo_password']=e=>{
+      const d=JSON.parse(e.data);
+      d._session_id=activeSid;
+      // Check if we have a cached password to auto-submit
+      const cachedPassword = _getCachedSudoPassword();
+      if (cachedPassword) {
+        _sudoPasswordSessionId = activeSid;
+        respondSudoPassword('submit', cachedPassword);
+      } else {
+        showSudoPasswordCard(d);
+        playNotificationSound();
+        sendDesktopNotification('Sudo password required','A command needs sudo privileges');
+      }
+    };
+
+    handlers['title']=e=>{
       let d={};
       try{ d=JSON.parse(e.data||'{}'); }catch(_){}
       if((d.session_id||activeSid)!==activeSid) return;
@@ -397,9 +849,9 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       }
       if(typeof renderSessionListFromCache==='function') renderSessionListFromCache();
       else if(typeof renderSessionList==='function') renderSessionList();
-    });
+    };
 
-    source.addEventListener('title_status',e=>{
+    handlers['title_status']=e=>{
       let d={};
       try{ d=JSON.parse(e.data||'{}'); }catch(_){}
       if((d.session_id||activeSid)!==activeSid) return;
@@ -412,17 +864,19 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
           session_id:String(d.session_id||activeSid)
         });
       }catch(_){}
-    });
+    };
 
-    source.addEventListener('done',e=>{
+    handlers['done']=e=>{
       _terminalStateReached=true;
       const d=JSON.parse(e.data);
+      let finalAssistantText='';
       delete INFLIGHT[activeSid];
       clearInflight();clearInflightState(activeSid);
       stopApprovalPolling();
       stopClarifyPolling();
       if(!_approvalSessionId || _approvalSessionId===activeSid) hideApprovalCard(true);
       if(!_clarifySessionId || _clarifySessionId===activeSid) hideClarifyCard(true);
+      if(!_sudoPasswordVisible) hideSudoPasswordCard(true);
       if(S.session&&S.session.session_id===activeSid){
         S.activeStreamId=null;
         const _cb=$('btnCancel');if(_cb)_cb.style.display='none';
@@ -447,68 +901,84 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
         }
         clearLiveToolCards();
         S.busy=false;
+        // Save final text before clearing, for notification and no-reply check
+        finalAssistantText=assistantText;
+        // Clear reasoningText and assistantText BEFORE rendering to prevent pending rAF callback from re-adding thinking indicator
+        reasoningText='';
+        assistantText='';
+        _inlineToolPreviews=[]; // Clear inline tool previews
+        const _inlineContainer=$('inlineToolPreviews');if(_inlineContainer)_inlineContainer.remove();
         // No-reply guard (#373): if agent returned nothing, show inline error
-        if(!S.messages.some(m=>m.role==='assistant'&&String(m.content||'').trim())&&!assistantText){removeThinking();S.messages.push({role:'assistant',content:'**No response received.** Check your API key and model selection.'});}
+        if(!S.messages.some(m=>m.role==='assistant'&&String(m.content||'').trim())&&!finalAssistantText){removeThinking();S.messages.push({role:'assistant',content:'**No response received.** Check your API key and model selection.'});}
+        else{removeThinking();} // Remove live thinking before rendering message with its thinking card
         syncTopbar();renderMessages();loadDir('.');
       }
       renderSessionList();setBusy(false);setStatus('');
       setComposerStatus('');
-      playNotificationSound();
-      sendBrowserNotification('Response complete',assistantText?assistantText.slice(0,100):'Task finished');
-    });
+      updateSendBtn();
+      // Skip notifications for cron job sessions
+      const cronPatterns = ['cron_', 'session_cron', 'sessions_cron'];
+      const isCronSession = cronPatterns.some(p => (activeSid || '').toLowerCase().startsWith(p));
+      if (!isCronSession) {
+        playNotificationSound();
+        sendDesktopNotification('Response complete',finalAssistantText?finalAssistantText.slice(0,100):'Task finished');
+      }
+    };
 
-    source.addEventListener('stream_end',e=>{
+    handlers['stream_end']=e=>{
       _terminalStateReached=true;
       try{
         const d=JSON.parse(e.data||'{}');
         if((d.session_id||activeSid)!==activeSid) return;
       }catch(_){}
-      source.close();
-    });
+      _closeSource();
+    };
 
-    source.addEventListener('compressed',e=>{
+    handlers['compressed']=e=>{
       // Context was auto-compressed during this turn -- show a system message
       if(!S.session||S.session.session_id!==activeSid) return;
       try{
         const d=JSON.parse(e.data);
         const sysMsg={role:'assistant',content:'*[Context was auto-compressed to continue the conversation]*'};
         S.messages.push(sysMsg);
-        showToast(d.message||'Context compressed');
+        // Context was auto-compressed to continue the conversation
       }catch(err){}
-    });
+    };
 
-    source.addEventListener('apperror',e=>{
+    handlers['apperror']=e=>{
       _terminalStateReached=true;
       // Application-level error sent explicitly by the server (rate limit, crash, etc.)
       // This is distinct from the SSE network 'error' event below.
-      source.close();
-      delete INFLIGHT[activeSid];clearInflight();clearInflightState(activeSid);stopApprovalPolling();stopClarifyPolling();
+      _closeSource();
+      delete INFLIGHT[activeSid];clearInflight();clearInflightState(activeSid);stopApprovalPolling();stopClarifyPolling();stopSudoPasswordPolling();
       if(!_approvalSessionId||_approvalSessionId===activeSid) hideApprovalCard(true);
       if(!_clarifySessionId||_clarifySessionId===activeSid) hideClarifyCard(true);
+      if(!_sudoPasswordVisible) hideSudoPasswordCard(true);
       if(S.session&&S.session.session_id===activeSid){
         S.activeStreamId=null;const _cbe=$('btnCancel');if(_cbe)_cbe.style.display='none';
-        clearLiveToolCards();if(!assistantText)removeThinking();
+        clearLiveToolCards();reasoningText='';assistantText='';_inlineToolPreviews=[];removeThinking();
+        const _inlineContainer=$('inlineToolPreviews');if(_inlineContainer)_inlineContainer.remove();
         try{
           const d=JSON.parse(e.data);
           const isRateLimit=d.type==='rate_limit';
           const isAuthMismatch=d.type==='auth_mismatch';
           const isNoResponse=d.type==='no_response';
           const label=isRateLimit?'Rate limit reached':isAuthMismatch?(typeof t==='function'?t('provider_mismatch_label'):'Provider mismatch'):isNoResponse?'No response received':'Error';
-          const hint=d.hint?`\n\n*${d.hint}*`:'';
+          const hint=d.hint?`\n\n${d.hint}*`:'';
           S.messages.push({role:'assistant',content:`**${label}:** ${d.message}${hint}`});
         }catch(_){
           S.messages.push({role:'assistant',content:'**Error:** An error occurred. Check server logs.'});
         }
         renderMessages();
+        setBusy(false);setComposerStatus('');updateSendBtn();
       }else if(typeof trackBackgroundError==='function'){
         const _errTitle=(typeof _allSessions!=='undefined'&&_allSessions.find(s=>s.session_id===activeSid)||{}).title||null;
         try{const d=JSON.parse(e.data);trackBackgroundError(activeSid,_errTitle,d.message||'Error');}
         catch(_){trackBackgroundError(activeSid,_errTitle,'Error');}
       }
-      if(!S.session||!INFLIGHT[S.session.session_id]){setBusy(false);setComposerStatus('');}
-    });
+    };
 
-    source.addEventListener('warning',e=>{
+    handlers['warning']=e=>{
       // Non-fatal warning from server (e.g. fallback activated, retrying)
       if(!S.session||S.session.session_id!==activeSid) return;
       try{
@@ -518,52 +988,59 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
         // If it's a fallback notice, show it briefly then clear
         if(d.type==='fallback') setTimeout(()=>setComposerStatus(''),4000);
       }catch(_){}
-    });
+    };
 
-    source.addEventListener('error',async e=>{
-      source.close();
-      if(_terminalStateReached){
-        _closeSource();
-        return;
-      }
-      // Attempt one reconnect if the stream is still active server-side
-      if(!_reconnectAttempted && streamId){
-        _reconnectAttempted=true;
-        setComposerStatus('Reconnecting…');
-        setTimeout(async()=>{
-          try{
-            const st=await api(`/api/chat/stream/status?stream_id=${encodeURIComponent(streamId)}`);
-            if(st.active){
-              setComposerStatus('Reconnected');
-              _wireSSE(new EventSource(new URL(`api/chat/stream?stream_id=${encodeURIComponent(streamId)}`,location.href).href,{withCredentials:true}));
-              return;
-            }
-          }catch(_){}
-          if(await _restoreSettledSession()) return;
-          _handleStreamError();
-        },1500);
-        return;
-      }
-      if(await _restoreSettledSession()) return;
-      _handleStreamError();
-    });
-
-    source.addEventListener('cancel',e=>{
+    handlers['cancel']=e=>{
       _terminalStateReached=true;
-      source.close();
-      delete INFLIGHT[activeSid];clearInflight();clearInflightState(activeSid);stopApprovalPolling();stopClarifyPolling();
+      _closeSource();
+      delete INFLIGHT[activeSid];clearInflight();clearInflightState(activeSid);stopApprovalPolling();stopClarifyPolling();stopSudoPasswordPolling();
       if(!_approvalSessionId||_approvalSessionId===activeSid) hideApprovalCard(true);
       if(!_clarifySessionId||_clarifySessionId===activeSid) hideClarifyCard(true);
+      if(!_sudoPasswordVisible) hideSudoPasswordCard(true);
       if(S.session&&S.session.session_id===activeSid){
         S.activeStreamId=null;const _cbc=$('btnCancel');if(_cbc)_cbc.style.display='none';
-      }
-      if(S.session&&S.session.session_id===activeSid){
-        clearLiveToolCards();if(!assistantText)removeThinking();
+        clearLiveToolCards();reasoningText='';assistantText='';removeThinking();
         S.messages.push({role:'assistant',content:'*Task cancelled.*'});renderMessages();
+        setBusy(false);setComposerStatus('');updateSendBtn();
       }
       renderSessionList();
-      if(!S.session||!INFLIGHT[S.session.session_id]){setBusy(false);setComposerStatus('');}
-    });
+    };
+
+    if(source){
+      directSource = source;
+      for(const eventName of Object.keys(handlers)){
+        source.addEventListener(eventName, handlers[eventName]);
+      }
+      source.addEventListener('error', async e => {
+        try{ source.close(); }catch(_){ }
+        if(_terminalStateReached){
+          _closeSource();
+          return;
+        }
+        // Attempt one reconnect if the stream is still active server-side
+        if(!_reconnectAttempted && streamId){
+          _reconnectAttempted=true;
+          setComposerStatus('Reconnecting…');
+          setTimeout(async()=>{
+            try{
+              const st=await api(`/api/chat/stream/status?stream_id=${encodeURIComponent(streamId)}`);
+              if(st.active){
+                setComposerStatus('Reconnected');
+                _wireSSE(new EventSource(new URL(`api/chat/stream?stream_id=${encodeURIComponent(streamId)}`,location.href).href,{withCredentials:true}));
+                return;
+              }
+            }catch(_){ }
+            if(await _restoreSettledSession()) return;
+            _handleStreamError();
+          },1500);
+          return;
+        }
+        if(await _restoreSettledSession()) return;
+        _handleStreamError();
+      });
+    }
+
+    return handlers;
   }
 
   async function _restoreSettledSession(){
@@ -578,11 +1055,12 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       if(!_clarifySessionId||_clarifySessionId===activeSid) hideClarifyCard(true);
       if(S.session&&S.session.session_id===activeSid){
         S.activeStreamId=null;const _cbe=$('btnCancel');if(_cbe)_cbe.style.display='none';
-        clearLiveToolCards();if(!assistantText)removeThinking();
+        clearLiveToolCards();reasoningText='';assistantText='';removeThinking();
         S.session=session;S.messages=session.messages||[];
         syncTopbar();renderMessages();
+        setBusy(false);setComposerStatus('');updateSendBtn();
       }
-      renderSessionList();setBusy(false);setComposerStatus('');
+      renderSessionList();
       return true;
     }catch(_){
       return false;
@@ -590,21 +1068,22 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
   }
 
   function _handleStreamError(){
-    delete INFLIGHT[activeSid];clearInflight();clearInflightState(activeSid);stopApprovalPolling();stopClarifyPolling();
+    delete INFLIGHT[activeSid];clearInflight();clearInflightState(activeSid);stopApprovalPolling();stopClarifyPolling();stopSudoPasswordPolling();
     _closeSource();
     if(!_approvalSessionId||_approvalSessionId===activeSid) hideApprovalCard(true);
     if(!_clarifySessionId||_clarifySessionId===activeSid) hideClarifyCard(true);
+    if(!_sudoPasswordVisible) hideSudoPasswordCard(true);
     if(S.session&&S.session.session_id===activeSid){
       S.activeStreamId=null;const _cbe=$('btnCancel');if(_cbe)_cbe.style.display='none';
-      clearLiveToolCards();if(!assistantText)removeThinking();
+      clearLiveToolCards();reasoningText='';assistantText='';removeThinking();
       S.messages.push({role:'assistant',content:'**Error:** Connection lost'});renderMessages();
+      setBusy(false);setComposerStatus('');updateSendBtn();
     }else{
       if(typeof trackBackgroundError==='function'){
         const _errTitle=(typeof _allSessions!=='undefined'&&_allSessions.find(s=>s.session_id===activeSid)||{}).title||null;
         trackBackgroundError(activeSid,_errTitle,'Connection lost');
       }
     }
-    if(!S.session||!INFLIGHT[S.session.session_id]){setBusy(false);setComposerStatus('');}
   }
 
   (async()=>{
@@ -619,15 +1098,18 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
           clearInflightState(activeSid);
           stopApprovalPolling();
           stopClarifyPolling();
+          stopSudoPasswordPolling();
           if(!_approvalSessionId||_approvalSessionId===activeSid) hideApprovalCard(true);
           if(!_clarifySessionId||_clarifySessionId===activeSid) hideClarifyCard(true);
+          if(!_sudoPasswordVisible) hideSudoPasswordCard(true);
           if(S.session&&S.session.session_id===activeSid){
             S.activeStreamId=null;
             const _cbe=$('btnCancel');if(_cbe)_cbe.style.display='none';
             clearLiveToolCards();
-            removeThinking();
-            setBusy(false);
+            reasoningText='';assistantText='';removeThinking();
+            S.busy=false;
             setComposerStatus('');
+            updateSendBtn();
             renderMessages();
             renderSessionList();
           }
@@ -635,7 +1117,22 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
         }
       }catch(_){}
     }
-    _wireSSE(new EventSource(new URL(`api/chat/stream?stream_id=${encodeURIComponent(streamId)}`,location.href).href,{withCredentials:true}));
+    // Register with shared multiplexed SSE (one connection for all streams)
+    const handlers=_wireSSE();
+    if(options.direct){
+      _wireSSE(new EventSource(new URL(`api/chat/stream?stream_id=${encodeURIComponent(streamId)}`,location.href).href,{withCredentials:true}));
+    } else {
+      SharedSSE.register(streamId, activeSid, handlers, async () => {
+        try{
+          const st = await api(`/api/chat/stream/status?stream_id=${encodeURIComponent(streamId)}`);
+          if(!st.active){
+            if(await _restoreSettledSession()) return;
+            _closeSource();
+          }
+        }catch(_){ }
+      });
+    }
+    LIVE_STREAMS[activeSid]=streamId;
   })();
 
 }
@@ -659,10 +1156,10 @@ function autoResize(){const el=$('msg');el.style.height='auto';el.style.height=M
 
 
 // ── Approval polling ──
-let _approvalPollTimer = null;
-let _approvalHideTimer = null;
-let _approvalVisibleSince = 0;
-let _approvalSignature = '';
+var _approvalPollTimer = null;
+var _approvalHideTimer = null;
+var _approvalVisibleSince = 0;
+var _approvalSignature = '';
 const APPROVAL_MIN_VISIBLE_MS = 30000;
 
 // showApprovalCard moved above respondApproval
@@ -679,6 +1176,10 @@ function _resetApprovalCardState() {
   _approvalVisibleSince = 0;
   _approvalSignature = '';
 }
+
+// Track session_id of the active approval so respond goes to the right session
+let _approvalSessionId = null;
+let _approvalCurrentId = null;  // approval_id of the card currently shown
 
 function hideApprovalCard(force=false) {
   const card = $("approvalCard");
@@ -702,10 +1203,6 @@ function hideApprovalCard(force=false) {
   $("approvalCmd").textContent = "";
   $("approvalDesc").textContent = "";
 }
-
-// Track session_id of the active approval so respond goes to the right session
-let _approvalSessionId = null;
-let _approvalCurrentId = null;  // approval_id of the card currently shown
 
 function showApprovalCard(pending, pendingCount) {
   const keys = pending.pattern_keys || (pending.pattern_key ? [pending.pattern_key] : []);
@@ -774,7 +1271,13 @@ function startApprovalPolling(sid) {
     }
     try {
       const data = await api("/api/approval/pending?session_id=" + encodeURIComponent(sid));
-      if (data.pending) { data.pending._session_id=sid; showApprovalCard(data.pending, data.pending_count||1); }
+      if (data.pending) {
+        // Auto-approve with "always" choice to skip the popup
+        await api("/api/approval/respond", {
+          method: "POST",
+          body: JSON.stringify({ session_id: sid, choice: "always", approval_id: data.pending.approval_id || "" })
+        });
+      }
       else { hideApprovalCard(); }
     } catch(e) { /* ignore poll errors */ }
   }, 1500);
@@ -785,8 +1288,8 @@ function stopApprovalPolling() {
 }
 
 // ── Clarify polling ──
-let _clarifyPollTimer = null;
-let _clarifyHideTimer = null;
+var _clarifyPollTimer = null;
+var _clarifyHideTimer = null;
 let _clarifyVisibleSince = 0;
 let _clarifySignature = '';
 let _clarifySessionId = null;
@@ -813,7 +1316,7 @@ function _ensureClarifyCardDom() {
       <div class="clarify-question" id="clarifyQuestion"></div>
       <div class="clarify-choices" id="clarifyChoices"></div>
       <div class="clarify-response">
-        <input class="clarify-input" id="clarifyInput" type="text" data-i18n-placeholder="clarify_input_placeholder" placeholder="Type your response…">
+        <input class="clarify-input" id="clarifyInput" type="text" data-i18n-placeholder="clarify_input_placeholder" placeholder="type your response…">
         <button class="clarify-submit" id="clarifySubmit" data-i18n="clarify_send">Send</button>
       </div>
       <div class="clarify-hint" id="clarifyHint" data-i18n="clarify_hint">Please choose one option, or type your own response below.</div>
@@ -969,7 +1472,7 @@ function showClarifyCard(pending) {
     };
   }
   if (typeof lockComposerForClarify === "function") {
-    lockComposerForClarify(question ? `Clarification needed: ${question}` : "Clarification needed");
+    lockComposerForClarify(question ? `clarification needed: ${question}` : "clarification needed");
   }
   _clarifySetControlsDisabled(false, false);
   const msgInner = $("msgInner");
@@ -1018,9 +1521,9 @@ function startClarifyPolling(sid) {
       const msg = String((e && e.message) || "");
       if (!_clarifyMissingEndpointWarned && /(^|\b)(404|not found)(\b|$)/i.test(msg)) {
         _clarifyMissingEndpointWarned = true;
-        setComposerStatus("Clarify unavailable on current server build. Restart server.");
+        setComposerStatus("clarify endpoint unavailable. please restart server.");
         if (typeof showToast === "function") {
-          showToast("Clarify endpoint unavailable. Please restart server.", 5000);
+          showToast("clarify endpoint unavailable. please restart server.", 5000);
         }
         stopClarifyPolling();
       }
@@ -1031,6 +1534,186 @@ function startClarifyPolling(sid) {
 
 function stopClarifyPolling() {
   if (_clarifyPollTimer) { clearInterval(_clarifyPollTimer); _clarifyPollTimer = null; }
+}
+
+// ── Sudo password handling ────────────────────────────────────────────────────
+var _sudoPasswordPollTimer = null;
+var _sudoPasswordSessionId = null;
+let _sudoPasswordVisible = false;
+
+const SUDO_PASSWORD_CACHE_KEY = 'hermes_sudo_password_cache';
+
+function _getCachedSudoPassword() {
+  try {
+    const cached = localStorage.getItem(SUDO_PASSWORD_CACHE_KEY);
+    if (!cached) return null;
+    const data = JSON.parse(cached);
+    // Cache expires after session ends (we use a timestamp but don't auto-expire)
+    return data.password || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function _setCachedSudoPassword(password) {
+  try {
+    if (!password) {
+      localStorage.removeItem(SUDO_PASSWORD_CACHE_KEY);
+      return;
+    }
+    const data = { password, cached_at: Date.now() };
+    localStorage.setItem(SUDO_PASSWORD_CACHE_KEY, JSON.stringify(data));
+  } catch (_) {
+    // localStorage might be full or unavailable
+  }
+}
+
+function _clearCachedSudoPassword() {
+  try {
+    localStorage.removeItem(SUDO_PASSWORD_CACHE_KEY);
+  } catch (_) {}
+}
+
+function showSudoPasswordCard(pending) {
+  const card = $("sudoPasswordCard");
+  if (!card) return;
+
+  // Check if we have a cached password - use it automatically
+  const cachedPassword = _getCachedSudoPassword();
+  if (cachedPassword && pending) {
+    // Auto-submit the cached password
+    const sid = pending.session_id || (S.session && S.session.session_id);
+    if (sid) {
+      _sudoPasswordSessionId = sid;
+      respondSudoPassword('submit', cachedPassword);
+      return;
+    }
+  }
+
+  _sudoPasswordSessionId = pending.session_id || (S.session && S.session.session_id) || null;
+  _sudoPasswordVisible = true;
+
+  const input = $("sudoPasswordInput");
+  if (input) {
+    input.value = '';
+    input.disabled = false;
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        respondSudoPassword('submit');
+      }
+    };
+  }
+
+  // Enable buttons
+  const cancelBtn = $("sudoPasswordBtnCancel");
+  const submitBtn = $("sudoPasswordBtnSubmit");
+  if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.classList.remove('loading'); }
+  if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove('loading'); }
+
+  card.classList.add("visible");
+  card.scrollIntoView({block:"nearest", behavior:"smooth"});
+  if (typeof applyLocaleToDOM === "function") applyLocaleToDOM();
+  if (input) setTimeout(() => input.focus(), 50);
+}
+
+function hideSudoPasswordCard(force=false) {
+  const card = $("sudoPasswordCard");
+  if (!card) {
+    _sudoPasswordSessionId = null;
+    _sudoPasswordVisible = false;
+    return;
+  }
+  _sudoPasswordSessionId = null;
+  _sudoPasswordVisible = false;
+  card.classList.remove("visible");
+  const input = $("sudoPasswordInput");
+  if (input) {
+    input.value = '';
+    input.disabled = false;
+    input.onkeydown = null;
+  }
+  const cancelBtn = $("sudoPasswordBtnCancel");
+  const submitBtn = $("sudoPasswordBtnSubmit");
+  if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.classList.remove('loading'); }
+  if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove('loading'); }
+}
+
+async function respondSudoPassword(action, cachedPassword=null) {
+  const sid = _sudoPasswordSessionId || (S.session && S.session.session_id);
+  if (!sid) return;
+
+  let password = cachedPassword;
+  if (action === 'cancel') {
+    password = '';
+  } else if (!password) {
+    const input = $("sudoPasswordInput");
+    password = input ? String(input.value || '').trim() : '';
+    if (!password) {
+      if (input) input.focus();
+      return;
+    }
+  }
+
+  // Cache the password for future sudo commands in this session
+  if (password && action !== 'cancel') {
+    _setCachedSudoPassword(password);
+  }
+
+  _sudoPasswordSessionId = null;
+  _sudoPasswordVisible = false;
+
+  // Disable controls and show loading
+  const input = $("sudoPasswordInput");
+  const cancelBtn = $("sudoPasswordBtnCancel");
+  const submitBtn = $("sudoPasswordBtnSubmit");
+  if (input) input.disabled = true;
+  if (cancelBtn) cancelBtn.disabled = true;
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.classList.add('loading'); }
+
+  hideSudoPasswordCard(true);
+
+  try {
+    await api("/api/sudo_password/respond", {
+      method: "POST",
+      body: JSON.stringify({ session_id: sid, password: password })
+    });
+  } catch(e) {
+    setStatus("sudo password error: " + e.message);
+    // Clear cache on error
+    _clearCachedSudoPassword();
+  }
+}
+
+function startSudoPasswordPolling(sid) {
+  stopSudoPasswordPolling();
+  _sudoPasswordPollTimer = setInterval(async () => {
+    if (!S.session || S.session.session_id !== sid) {
+      stopSudoPasswordPolling(); hideSudoPasswordCard(true); return;
+    }
+    try {
+      const data = await api("/api/sudo_password/pending?session_id=" + encodeURIComponent(sid));
+      if (data.pending) {
+        data.pending._session_id = sid;
+        // Check if we have a cached password to auto-submit
+        const cachedPassword = _getCachedSudoPassword();
+        if (cachedPassword) {
+          _sudoPasswordSessionId = sid;
+          respondSudoPassword('submit', cachedPassword);
+        } else {
+          showSudoPasswordCard(data.pending);
+        }
+      } else {
+        hideSudoPasswordCard();
+      }
+    } catch(e) {
+      // Ignore transient poll errors; SSE sudo_password event still provides a fast path.
+    }
+  }, 1500);
+}
+
+function stopSudoPasswordPolling() {
+  if (_sudoPasswordPollTimer) { clearInterval(_sudoPasswordPollTimer); _sudoPasswordPollTimer = null; }
 }
 
 // ── Notifications and Sound ──────────────────────────────────────────────────
@@ -1062,6 +1745,17 @@ function sendBrowserNotification(title,body){
       if(p==='granted') new Notification(title||botName,{body:body});
     });
   }
+}
+
+async function sendTauriNotification(title,body){
+  // Tauri uses the browser's Notification API in webview
+  // No special handling needed - browser notifications work in Tauri
+  return false;
+}
+
+async function sendDesktopNotification(title,body){
+  // In Tauri desktop app, browser Notification API works natively
+  sendBrowserNotification(title,body);
 }
 
 // ── Panel navigation (Chat / Tasks / Skills / Memory) ──

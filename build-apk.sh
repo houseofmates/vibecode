@@ -1,10 +1,10 @@
 #!/bin/bash
-# Build VibeCode APK for Android
+# Build vibecode APK for Android
 set -e
 
-echo "=== VibeCode APK Builder ==="
+echo "=== vibecode APK Builder ==="
 echo "Target: releases/vibecode.apk"
-echo "Server: http://192.168.4.233:8786"
+echo "Server: https://vc.houseofmates.space (or local fallback)"
 echo ""
 
 # Check dependencies
@@ -33,7 +33,7 @@ if [ ! -d "android" ]; then
 
     # Initialize Capacitor config if not present
     if [ ! -f "capacitor.config.json" ]; then
-        echo '{"appId":"app.vibecode.mobile","appName":"VibeCode","webDir":"static","server":{"url":"http://192.168.4.233:8786","cleartext":true}}' > capacitor.config.json
+        echo '{"appId":"app.vibecode.mobile","appName":"vibecode","webDir":"static",}' > capacitor.config.json
     fi
 
     # Add Android platform
@@ -50,54 +50,34 @@ else
     echo "[2/5] Dependencies already installed"
 fi
 
+# Refresh dist so Capacitor packages the current mobile assets
+echo "[3/6] Refreshing dist web assets..."
+./build-tauri-dist.sh
+
 # Sync web assets
-echo "[3/5] Syncing web assets..."
+echo "[4/6] Syncing web assets..."
 npx cap sync android
 
-# Create keystore if not exists
-if [ ! -f "releases/vibecode.keystore" ]; then
-    echo "[4/5] Creating signing keystore..."
-    keytool -genkey -v \
-        -keystore releases/vibecode.keystore \
-        -alias vibecode \
-        -keyalg RSA \
-        -keysize 2048 \
-        -validity 10000 \
-        -dname "CN=VibeCode, OU=Mobile, O=AnomalyCo, L=Local, S=State, C=US" \
-        -storepass vibecode123 \
-        -keypass vibecode123
-else
-    echo "[4/5] Using existing keystore"
-fi
+# Skip keystore for debug build
+echo "[5/6] Using debug build (no signing required)"
 
 # Build APK
-echo "[5/5] Building APK..."
+echo "[6/6] Building APK..."
 cd android
-./gradlew assembleRelease
 
-# Copy APK to releases
+# Build debug APK (no signing required, easier to build)
+./gradlew assembleDebug
+
+# Copy debug APK
 cd ..
-cp android/app/build/outputs/apk/release/app-release-unsigned.apk releases/vibecode-unsigned.apk 2>/dev/null || true
+apk_source="android/app/build/outputs/apk/debug/app-debug.apk"
 
-# Sign the APK
-if [ -f "releases/vibecode-unsigned.apk" ]; then
-    jarsigner -verbose \
-        -sigalg SHA256withRSA \
-        -digestalg SHA-256 \
-        -keystore releases/vibecode.keystore \
-        -storepass vibecode123 \
-        -keypass vibecode123 \
-        releases/vibecode-unsigned.apk \
-        vibecode
-
-    # Align and zipalign
-    if command -v zipalign &> /dev/null; then
-        zipalign -v 4 releases/vibecode-unsigned.apk releases/vibecode.apk
-        rm releases/vibecode-unsigned.apk
-    else
-        mv releases/vibecode-unsigned.apk releases/vibecode.apk
-    fi
+if [ ! -f "$apk_source" ]; then
+    echo "ERROR: Expected APK not found at $apk_source"
+    exit 1
 fi
+
+cp "$apk_source" releases/vibecode.apk
 
 # Verify APK was created
 if [ -f "releases/vibecode.apk" ]; then
@@ -109,8 +89,10 @@ if [ -f "releases/vibecode.apk" ]; then
     echo ""
     echo "Or transfer to phone and install manually"
     echo ""
-    echo "Note: The APK connects to http://192.168.4.233:8786"
-    echo "Ensure your server is running on that IP before using the app"
+    echo "Note: The APK connects to https://vc.houseofmates.space"
+    echo "Ensure you have internet connectivity before using the app"
+    echo ""
+    echo "Note: Using debug build (no signing required)"
 else
     echo "ERROR: APK build failed"
     exit 1

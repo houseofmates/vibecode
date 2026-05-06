@@ -30,16 +30,23 @@ class ApiKeysManager:
             out = stdout.read().decode().strip()
             err = stderr.read().decode().strip()
             
-            if err or not out:
+            if err:
+                return {'error': f"Remote error: {err}"}
+            
+            if not out:
                 return {}
             
             return yaml.safe_load(out) or {}
         except Exception as e:
-            return {'error': str(e)}
+            error_str = str(e)
+            # Check if this is an SSH connection error from our improved handling
+            if "SSH authentication failed" in error_str or "SSH connection failed" in error_str or "Failed to connect" in error_str:
+                return {'error': error_str}
+            return {'error': f"Failed to fetch config: {error_str}"}
     
     @classmethod
-    def save_config(cls, config: Dict[str, Any]) -> bool:
-        """Save Hermes config to .250 machine"""
+    def save_config(cls, config: Dict[str, Any]) -> tuple[bool, str]:
+        """Save Hermes config to .250 machine. Returns (success, error_message)."""
         try:
             ssh = MemsterClient._get_ssh()
             yaml_content = yaml.dump(config, default_flow_style=False, allow_unicode=True)
@@ -51,20 +58,23 @@ class ApiKeysManager:
             err = stderr.read().decode().strip()
             
             if err:
-                return False
-            return True
+                return False, f"Remote error: {err}"
+            return True, ""
         except Exception as e:
-            return False
+            error_str = str(e)
+            if "SSH authentication failed" in error_str or "SSH connection failed" in error_str or "Failed to connect" in error_str:
+                return False, error_str
+            return False, f"Failed to save config: {error_str}"
     
     @classmethod
     def get_api_keys(cls) -> List[Dict[str, Any]]:
-        """Get NVIDIA API keys from config"""
+        """Get API keys from config (NVIDIA and KiloCode)"""
         config = cls.get_config()
         
         if 'error' in config:
             return []
         
-        # NVIDIA API keys are typically in config.nvidia.api_keys or similar
+        # API keys are typically in config.nvidia.api_keys or similar
         # Try different common paths
         keys = []
         
@@ -80,6 +90,18 @@ class ApiKeysManager:
                         'provider': 'nvidia',
                         'index': i
                     })
+        
+        # Check for kilocode-specific config
+        kilocode_config = config.get('kilocode', {})
+        if isinstance(kilocode_config, dict):
+            api_key = kilocode_config.get('api_key', '')
+            if api_key:
+                keys.append({
+                    'id': 'kilocode_0',
+                    'key': api_key,
+                    'provider': 'kilocode',
+                    'index': 0
+                })
         
         # Also check generic api_keys section
         generic_keys = config.get('api_keys', [])
@@ -110,6 +132,20 @@ class ApiKeysManager:
         if 'error' in config:
             return False
         
+        if provider == 'kilocode':
+            # Initialize kilocode section if needed
+            if 'kilocode' not in config:
+                config['kilocode'] = {}
+            
+            kilocode_config = config['kilocode']
+            if not isinstance(kilocode_config, dict):
+                config['kilocode'] = {}
+                kilocode_config = config['kilocode']
+            
+            kilocode_config['api_key'] = key
+            success, _ = cls.save_config(config)
+            return success
+        
         # Initialize nvidia section if needed
         if 'nvidia' not in config:
             config['nvidia'] = {}
@@ -124,7 +160,8 @@ class ApiKeysManager:
         
         nvidia_config['api_keys'].append(key)
         
-        return cls.save_config(config)
+        success, _ = cls.save_config(config)
+        return success
     
     @classmethod
     def remove_api_key(cls, index: int, provider: str = 'nvidia') -> bool:
@@ -132,6 +169,14 @@ class ApiKeysManager:
         config = cls.get_config()
         
         if 'error' in config:
+            return False
+        
+        if provider == 'kilocode':
+            kilocode_config = config.get('kilocode', {})
+            if isinstance(kilocode_config, dict) and 'api_key' in kilocode_config:
+                del kilocode_config['api_key']
+                success, _ = cls.save_config(config)
+                return success
             return False
         
         nvidia_config = config.get('nvidia', {})
@@ -143,7 +188,8 @@ class ApiKeysManager:
             return False
         
         api_keys.pop(index)
-        return cls.save_config(config)
+        success, _ = cls.save_config(config)
+        return success
     
     @classmethod
     def reorder_api_keys(cls, new_order: List[int]) -> bool:
@@ -165,7 +211,8 @@ class ApiKeysManager:
         reordered = [api_keys[i] for i in new_order if i < len(api_keys)]
         nvidia_config['api_keys'] = reordered
         
-        return cls.save_config(config)
+        success, _ = cls.save_config(config)
+        return success
     
     @classmethod
     def rotate_api_key(cls) -> Optional[str]:
@@ -193,7 +240,8 @@ class ApiKeysManager:
         # Also set as active API key
         nvidia_config['api_key'] = api_keys[next_index]
         
-        if cls.save_config(config):
+        success, _ = cls.save_config(config)
+        if success:
             return api_keys[next_index]
         return None
 
@@ -241,10 +289,10 @@ def get_config_route():
 
 def save_config_route(config: Dict[str, Any]):
     """Handler for POST /api/config"""
-    success = ApiKeysManager.save_config(config)
+    success, error_msg = ApiKeysManager.save_config(config)
     if success:
         return {'ok': True, 'message': 'Config saved'}
-    return {'ok': False, 'error': 'Failed to save config'}, 500
+    return {'ok': False, 'error': error_msg or 'Failed to save config'}, 500
 
 
 # Flask route registration - add this to your main app.py

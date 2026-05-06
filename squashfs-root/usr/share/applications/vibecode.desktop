@@ -1,0 +1,9 @@
+[Desktop Entry]
+Categories=
+Comment=A Tauri App
+Exec=vibe-code-desktop
+StartupWMClass=vibe-code-desktop
+Icon=vibe-code-desktop
+Name=vibecode
+Terminal=false
+Type=Application

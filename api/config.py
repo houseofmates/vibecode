@@ -234,6 +234,8 @@ def _workspace_candidates(raw: str | Path | None = None) -> list[Path]:
     if os.getenv("HERMES_WEBUI_DEFAULT_WORKSPACE"):
         add(os.getenv("HERMES_WEBUI_DEFAULT_WORKSPACE"))
 
+    # Prioritize home directory as default workspace
+    add(HOME)
     home_workspace = HOME / "workspace"
     home_work = HOME / "work"
     if home_workspace.exists():
@@ -274,16 +276,17 @@ def _discover_default_workspace() -> Path:
     """
     Resolve the default workspace in order:
       1. HERMES_WEBUI_DEFAULT_WORKSPACE env var
-      2. ~/workspace if it already exists
-      3. ~/work if it already exists
-      4. ~/workspace (create if needed)
-      5. STATE_DIR / workspace
+      2. ~ (home directory)
+      3. ~/workspace if it already exists
+      4. ~/work if it already exists
+      5. ~/workspace (create if needed)
+      6. STATE_DIR / workspace
     """
     return resolve_default_workspace()
 
 
 DEFAULT_WORKSPACE = _discover_default_workspace()
-DEFAULT_MODEL = os.getenv("HERMES_WEBUI_DEFAULT_MODEL", "openai/gpt-5.4-mini")
+DEFAULT_MODEL = os.getenv("HERMES_WEBUI_DEFAULT_MODEL", "deepseek-ai/deepseek-v4-pro")
 
 
 # ── Startup diagnostics ───────────────────────────────────────────────────────
@@ -450,6 +453,7 @@ _FALLBACK_MODELS = [
     {"provider": "xAI",       "id": "x-ai/grok-4.20",                    "label": "Grok 4.20"},
     # Mistral
     {"provider": "Mistral",   "id": "mistralai/mistral-large-latest",     "label": "Mistral Large"},
+    {"provider": "Mistral",   "id": "mistralai/mistral-medium-3.5-128b", "label": "Mistral Medium 3.5 128B"},
 ]
 
 # Provider display names for known Hermes provider IDs
@@ -475,6 +479,8 @@ _PROVIDER_DISPLAY = {
     "mistralai": "Mistral",
     "qwen": "Qwen",
     "x-ai": "xAI",
+    "kilocode": "KiloCode",
+    "nvidia": "NVIDIA NIM",
 }
 
 # Well-known models per provider (used to populate dropdown for direct API providers)
@@ -571,7 +577,6 @@ _PROVIDER_MODELS = {
         {"id": "gemini-3-flash-preview", "label": "Gemini 3 Flash Preview"},
         {"id": "glm-5.1", "label": "GLM-5.1"},
         {"id": "glm-5", "label": "GLM-5"},
-        {"id": "kimi-k2.5", "label": "Kimi K2.5"},
         {"id": "minimax-m2.5", "label": "MiniMax M2.5"},
         {"id": "minimax-m2.5-free", "label": "MiniMax M2.5 Free"},
         {"id": "nemotron-3-super-free", "label": "Nemotron 3 Super Free"},
@@ -581,7 +586,6 @@ _PROVIDER_MODELS = {
     "opencode-go": [
         {"id": "glm-5.1", "label": "GLM-5.1"},
         {"id": "glm-5", "label": "GLM-5"},
-        {"id": "kimi-k2.5", "label": "Kimi K2.5"},
         {"id": "mimo-v2-pro", "label": "MiMo V2 Pro"},
         {"id": "mimo-v2-omni", "label": "MiMo V2 Omni"},
         {"id": "minimax-m2.7", "label": "MiniMax M2.7"},
@@ -605,6 +609,18 @@ _PROVIDER_MODELS = {
     # xAI — prefix used in OpenRouter model IDs (x-ai/grok-4-20)
     "x-ai": [
         {"id": "grok-4.20", "label": "Grok 4.20"},
+    ],
+    # KiloCode — NVIDIA models via kilocode.ai
+    "kilocode": [
+        {"id": "nvidia/nemotron-3-super-120b-a12b:free", "label": "Nemotron 3 Super 120B (Free)"},
+        {"id": "nvidia/nemotron-3-pro", "label": "Nemotron 3 Pro"},
+    ],
+    # NVIDIA NIM — direct API endpoint
+    "nvidia": [
+        {"id": "deepseek-ai/deepseek-v4-pro", "label": "DeepSeek V4 Pro"},
+        {"id": "meta/llama-4-maverick", "label": "Llama 4 Maverick"},
+        {"id": "meta/llama-4-scout", "label": "Llama 4 Scout"},
+        {"id": "mistralai/mistral-medium-3.5-128b", "label": "Mistral Medium 3.5 128B"},
     ],
 }
 
@@ -651,8 +667,16 @@ def resolve_model_provider(model_id: str) -> tuple:
             entry_model = (entry.get("model") or "").strip()
             entry_name = (entry.get("name") or "").strip()
             entry_base_url = (entry.get("base_url") or "").strip()
+            entry_api_key = (entry.get("api_key") or "").strip()
+            print(f"[DEBUG] Checking custom provider: {entry_name}, model: {entry_model}, base_url: {entry_base_url}", flush=True)
             if entry_model and entry_name and model_id == entry_model:
                 provider_hint = "custom:" + entry_name.lower().replace(" ", "-")
+                print(f"[DEBUG] Custom provider matched! provider_hint: {provider_hint}, base_url: {entry_base_url}, has_api_key: {bool(entry_api_key)}", flush=True)
+                # For custom providers, we need to pass the API key through
+                # Store it in a way that can be retrieved later
+                if entry_api_key:
+                    # Return api_key as 4th element (will be unpacked by caller)
+                    return model_id, provider_hint, entry_base_url or None, entry_api_key
                 return model_id, provider_hint, entry_base_url or None
 
     # @provider:model format — explicit provider hint from the dropdown.
@@ -664,6 +688,31 @@ def resolve_model_provider(model_id: str) -> tuple:
 
     if "/" in model_id:
         prefix, bare = model_id.split("/", 1)
+
+        # Normalise legacy UI aliases to the provider IDs the backend actually uses.
+        if prefix == "z-ai":
+            # If the active config provider is not "zai" (e.g. nvidia), keep routing
+            # through the configured provider so the right API key is used.  Preserve
+            # the full model_id (including prefix) because providers like NVIDIA NIM
+            # require the namespace-qualified ID (z-ai/glm-5.1).
+            if config_provider and config_provider != "zai":
+                return model_id, config_provider, config_base_url
+            return bare, "zai", config_base_url
+        if prefix == "moonshotai":
+            kimi_models = _PROVIDER_MODELS.get("kimi-coding", [])
+            canonical = next(
+                ((entry.get("id") or "").strip() for entry in kimi_models if (entry.get("id") or "").strip().lower() == bare.lower()),
+                bare,
+            )
+            return canonical, "kimi-coding", None
+        if prefix == "minimaxai":
+            minimax_models = _PROVIDER_MODELS.get("minimax", [])
+            canonical = next(
+                ((entry.get("id") or "").strip() for entry in minimax_models if (entry.get("id") or "").strip().lower() == bare.lower()),
+                bare,
+            )
+            return canonical, "minimax", None
+
         # OpenRouter always needs the full provider/model path (e.g. openrouter/free,
         # anthropic/claude-sonnet-4.6). Never strip the prefix for OpenRouter.
         if config_provider == "openrouter":
@@ -689,6 +738,20 @@ def resolve_model_provider(model_id: str) -> tuple:
         # In this case always route through openrouter with the full provider/model string.
         if prefix in _PROVIDER_MODELS and prefix != config_provider:
             return model_id, "openrouter", None
+
+    # NVIDIA can be the active provider while the user still selects a bare GLM
+    # model ID from the catalog. Keep those routed to Z.AI instead of forcing
+    # them through NIM, but do not generalize this to other bare IDs because
+    # namespaces like "mistralai" are OpenRouter-style prefixes, not runtime
+    # provider IDs for direct routing here.
+    if config_provider == "nvidia":
+        zai_models = _PROVIDER_MODELS.get("zai", [])
+        if any((entry.get("id") or "").strip() == model_id for entry in zai_models):
+            return model_id, "zai", config_base_url
+
+    # NVIDIA NIM provider — return the NIM endpoint base URL
+    if config_provider == "nvidia":
+        return model_id, "nvidia", "https://integrate.api.nvidia.com/v1"
 
     return model_id, config_provider, config_base_url
 
@@ -818,6 +881,8 @@ def get_available_models() -> dict:
             "DEEPSEEK_API_KEY",
             "OPENCODE_ZEN_API_KEY",
             "OPENCODE_GO_API_KEY",
+            "NVIDIA_API_KEY",
+            "NGC_API_KEY",
         ):
             val = os.getenv(k)
             if val:
@@ -842,6 +907,14 @@ def get_available_models() -> dict:
             detected_providers.add("opencode-zen")
         if all_env.get("OPENCODE_GO_API_KEY"):
             detected_providers.add("opencode-go")
+        if all_env.get("NVIDIA_API_KEY") or all_env.get("NGC_API_KEY"):
+            detected_providers.add("nvidia")
+
+    # 3b. Also check config.yaml for NVIDIA API keys
+    nvidia_config = cfg.get("nvidia", {})
+    if isinstance(nvidia_config, dict):
+        if nvidia_config.get("api_key") or nvidia_config.get("api_keys"):
+            detected_providers.add("nvidia")
 
     # 3. Fetch models from custom endpoint if base_url is configured
     auto_detected_models = []
@@ -1179,6 +1252,10 @@ STREAMS_LOCK = threading.Lock()
 CANCEL_FLAGS: dict = {}
 AGENT_INSTANCES: dict = {}  # stream_id -> AIAgent instance for interrupt propagation
 SERVER_START_TIME = time.time()
+
+# Multiplexed SSE: one connection carries events for all active streams
+MULTIPLEX_QUEUES: dict = {}  # client_id -> queue.Queue
+MULTIPLEX_LOCK = threading.Lock()
 
 # ── Thread-local env context ─────────────────────────────────────────────────
 _thread_ctx = threading.local()

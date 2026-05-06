@@ -1,0 +1,1267 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - button "chats" [ref=e5] [cursor=pointer]:
+        - img [ref=e6]
+      - button "tasks" [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+      - button "skills" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+      - button "memory" [ref=e15] [cursor=pointer]:
+        - img [ref=e16]
+      - button "spaces" [ref=e19] [cursor=pointer]:
+        - img [ref=e20]
+      - button "todos" [ref=e22] [cursor=pointer]:
+        - img [ref=e23]
+      - 'button "swarm: multi-agent orchestrator" [ref=e26] [cursor=pointer]':
+        - img [ref=e27]
+    - generic [ref=e90]:
+      - generic [ref=e91]:
+        - button "new chat Cmd+K" [ref=e92] [cursor=pointer]:
+          - img [ref=e93]
+          - generic [ref=e94]: new chat
+          - generic [ref=e95]: Cmd+K
+        - button "Delete all cron sessions" [ref=e96] [cursor=pointer]:
+          - img [ref=e97]
+        - button "Refresh remote sessions (.250)" [ref=e99] [cursor=pointer]:
+          - img [ref=e100]
+      - textbox "filter conversations..." [ref=e103]
+      - generic [ref=e104]:
+        - generic [ref=e1066]:
+          - generic [ref=e1067] [cursor=pointer]:
+            - generic [ref=e1068]: ▸
+            - generic [ref=e1069]: today
+          - generic [ref=e1070]:
+            - generic [ref=e1071] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1074]: yuanbo removal help
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1075] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1078]: pkm help
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1079] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1082]: why does it say no memster memories have been made the last few
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1083] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1086]: look into this repo and implement the best ideas and features fr
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1087] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1090]: look repo and implement
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1091] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1094]: Swarm Task Conflict Resolution
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1095] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1098]: Counting 1 to 5 in Swarm
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1099] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1102]: when i run "gen" with a prompt after it containing spaces, comma
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1103] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1106]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1107] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1110]: memster webui help
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1111] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1114]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1115] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1118]: "You are part of a collaborative swarm working on: \"analyze this"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1119] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1122]: "You are part of a collaborative swarm working on: \"debug\" Your"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1123] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1126]: "You are part of a collaborative swarm working on: \"test the new"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1127] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1130]: "You are part of a collaborative swarm working on: \"analyze this"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1131] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1134]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1135] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1138]: "You are part of a collaborative swarm working on: \"test the new"
+              - generic:
+                - button "Conversation actions":
+                  - img
+        - generic [ref=e1139]:
+          - generic [ref=e1140] [cursor=pointer]:
+            - generic [ref=e1141]: ▸
+            - generic [ref=e1142]: yesterday
+          - generic [ref=e1143]:
+            - generic [ref=e1144] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1147]: get shit done
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1148] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1151]: Connect skill to n8n via API key
+              - generic:
+                - button "Conversation actions":
+                  - img
+        - generic [ref=e1152]:
+          - generic [ref=e1153] [cursor=pointer]:
+            - generic [ref=e1154]: ▸
+            - generic [ref=e1155]: this week
+          - generic [ref=e1156]:
+            - generic [ref=e1157] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1160]: ~ imagine help for others
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1161] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1164]: ~ antivirus fixing
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1165] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1168]: can u fix the fact that, i just started a new conversation with
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1169] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1172]: Hermes Server Startup Issue and Chat Availability
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1173] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1176]: send
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1177] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1180]: Imported session
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1181] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1184]: use hermes-agent skill order
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1185] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1188]: update hermes
+              - generic:
+                - button "Conversation actions":
+                  - img
+        - generic [ref=e1189]:
+          - generic [ref=e1190] [cursor=pointer]:
+            - generic [ref=e1191]: ▸
+            - generic [ref=e1192]: last week
+          - generic [ref=e1194] [cursor=pointer]:
+            - generic "Double-click to rename" [ref=e1197]: chrome .250
+            - generic:
+              - button "Conversation actions":
+                - img
+        - generic [ref=e1198]:
+          - generic [ref=e1199] [cursor=pointer]:
+            - generic [ref=e1200]: ▸
+            - generic [ref=e1201]: older
+          - generic [ref=e1202]:
+            - generic [ref=e1203] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1206]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1207] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1210]:
+                - text: "\"Implementing Swarm Feature in Vibecode \""
+                - 'generic "Click to filter by #16" [ref=e1211]': "#16"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1212] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1215]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1216] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1219]: "\"Hermes profile delegation\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1220] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1223]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1224] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1227]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1228] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1231]: "\"Hermes Agent Session Resume\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1232] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1235]: "\"Hermes Agent Setup Details\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1236] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1239]: "\"Future of Computing Vision\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1240] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1243]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1244] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1247]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1248] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1251]: "\"Memory System Test\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1252] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1255]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1256] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1259]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1260] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1263]: "\"Claude Opus and Codex Pricing\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1264] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1267]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1268] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1271]: "\"Hermes Gateway NixOS Setup\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1272] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1275]:
+                - text: "\"Implementing Swarm Feature in Vibecode \""
+                - 'generic "Click to filter by #15" [ref=e1276]': "#15"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1277] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1280]: "\"Hermes Profile Configuration in VSCode\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1281] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1284]:
+                - text: "\"Implementing Swarm Feature in Vibecode \""
+                - 'generic "Click to filter by #14" [ref=e1285]': "#14"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1286] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1289]:
+                - text: "\"Implementing Swarm Feature in Vibecode \""
+                - 'generic "Click to filter by #13" [ref=e1290]': "#13"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1291] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1294]: "\"Hermes ACP in VS Code\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1295] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1298]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1299] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1302]:
+                - text: "\"Implementing Swarm Feature in Vibecode \""
+                - 'generic "Click to filter by #12" [ref=e1303]': "#12"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1304] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1307]:
+                - text: "\"Implementing Swarm Feature in Vibecode \""
+                - 'generic "Click to filter by #11" [ref=e1308]': "#11"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1309] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1312]: "\"Model Catalogue Refresh Issue\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1313] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1316]:
+                - text: "\"Implementing Swarm Feature in Vibecode \""
+                - 'generic "Click to filter by #10" [ref=e1317]': "#10"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1318] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1321]:
+                - text: "\"Implementing Swarm Feature in Vibecode \""
+                - 'generic "Click to filter by #9" [ref=e1322]': "#9"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1323] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1326]: "\"Project Config File Location\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1327] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1330]: "\"hermes update command help\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1331] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1334]: "\"Hermes Agent Configuration\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1335] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1338]: "\"Hermes Agent Forking Explained\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1339] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1342]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1343] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1346]:
+                - text: "\"Implementing Swarm Feature in Vibecode \""
+                - 'generic "Click to filter by #8" [ref=e1347]': "#8"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1348] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1351]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1352] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1355]:
+                - text: "\"Implementing Swarm Feature in Vibecode \""
+                - 'generic "Click to filter by #7" [ref=e1356]': "#7"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1357] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1360]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1361] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1364]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1365] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1368]:
+                - text: "\"Implementing Swarm Feature in Vibecode \""
+                - 'generic "Click to filter by #6" [ref=e1369]': "#6"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1370] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1373]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1374] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1377]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1378] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1381]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1382] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1385]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1386] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1389]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1390] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1393]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1394] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1397]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1398] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1401]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1402] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1405]:
+                - text: "\"How Memster Stores and Retrieves Memory \""
+                - 'generic "Click to filter by #7" [ref=e1406]': "#7"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1407] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1410]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1411] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1414]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1415] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1418]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1419] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1422]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1423] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1426]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1427] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1430]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1431] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1434]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1435] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1438]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1439] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1442]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1443] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1446]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1447] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1450]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1451] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1454]:
+                - text: "\"How Memster Stores and Retrieves Memory \""
+                - 'generic "Click to filter by #6" [ref=e1455]': "#6"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1456] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1459]:
+                - text: "\"Implementing Swarm Feature in Vibecode \""
+                - 'generic "Click to filter by #5" [ref=e1460]': "#5"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1461] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1464]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1465] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1468]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1469] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1472]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1473] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1476]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1477] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1480]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1481] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1484]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1485] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1488]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1489] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1492]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1493] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1496]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1497] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1500]:
+                - text: "\"How Memster Stores and Retrieves Memory \""
+                - 'generic "Click to filter by #5" [ref=e1501]': "#5"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1502] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1505]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1506] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1509]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1510] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1513]:
+                - text: "\"Changing Hermes Auxiliary Model Defaults \""
+                - 'generic "Click to filter by #2" [ref=e1514]': "#2"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1515] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1518]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1519] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1522]:
+                - text: "\"How Memster Stores and Retrieves Memory \""
+                - 'generic "Click to filter by #4" [ref=e1523]': "#4"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1524] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1527]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1528] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1531]:
+                - text: "\"Implementing Swarm Feature in Vibecode \""
+                - 'generic "Click to filter by #4" [ref=e1532]': "#4"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1533] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1536]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1537] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1540]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1541] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1544]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1545] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1548]: "\"Comparing Memory Providers Custom Hermes Solution\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1549] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1552]: "\"Changing Hermes Auxiliary Model Defaults\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1553] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1556]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1557] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1560]:
+                - text: "\"How Memster Stores and Retrieves Memory \""
+                - 'generic "Click to filter by #3" [ref=e1561]': "#3"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1562] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1565]:
+                - text: "\"Implementing Swarm Feature in Vibecode \""
+                - 'generic "Click to filter by #3" [ref=e1566]': "#3"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1567] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1570]: "\"Configuring Discord Delivery for Cron Jobs\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1571] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1574]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1575] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1578]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1579] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1582]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1583] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1586]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1587] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1590]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1591] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1594]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1595] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1598]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1599] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1602]: "\"Fixing Memster MCP and Commit Sync\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1603] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1606]:
+                - text: "\"Implementing Swarm Feature in Vibecode \""
+                - 'generic "Click to filter by #2" [ref=e1607]': "#2"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1608] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1611]:
+                - text: "\"How Memster Stores and Retrieves Memory \""
+                - 'generic "Click to filter by #2" [ref=e1612]': "#2"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1613] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1616]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1617] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1620]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1621] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1624]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1625] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1628]: "\"Restoring Hermes customizations after updates\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1629] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1632]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1633] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1636]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1637] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1640]: "\"Implementing Swarm Feature in Vibecode\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1641] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1644]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1645] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1648]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1649] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1652]: "\"How Memster Stores and Retrieves Memory\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1653] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1656]: "\"How Memster Stores and Retrieves Memories\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1657] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1660]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1661] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1664]: "\"Fixing NocoBase MCP Failure\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1665] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1668]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1669] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1672]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1673] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1676]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1677] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1680]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1681] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1684]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1685] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1688]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1689] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1692]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1693] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1696]: "\"Benchmarking Model Performance and Tool Limits\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1697] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1700]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1701] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1704]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1705] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1708]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1709] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1712]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1713] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1716]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1717] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1720]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1721] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1724]: "\"Finding 2B Models for CPU Delegation Tasks\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1725] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1728]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1729] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1732]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1733] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1736]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1737] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1740]: "\"Model Vibes Benchmark Evaluation\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1741] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1744]: "\"Casual greeting and model introduction\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1745] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1748]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1749] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1752]: "\"Hermes Skills Guide\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1753] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1756]: "\"Hermes Agent Setup and Configuration Guide\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1757] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1760]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1761] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1764]: "\"Locating and Editing HERMES_CADUCEUS Definition\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1765] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1768]: "\"Hermes Agent Skill Usage Guide\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1769] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1772]: "\"Locating and Replacing Hermes Caduceus Banner Heart\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1773] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1776]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1777] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1780]: "\"Hermes RAG capabilities and external DB usage\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1781] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1784]: "\"Database Locked and Model Switch Discussion\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1785] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1788]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1789] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1792]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1793] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1796]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1797] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1800]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1801] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1804]: "\"Creating Model Vibes Benchmark Skill\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1805] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1808]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1809] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1812]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1813] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1816]:
+                - text: "\"Lowercase tip and visual config sync \""
+                - 'generic "Click to filter by #2" [ref=e1817]': "#2"
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1818] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1821]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1822] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1825]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1826] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1829]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1830] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1833]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1834] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1837]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1838] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1841]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1842] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1845]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1846] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1849]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1850] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1853]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1854] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1857]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1858] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1861]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1862] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1865]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1866] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1869]: "\"Lowercase tip and visual config sync\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1870] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1873]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1874] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1877]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1878] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1881]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1882] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1885]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1886] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1889]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1890] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1893]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1894] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1897]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1898] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1901]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1902] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1905]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1906] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1909]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1910] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1913]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1914] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1917]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1918] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1921]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1922] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1925]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1926] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1929]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1930] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1933]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1934] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1937]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1938] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1941]: "\"Automatic Fork Sync for Hermes Agent\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1942] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1945]: "\"Describing a Minimalist Yellow Smiley Face\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1946] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1949]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1950] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1953]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1954] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1957]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1958] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1961]: "\"Image Identification Request\""
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1962] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1965]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1966] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1969]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1970] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1973]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1974] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1977]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1978] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1981]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1982] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1985]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1986] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1989]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1990] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1993]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1994] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e1997]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e1998] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e2001]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e2002] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e2005]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e2006] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e2009]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e2010] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e2013]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e2014] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e2017]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+            - generic [ref=e2018] [cursor=pointer]:
+              - generic "Double-click to rename" [ref=e2021]: Untitled
+              - generic:
+                - button "Conversation actions":
+                  - img
+  - main [ref=e36]:
+    - generic [ref=e37]:
+      - generic [ref=e38]:
+        - generic "click to edit" [ref=e39]: hello, are you working?
+        - generic [ref=e2023] [cursor=pointer]: hello, are you working?
+      - generic [ref=e40]:
+        - button "Hide workspace panel" [pressed] [ref=e1064] [cursor=pointer]:
+          - img [ref=e42]
+        - button "open terminal" [ref=e44]:
+          - img [ref=e45]
+    - generic [ref=e2024]:
+      - generic [ref=e2025]: hello, are you working?
+      - generic [ref=e2026]: 11:14pm - 4/30/26
+    - generic [ref=e55]:
+      - textbox "Message ♡ hermes ♡…" [active] [ref=e57]
+      - generic [ref=e58]:
+        - generic [ref=e59]:
+          - button "attach files" [ref=e60] [cursor=pointer]:
+            - img [ref=e61]
+          - button "voice input" [ref=e63] [cursor=pointer]:
+            - img [ref=e64]
+          - button "house" [ref=e1065] [cursor=pointer]:
+            - img [ref=e70]
+            - generic [ref=e72]: house
+            - img [ref=e74]
+          - generic [ref=e76]:
+            - button "deepseek" [ref=e77] [cursor=pointer]:
+              - img [ref=e79]
+              - generic [ref=e82]: deepseek
+              - img [ref=e84]
+            - combobox
+        - button "stop generation" [ref=e2032] [cursor=pointer]:
+          - img [ref=e2033]

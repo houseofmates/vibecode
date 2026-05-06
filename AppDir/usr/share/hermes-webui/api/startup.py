@@ -49,11 +49,11 @@ def auto_install_agent_deps() -> bool:
     req_file = agent_dir / 'requirements.txt'
     pyproject = agent_dir / 'pyproject.toml'
     if req_file.exists():
-        install_args = [sys.executable, '-m', 'pip', 'install', '--quiet', '-r', str(req_file)]
-        print(f'     Installing from {req_file} ...', flush=True)
+        install_args = [sys.executable, '-m', 'pip', 'install', '--quiet', '--break-system-packages', '-r', str(req_file)]
+        print(f' Installing from {req_file} ...', flush=True)
     elif pyproject.exists():
-        install_args = [sys.executable, '-m', 'pip', 'install', '--quiet', str(agent_dir)]
-        print(f'     Installing from {agent_dir} (pyproject.toml) ...', flush=True)
+        install_args = [sys.executable, '-m', 'pip', 'install', '--quiet', '--break-system-packages', str(agent_dir)]
+        print(f' Installing from {agent_dir} (pyproject.toml) ...', flush=True)
     else:
         print('[!!] Auto-install skipped: no requirements.txt or pyproject.toml in agent dir.', flush=True)
         return False

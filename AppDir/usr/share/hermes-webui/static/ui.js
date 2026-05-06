@@ -1,6 +1,7 @@
 const S={session:null,messages:[],entries:[],busy:false,pendingFiles:[],toolCalls:[],activeStreamId:null,currentDir:'.',activeProfile:'default'};
 const INFLIGHT={};  // keyed by session_id while request in-flight
 const SESSION_QUEUES={};  // keyed by session_id for queued follow-up turns
+let _queueBadgeHideTimer=null;
 const $=id=>document.getElementById(id);
 function _getSessionQueue(sid, create=false){
   if(!sid) return [];
@@ -13,6 +14,15 @@ function queueSessionMessage(sid, payload){
   q.push(payload);
   return q.length;
 }
+function clearQueuedSessionMessages(sessionId){
+  const sid=sessionId||(S.session&&S.session.session_id);
+  if(!sid) return 0;
+  const q=_getSessionQueue(sid,false);
+  if(!q.length) return 0;
+  const count=q.length;
+  delete SESSION_QUEUES[sid];
+  return count;
+}
 function shiftQueuedSessionMessage(sid){
   const q=_getSessionQueue(sid,false);
   if(!q.length) return null;
@@ -24,6 +34,138 @@ function getQueuedSessionCount(sid){
   return _getSessionQueue(sid,false).length;
 }
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// ── XML tool-tag helpers ───────────────────────────────────────────────────
+// Models that emit pseudo-tool-calls as raw XML tags (e.g. <terminal>...</terminal>,
+// <read_file>...</read_file>) instead of structured tool_calls need their tags
+// extracted into collapsible tool cards and stripped from the chat bubble.
+const _NON_TOOL_HTML_TAGS=new Set([
+  'think','thinking','reasoning','REASONING_SCRATCHPAD',
+  'br','p','div','span','strong','b','em','i','code','pre',
+  'h1','h2','h3','h4','h5','h6','ul','ol','li','table','thead','tbody','tr','th','td',
+  'hr','blockquote','a','img','sub','sup','del','s','u','mark','small','big','font',
+  'center','strike','tt','var','kbd','samp','abbr','acronym','address','article','aside',
+  'audio','bdi','bdo','canvas','cite','datalist','details','dfn','dialog','figcaption',
+  'figure','footer','header','ins','main','map','nav','object','output','picture',
+  'progress','q','rp','rt','ruby','section','summary','template','time','track','video','wbr',
+  'math','mrow','mi','mo','mn','msqrt','mfrac','msub','msup','msubsup','munder','mover',
+  'munderover','mtable','mtr','mtd','svg','path','rect','circle','ellipse','line','polyline',
+  'polygon','text','g','defs','use','symbol','clipPath','mask','pattern','linearGradient',
+  'radialGradient','stop','filter'
+]);
+
+function _isXmlToolTag(tagName){
+  const tn=tagName.toLowerCase();
+  if(_NON_TOOL_HTML_TAGS.has(tn)) return false;
+  if(tn.includes('_')||tn.includes('-')) return true;
+  const _known=new Set(['terminal','python','bash','shell','sh','cmd','powershell','js',
+    'javascript','ruby','perl','rust','go','java','kotlin','swift','cpp','c','csharp','cs',
+    'dart','lua','r','julia','matlab','groovy','clojure','lisp','scheme','haskell','ocaml',
+    'nim','zig','v','mojo','php','typescript','ts']);
+  return _known.has(tn);
+}
+
+function extractXmlToolCalls(text){
+  const toolCalls=[];
+  if(!text) return {displayText:text||'',toolCalls};
+  let displayText=text;
+
+  // ── NVIDIA NIM <tool_call> extraction ─────────────────────────────────────
+  // NIM endpoints sometimes emit tool calls as raw XML inside message content
+  // in addition to structured tool_calls. Handle the <tool_call>name<arg_key>k
+  // </arg_key><arg_value>v</arg_value>...</tool_call> format explicitly.
+  const nvidiaRe=/<tool_call>([\s\S]*?)<\/tool_call>/gi;
+  let nm;
+  while((nm=nvidiaRe.exec(text))!==null){
+    const inner=nm[1].trim();
+    // The tool name is the first token before any tag
+    const nameMatch=inner.match(/^([a-zA-Z_][a-zA-Z0-9_\-]*)/);
+    const name=nameMatch?nameMatch[1]:'tool_call';
+    const args={};
+    const kvRe=/<arg_key>([\s\S]*?)<\/arg_key>\s*<arg_value>([\s\S]*?)<\/arg_value>/gi;
+    let kv;
+    while((kv=kvRe.exec(inner))!==null){
+      const k=kv[1].trim();
+      const v=kv[2].trim();
+      if(k) args[k]=v;
+    }
+    if(!Object.keys(args).length && inner) args.content=inner;
+    toolCalls.push({
+      name,
+      preview:inner.slice(0,80),
+      args,
+      snippet:inner,
+      done:true,
+      tid:`xml-${name}-${Math.abs(inner.split('').reduce((h,c)=>((h<<5)-h)+c.charCodeAt(0),0)).toString(36)}`
+    });
+  }
+  displayText=displayText.replace(nvidiaRe,'');
+  // Strip orphaned arg_key/arg_value pairs that can remain when the outer
+  // wrapper was fragmented across chunks or already removed by other code.
+  displayText=displayText.replace(/<arg_key>[\s\S]*?<\/arg_key>\s*<arg_value>[\s\S]*?<\/arg_value>/gi,'');
+  displayText=displayText.replace(/<arg_key>[\s\S]*?<\/arg_key>/gi,'');
+  displayText=displayText.replace(/<arg_value>[\s\S]*?<\/arg_value>/gi,'');
+
+  // ── NVIDIA NIM custom markers ──────────────────────────────────────────────
+  // Strip markers like <tool_call_end>, <tool_calls_section_end>, <tool_call_begin|>
+  displayText=displayText.replace(/<tool_call_end>/gi,'');
+  displayText=displayText.replace(/<tool_calls_section_end>/gi,'');
+  displayText=displayText.replace(/<tool_calls_section_begin>/gi,'');
+  displayText=displayText.replace(/<\|tool_call_section_begin\|>/gi,'');
+  displayText=displayText.replace(/<\|tool_call_section_end\|>/gi,'');
+  displayText=displayText.replace(/<tool_call_begin\|>/gi,'');
+
+  // ── JSON tool calls with "parameters" field (NVIDIA NIM style) ──────────
+  // Pattern: {"name": "...", "parameters": {...}, "id": "..."}
+  const jsonParamRe=/\{\s*"name"\s*:\s*"([^"]+)"\s*,\s*"parameters"\s*:\s*(\{[^\}]*\})[^\}]*\}/gi;
+  let jsonMatch;
+  while((jsonMatch=jsonParamRe.exec(text))!==null){
+    const name=jsonMatch[1];
+    let args={};
+    try{ args=JSON.parse(jsonMatch[2]); }catch(e){ args={raw:jsonMatch[2]}; }
+    const full=jsonMatch[0];
+    toolCalls.push({
+      name,
+      preview:JSON.stringify(args).slice(0,80),
+      args,
+      snippet:full,
+      done:true,
+      tid:`json-${name}-${Math.abs(full.split('').reduce((h,c)=>((h<<5)-h)+c.charCodeAt(0),0)).toString(36)}`
+    });
+  }
+  displayText=displayText.replace(jsonParamRe,'');
+
+  // ── Partial JSON fragments (remnants of tool calls) ──────────────────────
+  // Pattern: ,"id":"skills_list:1"} or similar fragments
+  displayText=displayText.replace(/,\s*"id"\s*:\s*"[^"]+"\s*\}/g,'');
+
+  // ── Generic XML pseudo-tool extraction ────────────────────────────────────
+  const regex=/<([a-zA-Z_][a-zA-Z0-9_\-]*)[^>]*>([\s\S]*?)<\/\1>/g;
+  let match;
+  while((match=regex.exec(displayText))!==null){
+    const tagName=match[1];
+    const inner=match[2].trim();
+    if(!_isXmlToolTag(tagName)) continue;
+    // Skip already-handled NIM inner tags
+    if(tagName==='arg_key'||tagName==='arg_value') continue;
+    // Parse nested key-value tags like <limit>100</limit>
+    const args={};
+    const innerRe=/<([a-zA-Z_][a-zA-Z0-9_\-]*)>([\s\S]*?)<\/\1>/g;
+    let im;
+    while((im=innerRe.exec(inner))!==null) args[im[1]]=im[2].trim();
+    if(!Object.keys(args).length && inner) args.content=inner;
+    toolCalls.push({
+      name:tagName,
+      preview:inner.slice(0,80),
+      args,
+      snippet:inner,
+      done:true,
+      tid:`xml-${tagName}-${Math.abs(inner.split('').reduce((h,c)=>((h<<5)-h)+c.charCodeAt(0),0)).toString(36)}`
+    });
+  }
+  displayText=displayText.replace(regex,(full,tagName)=>_isXmlToolTag(tagName)&&tagName!=='arg_key'&&tagName!=='arg_value'?'':full).trim();
+  return {displayText,toolCalls};
+}
 
 // Dynamic model labels -- populated by populateModelDropdown(), fallback to static map
 let _dynamicModelLabels={};
@@ -83,7 +225,7 @@ async function _fetchLiveModels(provider, sel){
   // All providers now supported via agent's provider_model_ids() — no exclusions needed
   if(_liveModelCache[provider]) return; // already fetched this session
   try{
-    const url=new URL('api/models/live',location.href);
+    const url=new URL('api/models/live', window.HERMES_API_BASE || location.href);
     url.searchParams.set('provider',provider);
     const data=await fetch(url.href,{credentials:'include'}).then(r=>r.json());
     if(!data.models||!data.models.length) return;
@@ -197,11 +339,12 @@ function renderModelDropdown(){
       const heading=document.createElement('div');
       heading.className='model-group';
       heading.textContent=child.label||'Models';
+      if(child.dataset.group) heading.dataset.group=child.dataset.group;
       dd.appendChild(heading);
       for(const opt of Array.from(child.children)){
         const row=document.createElement('div');
         row.className='model-opt'+(opt.value===sel.value?' active':'');
-        row.innerHTML=`<span class="model-opt-name">${esc(opt.textContent||getModelLabel(opt.value))}</span><span class="model-opt-id">${esc(opt.value)}</span>`;
+        row.innerHTML=`<span class="model-opt-name">${esc(opt.textContent||getModelLabel(opt.value))}</span><span class="model-opt-id">${esc(_stripProviderPrefix(opt.value))}</span>`;
         row.onclick=()=>selectModelFromDropdown(opt.value);
         dd.appendChild(row);
       }
@@ -210,7 +353,7 @@ function renderModelDropdown(){
     if(child.tagName==='OPTION'){
       const row=document.createElement('div');
       row.className='model-opt'+(child.value===sel.value?' active':'');
-      row.innerHTML=`<span class="model-opt-name">${esc(child.textContent||getModelLabel(child.value))}</span><span class="model-opt-id">${esc(child.value)}</span>`;
+      row.innerHTML=`<span class="model-opt-name">${esc(child.textContent||getModelLabel(child.value))}</span><span class="model-opt-id">${esc(_stripProviderPrefix(child.value))}</span>`;
       row.onclick=()=>selectModelFromDropdown(child.value);
       dd.appendChild(row);
     }
@@ -218,7 +361,7 @@ function renderModelDropdown(){
   // Custom model ID input — lets users type any model not in the curated list
   const _custSep=document.createElement('div');
   _custSep.className='model-group model-custom-sep';
-  _custSep.textContent=t('model_custom_label')||'Custom model ID';
+  _custSep.textContent=t('model_custom_label')||'custom model id';
   dd.appendChild(_custSep);
   const _custRow=document.createElement('div');
   _custRow.className='model-custom-row';
@@ -362,6 +505,82 @@ function scrollToBottom(){
   if(el) el.scrollTop=el.scrollHeight;
 }
 
+const EMOJI_SHORTCODES = {
+  '+1': '👍',
+  '-1': '👎',
+  '100': '💯',
+  '1st_place_medal': '🥇',
+  '2nd_place_medal': '🥈',
+  '3rd_place_medal': '🥉',
+  'clap': '👏',
+  'cry': '😢',
+  'sob': '😭',
+  'joy': '😂',
+  'laughing': '😆',
+  'sweat_smile': '😅',
+  'smile': '😄',
+  'grin': '😁',
+  'wink': '😉',
+  'blush': '😊',
+  'heart_eyes': '😍',
+  'star_struck': '🤩',
+  'sunglasses': '😎',
+  'thinking': '🤔',
+  'raised_hands': '🙌',
+  'pray': '🙏',
+  'muscle': '💪',
+  'ok_hand': '👌',
+  'thumbsup': '👍',
+  'thumbsdown': '👎',
+  'wave': '👋',
+  'fire': '🔥',
+  'sparkles': '✨',
+  'tada': '🎉',
+  'rocket': '🚀',
+  'boom': '💥',
+  'poop': '💩',
+  'heart': '❤️',
+  'star': '⭐',
+  'eyes': '👀',
+  'ghost': '👻',
+  'skull': '💀',
+  'alien': '👽',
+  'key': '🔑',
+  'lock': '🔒',
+  'zzz': '💤',
+  'trophy': '🏆',
+  'money_mouth': '🤑',
+  'party': '🥳',
+  'see_no_evil': '🙈',
+  'hear_no_evil': '🙉',
+  'speak_no_evil': '🙊',
+  'thumbs_up': '👍',
+  'thumbs_down': '👎',
+  'heartpulse': '💗',
+  'sparkling_heart': '💖',
+  'purple_heart': '💜',
+  'blue_heart': '💙',
+  'green_heart': '💚',
+  'yellow_heart': '💛',
+  'broken_heart': '💔'
+};
+
+function expandEmojiShortcodes(raw){
+  if(!raw||raw.indexOf(':')===-1) return raw;
+  return raw.replace(/:([a-z0-9_+\-]+):/gi,(_,name)=>{
+    const key = name.toLowerCase().replace(/-/g,'_');
+    return EMOJI_SHORTCODES[key] || `:${name}:`;
+  });
+}
+
+function _stripProviderPrefix(modelId){
+  // Strip @provider: prefix used for credential routing (e.g., @nvidia:model-name)
+  if(!modelId) return '';
+  if(modelId.startsWith('@') && modelId.includes(':')){
+    return modelId.split(':').slice(1).join(':')||modelId;
+  }
+  return modelId;
+}
 function getModelLabel(modelId){
   if(!modelId) return 'Unknown';
   // Check dynamic labels first, then fall back to splitting the ID
@@ -369,11 +588,19 @@ function getModelLabel(modelId){
   // Static fallback for common models
   const STATIC_LABELS={'openai/gpt-5.4-mini':'GPT-5.4 Mini','openai/gpt-4o':'GPT-4o','openai/o3':'o3','openai/o4-mini':'o4-mini','anthropic/claude-sonnet-4.6':'Sonnet 4.6','anthropic/claude-sonnet-4-5':'Sonnet 4.5','anthropic/claude-haiku-3-5':'Haiku 3.5','google/gemini-2.5-pro':'Gemini 2.5 Pro','deepseek/deepseek-chat-v3-0324':'DeepSeek V3','meta-llama/llama-4-scout':'Llama 4 Scout'};
   if(STATIC_LABELS[modelId]) return STATIC_LABELS[modelId];
-  return modelId.split('/').pop()||'Unknown';
+  return _stripProviderPrefix(modelId).split('/').pop()||'Unknown';
 }
 
 function renderMd(raw){
   let s=raw||'';
+  // ── Filter random 2-3 digit number sequences (DeepSeek v4 Pro NIM bug) ─────
+  // Removes numbers like "20", "60", "16" inserted directly into words without
+  // punctuation (e.g., "its20", "tokens60", "it16") while preserving legitimate
+  // numbers like version numbers (v1.0), ports (:8786), years (2024), etc.
+  s=s.replace(/([a-zA-Z])\d{2,3}([a-zA-Z])/g,'$1$2');
+  // Also handle numbers at end of words followed by space or punctuation
+  s=s.replace(/([a-zA-Z])\d{2,3}([\s.,;:!?])/g,'$1$2');
+  // ── End random number filter ──────────────────────────────────────────────
   // ── MEDIA: token stash (must run first, before any other processing) ───────
   // Detect MEDIA:<path-or-url> tokens emitted by the agent (e.g. screenshots,
   // generated images) and replace them with inline <img> or download links.
@@ -416,6 +643,7 @@ function renderMd(raw){
   s=s.replace(/<i>([\s\S]*?)<\/i>/gi,(_,t)=>'*'+t+'*');
   s=s.replace(/<code>([^<]*?)<\/code>/gi,(_,t)=>'`'+t+'`');
   s=s.replace(/<br\s*\/?>/gi,'\n');
+  s = expandEmojiShortcodes(s);
   // Restore stashed code blocks
   s=s.replace(/\x00F(\d+)\x00/g,(_,i)=>fence_stash[+i]);
   // Mermaid blocks: render as diagram containers (processed after DOM insertion)
@@ -524,6 +752,11 @@ function renderMd(raw){
   // <div class="..."> (mermaid/pre-header). Everything else is untrusted input.
   const SAFE_TAGS=/^<\/?(strong|em|code|pre|h[1-6]|ul|ol|li|table|thead|tbody|tr|th|td|hr|blockquote|p|br|a|img|div|span)([\s>]|$)/i;
   s=s.replace(/<\/?[a-z][^>]*>/gi,tag=>SAFE_TAGS.test(tag)?tag:esc(tag));
+  // Hex color buttons: render #rrggbb as a clickable copy pill outside protected tags.
+  const _hex_stash=[];
+  s=s.replace(/(<code>[\s\S]*?<\/code>|<a\b[^>]*>[\s\S]*?<\/a>|<img\b[^>]*>)/g,m=>{_hex_stash.push(m);return `\x00H${_hex_stash.length-1}\x00`;});
+  s=s.replace(/(^|[^A-Za-z0-9_-])#([0-9A-Fa-f]{6})\b/g,(_,pre,hex)=>`${pre}<button type="button" class="msg-hex-button" onclick="copyColorCode('#${hex}')" title="Copy #${hex}"><span class="msg-hex-swatch" style="background:#${hex}"></span><span class="msg-hex-label" style="color:#${hex}">#${hex}</span></button>`);
+  s=s.replace(/\x00H(\d+)\x00/g,(_,i)=>_hex_stash[+i]);
   // Autolink: convert plain URLs to clickable links.
   // Stash existing <a> tags first so we never re-link a URL already inside href="...".
   const _al_stash=[];
@@ -569,6 +802,27 @@ function renderMd(raw){
   return s;
 }
 
+function renderTextWithHexButtons(raw){
+  const escaped=esc(String(raw||'')).replace(/\n/g,'<br>');
+  return escaped.replace(/(^|[^A-Za-z0-9_-])#([0-9A-Fa-f]{6})\b/g,(_,pre,hex)=>`${pre}<button type="button" class="msg-hex-button" onclick="copyColorCode('#${hex}')" title="Copy #${hex}"><span class="msg-hex-swatch" style="background:#${hex}"></span><span class="msg-hex-label" style="color:#${hex}">#${hex}</span></button>`);
+}
+
+function copyColorCode(hex){
+  if(typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(hex).then(()=>showToast(`${hex} copied`),()=>showToast('Copy failed'));
+    return;
+  }
+  const ta=document.createElement('textarea');
+  ta.value=hex;
+  ta.setAttribute('readonly','');
+  ta.style.position='absolute';
+  ta.style.left='-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try{document.execCommand('copy');showToast(`${hex} copied`);}catch(e){showToast('Copy failed');}
+  document.body.removeChild(ta);
+}
+
 function setStatus(t){
   if(!t)return;
   showToast(t, 4000);
@@ -584,6 +838,81 @@ function setComposerStatus(t){
   }
   el.textContent=t;
   el.style.display='';
+}
+
+let _composerElapsedTimer=null;
+let _composerElapsedStart=0;
+let _composerElapsedStoppedAt=0;
+
+function _formatElapsedLabel(seconds){
+  if(seconds<60) return `${seconds} sec.`;
+  const minutes=Math.floor(seconds/60);
+  if(minutes<60) return `${minutes} min.`;
+  const hours=Math.floor(minutes/60);
+  if(hours<24) return `${hours} hr.`;
+  const days=Math.floor(hours/24);
+  if(days<7) return `${days} ${days===1?'day':'days'}`;
+  const weeks=Math.floor(days/7);
+  if(weeks<4) return `${weeks} ${weeks===1?'week':'weeks'}`;
+  const months=Math.max(1,Math.floor(days/30));
+  if(months<12) return `${months} ${months===1?'month':'months'}`;
+  const years=Math.floor(months/12) || 1;
+  return `${years} ${years===1?'year':'years'}`;
+}
+
+function _composerElapsedElement(){
+  return $('composerElapsed');
+}
+
+function _renderComposerElapsed(){
+  const el=_composerElapsedElement();
+  if(!el) return;
+  if(!_composerElapsedStart){
+    el.style.display='none';
+    return;
+  }
+  const now=_composerElapsedTimer?Date.now():(_composerElapsedStoppedAt||Date.now());
+  const elapsedSecs=Math.floor(Math.max(0, now-_composerElapsedStart)/1000);
+  el.textContent=_formatElapsedLabel(elapsedSecs);
+  el.style.display='';
+  if(!_composerElapsedTimer && elapsedSecs>0 && elapsedSecs<60){
+    el.classList.add('highlight');
+  } else {
+    el.classList.remove('highlight');
+  }
+}
+
+function _startComposerElapsedTimer(){
+  if(_composerElapsedTimer) clearInterval(_composerElapsedTimer);
+  _composerElapsedStart=Date.now();
+  _composerElapsedStoppedAt=0;
+  _renderComposerElapsed();
+  _composerElapsedTimer=setInterval(_renderComposerElapsed,1000);
+}
+
+function _stopComposerElapsedTimer(){
+  if(_composerElapsedTimer){
+    clearInterval(_composerElapsedTimer);
+    _composerElapsedTimer=null;
+  }
+  if(!_composerElapsedStart) return;
+  _composerElapsedStoppedAt=Date.now();
+  _renderComposerElapsed();
+}
+
+function _resetComposerElapsedTimer(){
+  if(_composerElapsedTimer){
+    clearInterval(_composerElapsedTimer);
+    _composerElapsedTimer=null;
+  }
+  _composerElapsedStart=0;
+  _composerElapsedStoppedAt=0;
+  const el=_composerElapsedElement();
+  if(el){
+    el.textContent='';
+    el.style.display='none';
+    el.classList.remove('highlight');
+  }
 }
 
 let _composerLockState=null;
@@ -634,7 +963,11 @@ function updateSendBtn(){
 function setBusy(v){
   S.busy=v;
   updateSendBtn();
+  // Hide composer spinner - use thinking dots instead
+  const spinner=$('composerSpinner');
+  if(spinner) spinner.style.display='none';
   if(!v){
+    _stopComposerElapsedTimer();
     setStatus('');
     setComposerStatus('');
     // Always hide Cancel button when not busy
@@ -664,15 +997,39 @@ function updateQueueBadge(sessionId){
     if(!badge){
       badge=document.createElement('div');
       badge.id='queueBadge';
-      badge.style.cssText='position:fixed;bottom:80px;right:24px;background:rgba(124,185,255,.18);border:1px solid rgba(124,185,255,.4);color:var(--blue);font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;z-index:50;pointer-events:none;backdrop-filter:blur(8px);';
+      badge.style.cssText='position:fixed;bottom:80px;right:24px;display:flex;align-items:center;gap:8px;background:rgba(124,185,255,.18);border:1px solid rgba(124,185,255,.4);color:var(--blue);font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;z-index:50;pointer-events:auto;backdrop-filter:blur(8px);';
+      const content=document.createElement('span');
+      content.className='queueBadge-text';
+      badge.appendChild(content);
+      const close=document.createElement('button');
+      close.type='button';
+      close.className='queueBadge-close';
+      close.textContent='×';
+      close.title='Cancel queued chat';
+      close.style.cssText='all:unset;cursor:pointer;color:var(--blue);font-size:14px;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;';
+      close.addEventListener('click', e=>{
+        e.stopPropagation();
+        clearQueuedSessionMessages(sid);
+        updateQueueBadge(sid);
+      });
+      badge.appendChild(close);
       document.body.appendChild(badge);
     }
-    badge.textContent=count===1?'1 message queued':`${count} messages queued`;
+    const content=badge.querySelector('.queueBadge-text');
+    if(content) content.textContent=count===1?'1 message queued':`${count} messages queued`;
+    clearTimeout(_queueBadgeHideTimer);
+    _queueBadgeHideTimer=setTimeout(()=>{
+      const b=$('queueBadge');
+      if(b) b.remove();
+      _queueBadgeHideTimer=null;
+    },2000);
   } else if(badge) {
     badge.remove();
+    clearTimeout(_queueBadgeHideTimer);
+    _queueBadgeHideTimer=null;
   }
 }
-function showToast(msg,ms){const el=$('toast');if(!el)return;el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),ms||2800);}
+function showToast(msg,ms){const el=$('toast');if(!el)return; if(/cron|session|sync|deleted|archived|restored|failed|duplicate|import|export|update|saved|moved|created|renamed|cleared|removed|deleted|copied|failed\//i.test(msg)) return; el.textContent=msg; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),ms||2800);}
 
 // ── Shared app dialogs ───────────────────────────────────────────────────────
 // showConfirmDialog(opts) and showPromptDialog(opts) replace browser-native dialog calls
@@ -853,7 +1210,17 @@ function loadInflightState(sid, streamId){
   const all=_readInflightStateMap();
   const entry=all[sid];
   if(!entry) return null;
-  if(streamId&&entry.streamId&&entry.streamId!==streamId) return null;
+  // If server reports an active stream, require exact streamId match to prevent
+  // connecting to a stale stream. If no active stream (streamId is null), reject
+  // any stored state that has a streamId (it was from an old completed stream).
+  if(streamId){
+    // Active stream on server - only use stored state if stream IDs match
+    if(entry.streamId!==streamId) return null;
+  }else{
+    // No active stream on server - reject stored state that has a streamId
+    // (stale data from a completed stream that wasn't cleaned up)
+    if(entry.streamId) return null;
+  }
   if(entry.updated_at&&Date.now()-entry.updated_at>10*60*1000){
     clearInflightState(sid);
     return null;
@@ -897,7 +1264,6 @@ async function refreshSession() {
     S.activeStreamId=data.session.active_stream_id||null;
 
     syncTopbar(); renderMessages();
-    showToast('Conversation refreshed');
   } catch(e) { setStatus('Refresh failed: ' + e.message); }
 }
 // ── Update banner ──
@@ -974,6 +1340,17 @@ async function checkInflightOnBoot(sid) {
     // Check if stream is still active
     const status = await api(`/api/chat/stream/status?stream_id=${encodeURIComponent(streamId || '')}`);
     if (status.active) {
+      if (S.session && S.session.session_id === inflightSid && S.session.active_stream_id === streamId && S.activeStreamId !== streamId) {
+        S.activeStreamId = streamId;
+        S.busy = true;
+        setBusy(true);
+        const cancelBtn = $('btnCancel');
+        if (cancelBtn) cancelBtn.style.display = 'inline-flex';
+        if (typeof attachLiveStream === 'function') {
+          attachLiveStream(inflightSid, streamId, S.session.pending_attachments || [], {reconnecting:true});
+          return;
+        }
+      }
       // Stream is genuinely still running -- show the banner
       showReconnectBanner(t('reconnect_active'));
     } else {
@@ -1005,42 +1382,468 @@ function editTopbarTitle(event){
   }).then(async (newTitle)=>{
     if(!newTitle||!newTitle.trim()) return;
     newTitle=newTitle.trim();
+    // Optimistic update: update UI immediately
+    const oldTitle = S.session.title;
+    S.session.title = newTitle;
+    syncTopbar();
+    const cached = (typeof _allSessions !== 'undefined') ? _allSessions.find(s => s.session_id === S.session.session_id) : null;
+    if (cached) cached.title = newTitle;
+    if(typeof renderSessionListFromCache==='function')renderSessionListFromCache();
     try{
       await api('/api/session/rename',{method:'POST',body:JSON.stringify({
         session_id:S.session.session_id, title:newTitle
       })});
-      S.session.title=newTitle;
-      syncTopbar();
-      renderSessionList();
-      showToast('Conversation renamed');
     }catch(e){
+      // Revert on failure
+      S.session.title = oldTitle;
+      if (cached) cached.title = oldTitle;
+      syncTopbar();
+      if (typeof renderSessionListFromCache === 'function') renderSessionListFromCache();
       showToast('Rename failed: '+e.message);
     }
   });
 }
 
+let _topbarContextMenu = null;
+
 function handleTopbarRightClick(event){
-  if(event) event.preventDefault();
-  // Open browser context menu for new tab options
-  // This allows native browser right-click menu to show "Open in new tab", etc.
-  return false;
+  if(event){
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  // Remove any existing context menu
+  hideTopbarContextMenu();
+
+  // Only show "+ add" if there's a current session with a workspace, or we have a default workspace
+  const currentWorkspace = S.session?.workspace;
+  const hasWorkspace = !!currentWorkspace;
+
+  // Create context menu
+  const menu = document.createElement('div');
+  menu.className = 'topbar-context-menu';
+  menu.style.cssText = 'position:fixed;background:#0a0a0a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.6);z-index:10000;min-width:160px;overflow:hidden;';
+  
+  // Estimate menu height (~75px for 1-2 items)
+  const menuHeight = 75;
+  const menuWidth = 160;
+  
+  // Adjust position to stay within viewport
+  let x = event.clientX;
+  let y = event.clientY;
+  
+  if (y + menuHeight > window.innerHeight) {
+    y = Math.max(10, y - menuHeight);
+  }
+  if (x + menuWidth > window.innerWidth) {
+    x = Math.max(10, x - menuWidth);
+  }
+  
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+
+  // Add new conversation button
+  const addBtn = document.createElement('button');
+  addBtn.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;border:none;background:transparent;color:var(--text);font-size:13px;cursor:pointer;text-align:left;transition:background 0.15s;';
+  addBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> new chat';
+  addBtn.onmouseenter = () => addBtn.style.background = 'rgba(255,255,255,0.05)';
+  addBtn.onmouseleave = () => addBtn.style.background = 'transparent';
+  addBtn.onclick = async () => {
+    hideTopbarContextMenu();
+    // If there's a current workspace, newSession will inherit it
+    await newSession(true);
+    await renderSessionList();
+    if($('msg')) $('msg').focus();
+  };
+
+  menu.appendChild(addBtn);
+
+  // If there's a workspace, show it as disabled info
+  if(hasWorkspace && currentWorkspace !== 'default'){
+    const wsInfo = document.createElement('div');
+    wsInfo.style.cssText = 'padding:8px 14px;border-top:1px solid rgba(255,255,255,0.05);font-size:11px;color:var(--muted);text-overflow:ellipsis;overflow:hidden;white-space:nowrap;';
+    wsInfo.textContent = 'workspace: ' + currentWorkspace.split('/').pop();
+    menu.appendChild(wsInfo);
+  }
+
+  document.body.appendChild(menu);
+  _topbarContextMenu = menu;
+
+  // Close on click outside or right-click elsewhere
+  setTimeout(() => {
+    document.addEventListener('click', hideTopbarContextMenu, { once: true });
+    document.addEventListener('contextmenu', hideTopbarContextMenu, { once: true });
+  }, 10);
 }
 
-function handleTopbarClick(event){
-  // Click on topbar title to rename conversation
-  if(!S.session) return;
-  const titleEl = document.getElementById('topbarTitle');
+function hideTopbarContextMenu(){
+  if(_topbarContextMenu){
+    _topbarContextMenu.remove();
+    _topbarContextMenu = null;
+  }
+}
+
+let _titleEditing = false;
+
+function startInlineTitleEdit(){
+  if(!S.session || _titleEditing) return;
+  _titleEditing = true;
+  const titleEl = $('topbarTitle');
   if(!titleEl) return;
   
-  const currentTitle = titleEl.textContent;
-  const newTitle = prompt('Rename conversation:', currentTitle);
-  if(newTitle && newTitle.trim() && newTitle !== currentTitle){
-    S.session.title = newTitle.trim();
-    titleEl.textContent = newTitle.trim();
-    saveSessions();
-    if(typeof renderSessionList === 'function') renderSessionList();
-    showToast('Conversation renamed');
+  const currentTitle = S.session.title || 'untitled';
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.value = currentTitle;
+  inp.style.cssText = 'background:transparent;border:1px solid var(--accent);border-radius:6px;padding:3px 8px;font-size:inherit;color:inherit;outline:none;width:auto;min-width:120px;max-width:300px;';
+  
+  const finish = async (save) => {
+    _titleEditing = false;
+    const newTitle = inp.value.trim();
+    inp.replaceWith(titleEl);
+    
+    if(save && newTitle && newTitle !== currentTitle){
+      const oldTitle = S.session.title;
+      S.session.title = newTitle;
+      titleEl.textContent = newTitle;
+      
+      const cached = (typeof _allSessions !== 'undefined') ? _allSessions.find(s => s.session_id === S.session.session_id) : null;
+      if(cached) cached.title = newTitle;
+      
+      renderSessionTabs();
+      if(typeof renderSessionListFromCache === 'function') renderSessionListFromCache();
+      
+      try{
+        await api('/api/session/rename',{method:'POST',body:JSON.stringify({
+          session_id:S.session.session_id, title:newTitle
+        })});
+      }catch(e){
+        S.session.title = oldTitle;
+        titleEl.textContent = oldTitle;
+        if(cached) cached.title = oldTitle;
+        syncTopbar();
+        renderSessionTabs();
+        showToast('Rename failed: '+e.message);
+      }
+    } else {
+      titleEl.textContent = currentTitle;
+    }
+  };
+  
+  inp.onkeydown = (e) => {
+    if(e.key === 'Enter'){ e.preventDefault(); finish(true); }
+    if(e.key === 'Escape'){ e.preventDefault(); finish(false); }
+  };
+  inp.onblur = () => finish(false);
+  
+  titleEl.replaceWith(inp);
+  inp.focus();
+  inp.select();
+}
+
+// Session tabs: show open sessions as rounded cards
+let _openSessions = []; // Recently opened sessions
+const OPEN_SESSIONS_STORAGE_KEY = 'hermes-webui-open-sessions';
+
+function saveOpenSessions(){
+  try { localStorage.setItem(OPEN_SESSIONS_STORAGE_KEY, JSON.stringify(_openSessions)); } catch (e) {}
+}
+
+function restoreOpenSessions(){
+  let raw = null;
+  try { raw = localStorage.getItem(OPEN_SESSIONS_STORAGE_KEY); } catch (e) {}
+  if(!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if(Array.isArray(parsed)){
+      _openSessions = parsed.filter(s => s && s.session_id).slice(0, 10);
+      renderSessionTabs();
+      return _openSessions;
+    }
+  } catch (e) {}
+  return [];
+}
+
+function addToOpenSessions(session){
+  if(!session) return;
+  // Check if already exists - if so, don't rearrange (preserve user's tab order)
+  const existingIndex = _openSessions.findIndex(s => s.session_id === session.session_id);
+  if(existingIndex !== -1){
+    // Update title if changed, but keep position
+    _openSessions[existingIndex].title = session.title || 'untitled';
+    _openSessions[existingIndex].workspace = session.workspace;
+  } else {
+    // Add to front only for new sessions
+    _openSessions.unshift({
+      session_id: session.session_id,
+      title: session.title || 'untitled',
+      workspace: session.workspace
+    });
   }
+  // Keep only last 10
+  if(_openSessions.length > 10) _openSessions.pop();
+  renderSessionTabs();
+  saveOpenSessions();
+}
+
+function removeFromOpenSessions(sessionId){
+  _openSessions = _openSessions.filter(s => s.session_id !== sessionId);
+  renderSessionTabs();
+  saveOpenSessions();
+}
+
+function renderSessionTabs(){
+  const container = $('sessionTabs');
+  if(!container) return;
+  container.innerHTML = '';
+  
+  if(_openSessions.length === 0) return;
+  
+  _openSessions.forEach(s => {
+    const isActive = S.session && S.session.session_id === s.session_id;
+    const card = document.createElement('div');
+    card.className = 'session-tab-card';
+    card.dataset.sessionId = s.session_id;
+    card.style.cssText = `
+      display:flex;align-items:center;gap:6px;padding:4px 10px;
+      background:${isActive ? 'var(--accent, #f0c000)' : 'rgba(255,255,255,0.06)'};
+      color:${isActive ? 'var(--bg, #0a0a0a)' : 'var(--text, #eee)'};
+      border-radius:20px;font-size:12px;cursor:pointer;white-space:nowrap;
+      transition:all 0.15s;border:1px solid ${isActive ? 'var(--accent)' : 'transparent'};
+    `;
+    
+    // Title text
+    const title = document.createElement('span');
+    title.textContent = (s.title || 'untitled').substring(0, 25) + ((s.title||'').length > 25 ? '...' : '');
+    title.style.cssText = 'overflow:hidden;text-overflow:ellipsis;max-width:120px;';
+    
+    // Close button (small X)
+    const closeBtn = document.createElement('span');
+    closeBtn.innerHTML = '&times;';
+    closeBtn.style.cssText = `
+      display:${isActive ? 'none' : 'flex'};align-items:center;justify-content:center;
+      width:14px;height:14px;border-radius:50%;font-size:11px;font-weight:bold;
+      background:rgba(255,255,255,0.15);color:var(--text);cursor:pointer;
+    `;
+    closeBtn.onclick = (e) => {
+      e.stopPropagation();
+      removeFromOpenSessions(s.session_id);
+      // If closing active session, switch to next available or create new
+      if(isActive && _openSessions.length > 0){
+        loadSession(_openSessions[0].session_id);
+      } else if(isActive){
+        newSession(true);
+      }
+    };
+    
+    card.appendChild(title);
+    if(!isActive) card.appendChild(closeBtn);
+    
+    // Click to switch
+    card.onclick = async () => {
+      await loadSession(s.session_id);
+      if (typeof renderSessionListFromCache === 'function') renderSessionListFromCache();
+    };
+    
+    // Right-click for context menu (rename or close)
+    card.oncontextmenu = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showSessionTabContextMenu(e, s, card);
+    };
+    
+    // Drag and drop support
+    card.draggable = true;
+    card.ondragstart = (e) => {
+      e.dataTransfer.setData('text/plain', s.session_id);
+      e.dataTransfer.effectAllowed = 'move';
+      card.style.opacity = '0.5';
+      card.dataset.dragging = 'true';
+    };
+    card.ondragend = (e) => {
+      card.style.opacity = '1';
+      card.dataset.dragging = 'false';
+      // Remove all drag-over styles
+      document.querySelectorAll('.session-tab-card').forEach(c => {
+        c.style.borderLeft = '';
+        c.style.borderRight = '';
+      });
+    };
+    card.ondragover = (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const draggingCard = document.querySelector('.session-tab-card[data-dragging="true"]');
+      if(draggingCard && draggingCard !== card){
+        const rect = card.getBoundingClientRect();
+        const midX = rect.left + rect.width / 2;
+        if(e.clientX < midX){
+          card.style.borderLeft = '2px solid var(--accent)';
+          card.style.borderRight = '';
+        } else {
+          card.style.borderRight = '2px solid var(--accent)';
+          card.style.borderLeft = '';
+        }
+      }
+    };
+    card.ondragleave = () => {
+      card.style.borderLeft = '';
+      card.style.borderRight = '';
+    };
+    card.ondrop = (e) => {
+      e.preventDefault();
+      const draggedSessionId = e.dataTransfer.getData('text/plain');
+      const targetSessionId = s.session_id;
+      
+      if(draggedSessionId && targetSessionId && draggedSessionId !== targetSessionId){
+        const draggedIndex = _openSessions.findIndex(s => s.session_id === draggedSessionId);
+        const targetIndex = _openSessions.findIndex(s => s.session_id === targetSessionId);
+        
+        if(draggedIndex !== -1 && targetIndex !== -1){
+          const [draggedSession] = _openSessions.splice(draggedIndex, 1);
+          const rect = card.getBoundingClientRect();
+          const midX = rect.left + rect.width / 2;
+          const insertIndex = e.clientX < midX ? targetIndex : targetIndex + 1;
+          _openSessions.splice(insertIndex > draggedIndex ? insertIndex - 1 : insertIndex, 0, draggedSession);
+          renderSessionTabs();
+          saveOpenSessions();
+        }
+      }
+      
+      card.style.borderLeft = '';
+      card.style.borderRight = '';
+    };
+    
+    // Hover effects
+    card.onmouseenter = () => {
+      if(!isActive) card.style.background = 'rgba(255,255,255,0.12)';
+    };
+    card.onmouseleave = () => {
+      if(!isActive) card.style.background = 'rgba(255,255,255,0.06)';
+    };
+    
+    container.appendChild(card);
+  });
+}
+
+let _sessionTabMenu = null;
+
+function showSessionTabContextMenu(event, session, cardEl){
+  hideSessionTabMenu();
+  
+  const menu = document.createElement('div');
+  menu.className = 'session-tab-context-menu';
+  menu.style.cssText = `
+    position:fixed;background:#0a0a0a;border:1px solid rgba(255,255,255,0.1);
+    border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.6);z-index:10001;
+    min-width:140px;overflow:hidden;
+  `;
+  
+  // Adjust position to stay within viewport
+  let x = event.clientX;
+  let y = event.clientY;
+  if(y + 80 > window.innerHeight) y = Math.max(10, y - 80);
+  if(x + 140 > window.innerWidth) x = Math.max(10, x - 140);
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+  
+  // Rename option
+  const renameBtn = document.createElement('button');
+  renameBtn.style.cssText = 'width:100%;padding:10px 14px;border:none;background:transparent;color:var(--text);font-size:13px;cursor:pointer;text-align:left;';
+  renameBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg> rename';
+  renameBtn.onmouseenter = () => renameBtn.style.background = 'rgba(255,255,255,0.05)';
+  renameBtn.onmouseleave = () => renameBtn.style.background = 'transparent';
+  renameBtn.onclick = () => {
+    hideSessionTabMenu();
+    startSessionTabRename(session, cardEl);
+  };
+  
+  // Close (exit) option - just removes from open tabs, doesn't delete
+  const closeBtn = document.createElement('button');
+  closeBtn.style.cssText = 'width:100%;padding:10px 14px;border:none;background:transparent;color:var(--text);font-size:13px;cursor:pointer;text-align:left;border-top:1px solid rgba(255,255,255,0.05);';
+  closeBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> close tab';
+  closeBtn.onmouseenter = () => closeBtn.style.background = 'rgba(255,255,255,0.05)';
+  closeBtn.onmouseleave = () => closeBtn.style.background = 'transparent';
+  closeBtn.onclick = () => {
+    hideSessionTabMenu();
+    removeFromOpenSessions(session.session_id);
+    const isActive = S.session && S.session.session_id === session.session_id;
+    if(isActive && _openSessions.length > 0){
+      loadSession(_openSessions[0].session_id);
+    } else if(isActive){
+      newSession(true);
+    }
+  };
+  
+  menu.appendChild(renameBtn);
+  menu.appendChild(closeBtn);
+  document.body.appendChild(menu);
+  _sessionTabMenu = menu;
+  
+  setTimeout(() => {
+    document.addEventListener('click', hideSessionTabMenu, { once: true });
+    document.addEventListener('contextmenu', hideSessionTabMenu, { once: true });
+  }, 10);
+}
+
+function hideSessionTabMenu(){
+  if(_sessionTabMenu){
+    _sessionTabMenu.remove();
+    _sessionTabMenu = null;
+  }
+}
+
+function startSessionTabRename(session, cardEl){
+  const titleEl = cardEl.querySelector('span');
+  if(!titleEl) return;
+  
+  const currentTitle = session.title || 'untitled';
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.value = currentTitle;
+  inp.style.cssText = 'background:#0a0a0a;border:1px solid var(--accent);border-radius:4px;padding:2px 6px;font-size:12px;color:var(--text);outline:none;width:100px;';
+  
+  const finish = async (save) => {
+    const newTitle = inp.value.trim() || 'untitled';
+    inp.replaceWith(titleEl);
+    
+    if(save && newTitle !== currentTitle){
+      session.title = newTitle;
+      titleEl.textContent = newTitle.substring(0, 25) + (newTitle.length > 25 ? '...' : '');
+      
+      // Update in open sessions
+      const openSess = _openSessions.find(s => s.session_id === session.session_id);
+      if(openSess) openSess.title = newTitle;
+      
+      // Update current session if active
+      if(S.session && S.session.session_id === session.session_id){
+        S.session.title = newTitle;
+        $('topbarTitle').textContent = newTitle;
+      }
+      
+      const cached = (typeof _allSessions !== 'undefined') ? _allSessions.find(s => s.session_id === session.session_id) : null;
+      if(cached) cached.title = newTitle;
+      if(typeof renderSessionListFromCache === 'function') renderSessionListFromCache();
+      saveOpenSessions();
+      
+      try{
+        await api('/api/session/rename',{method:'POST',body:JSON.stringify({
+          session_id:session.session_id, title:newTitle
+        })});
+      }catch(e){
+        showToast('Rename failed: '+e.message);
+      }
+    }
+  };
+  
+  inp.onkeydown = (e) => {
+    if(e.key === 'Enter'){ e.preventDefault(); finish(true); }
+    if(e.key === 'Escape'){ e.preventDefault(); finish(false); }
+  };
+  inp.onblur = () => finish(true);
+  
+  titleEl.replaceWith(inp);
+  inp.focus();
+  inp.select();
 }
 
 function syncTopbar(){
@@ -1058,10 +1861,12 @@ function syncTopbar(){
     return;
   }
   const sessionTitle=S.session.title||t('untitled');
-  $('topbarTitle').textContent=sessionTitle;
+  if(!_titleEditing) $('topbarTitle').textContent=sessionTitle;
   document.title=sessionTitle+' \u2014 '+(window._botName||'Hermes');
-  const vis=S.messages.filter(m=>m&&m.role&&m.role!=='tool');
-  $('topbarMeta').textContent=t('n_messages',vis.length);
+  
+  // Add current session to open tabs
+  addToOpenSessions(S.session);
+  renderSessionTabs();
   // If a profile switch just happened, apply its model rather than the session's stale value.
   // S._pendingProfileModel is set by switchToProfile() and cleared here after one application.
   const modelOverride=S._pendingProfileModel;
@@ -1093,9 +1898,6 @@ function syncTopbar(){
   if(typeof _syncHermesPanelSessionActions==='function') _syncHermesPanelSessionActions();
   if(typeof syncWorkspaceDisplays==='function') syncWorkspaceDisplays();
   // modelSelect already set above
-  // Update profile chip label
-  const profileLabel=$('profileChipLabel');
-  if(profileLabel) profileLabel.textContent=S.activeProfile||'default';
   // Update right panel title with current workspace name
   const rightPanelTitle=$('rightPanelTitle');
   if(rightPanelTitle){
@@ -1106,14 +1908,16 @@ function syncTopbar(){
 
 // Load an existing session by ID
 async function loadSession(sessionId){
-  if(!sessionId) return;
-  const data=await api(`/api/session?session_id=${encodeURIComponent(sessionId)}`);
-  S.session=data.session;
-  S.messages=data.session?.messages||[];
-  if(typeof syncTopbar==='function') syncTopbar();
-  if(typeof syncWorkspaceDisplays==='function') syncWorkspaceDisplays();
-  if(typeof renderMessages==='function') renderMessages();
-  return data.session;
+ if(!sessionId) return;
+ const data=await api(`/api/session?session_id=${encodeURIComponent(sessionId)}`);
+ S.session=data.session;
+ S.messages=data.session?.messages||[];
+ if(typeof syncTopbar==='function') syncTopbar();
+ if(typeof syncWorkspaceDisplays==='function') syncWorkspaceDisplays();
+ if(typeof renderMessages==='function') renderMessages();
+ if(typeof renderSessionListFromCache==='function') renderSessionListFromCache();
+ if(typeof renderSessionTabs==='function') renderSessionTabs();
+ return data.session;
 }
 
 // Create a new session
@@ -1146,10 +1950,14 @@ function renderMessages(){
     // Keep assistant messages with tool_use content even if they have no text,
     // so tool cards can be anchored to their DOM rows on page reload (#140).
     if(m.role==='assistant'&&Array.isArray(m.content)&&m.content.some(p=>p&&p.type==='tool_use'))return true;
-    return msgContent(m)||m.attachments?.length;
+    return msgContent(m)||m.attachments?.length||(m.role==='assistant'&&String(m.reasoning||'').trim());
   });
   $('emptyState').style.display=vis.length?'none':'';
+  const _prevThinkingRow=$('thinkingRow');
   inner.innerHTML='';
+  // Preserve live thinking indicator during active streams so it survives
+  // full re-renders triggered by session refreshes or panel switches.
+  if(_prevThinkingRow&&S.busy) inner.appendChild(_prevThinkingRow);
   // Track original indices (in S.messages) so truncate knows the cut point.
   // Also include assistant messages that have tool_calls (OpenAI format) or
   // tool_use content (Anthropic format) even when their text is empty — these
@@ -1160,9 +1968,11 @@ function renderMessages(){
     if(!m||!m.role||m.role==='tool'){rawIdx++;continue;}
     const hasTc=Array.isArray(m.tool_calls)&&m.tool_calls.length>0;
     const hasTu=Array.isArray(m.content)&&m.content.some(p=>p&&p.type==='tool_use');
-    if(msgContent(m)||m.attachments?.length||(m.role==='assistant'&&(hasTc||hasTu))) visWithIdx.push({m,rawIdx});
+    if(msgContent(m)||m.attachments?.length||(m.role==='assistant'&&(hasTc||hasTu||String(m.reasoning||'').trim()))) visWithIdx.push({m,rawIdx});
     rawIdx++;
   }
+  // Track which message indices have had thinking cards rendered to prevent duplicates
+  const _thinkingCardsRendered = new Set();
   for(let vi=0;vi<visWithIdx.length;vi++){
     const {m,rawIdx}=visWithIdx[vi];
     let content=m.content||'';
@@ -1193,32 +2003,82 @@ function renderMessages(){
         }
       }
     }
+    // Deduplicate: if assistant content starts with the same text as the
+    // reasoning/thinking trace (case-insensitive), strip it so the bubble
+    // doesn't echo the thinking card. Handles models that emit reasoning
+    // both via structured API fields and inside regular content deltas.
+    if(thinkingText && typeof content==='string' && content.trim()){
+      const cTrim=content.trim();
+      const tTrim=thinkingText.trim();
+      if(cTrim.toLowerCase()===tTrim.toLowerCase()){
+        content='';
+      }else if(cTrim.toLowerCase().startsWith(tTrim.toLowerCase())){
+        const leading=content.length-content.trimStart().length;
+        content=content.slice(0,leading)+content.trimStart().slice(tTrim.length).replace(/^\s+/,'');
+      }
+    }
     const isUser=m.role==='user';
-    const isLastAssistant=!isUser&&vi===visWithIdx.length-1;
-    // Render thinking card before the assistant message (collapsed by default)
-    if(thinkingText&&!isUser){
+    // Extract XML pseudo-tool tags from assistant content (e.g. <terminal>, <read_file>)
+    // that models emit as raw text instead of structured tool_calls.
+    if(!isUser && typeof content==='string'){
+      const xmlResult=extractXmlToolCalls(content);
+      content=xmlResult.displayText;
+    }
+    const isSwarmWorker=m.role==='swarm-worker';
+    const isLastAssistant=!isUser&&!isSwarmWorker&&vi===visWithIdx.length-1;
+    const row=document.createElement('div');row.className='msg-row';
+    row.dataset.msgIdx=rawIdx;row.dataset.role=m.role||'assistant';
+    if(m._live) row.setAttribute('data-live-assistant','1');
+    // Swarm-worker: use worker metadata for name/color
+    const workerColor=m._workerColor||'#a78bfa';
+    const workerName=esc(m._workerName||m.worker_name||m.worker_id?.slice(0,8)||'worker');
+    let filesHtml='';
+    if(m.attachments&&m.attachments.length)
+      filesHtml=`<div class="msg-files">${m.attachments.map(f=>`<div class="msg-file-badge">${li('paperclip',12)} ${esc(f)}</div>`).join('')}</div>`;
+    const bodyHtml = isUser ? renderTextWithHexButtons(String(content)) : renderMd(String(content));
+    // Action buttons for this bubble
+    const editBtn  = (isUser && !isSwarmWorker) ? `<button class="msg-action-btn" title="${t('edit_message')}" onclick="editMessage(this)">${li('pencil',13)}</button>` : '';
+    const retryBtn = isLastAssistant ? `<button class="msg-action-btn" title="${t('regenerate')}" onclick="regenerateResponse(this)">${li('rotate-ccw',13)}</button>` : '';
+    const tsVal=m._ts||m.timestamp;
+    const tsTitle=tsVal?new Date(tsVal*1000).toLocaleString():'';
+    // Format timestamp like "5:51am - 4/28/26"
+    const formatTimestamp = (ts) => {
+      if (!ts) return '';
+      const d = new Date(ts * 1000);
+      const hours = d.getHours();
+      const minutes = d.getMinutes();
+      const ampm = hours >= 12 ? 'pm' : 'am';
+      const h = hours % 12 || 12;
+      const m = minutes < 10 ? '0' + minutes : minutes;
+      const month = d.getMonth() + 1;
+      const day = d.getDate();
+      const year = d.getFullYear().toString().slice(-2);
+      return `${h}:${m}${ampm} - ${month}/${day}/${year}`;
+    };
+    const tsBottom = tsVal ? formatTimestamp(tsVal) : '';
+    const _bn=isSwarmWorker?workerName:window._botName||'Hermes';
+    // Use hermes.png for assistant avatar, circle letter for user
+    const roleIconContent=isUser?'Y':isSwarmWorker?`<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:${workerColor}22;border:2px solid ${workerColor};font-size:11px;font-weight:700;color:${workerColor}">W</span>`:`<img src="/static/hermes.png" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;" alt="'+esc(_bn)+'">`;
+    // Tool indicator badge for assistant messages with tool calls
+    const msgToolCalls = m.tool_calls?.length || (Array.isArray(m.content) && m.content.some(p=>p?.type==='tool_use'));
+    const sessionToolCalls = S.toolCalls?.filter(tc => tc.assistant_msg_idx === rawIdx).length > 0;
+    const hasToolCalls = msgToolCalls || sessionToolCalls;
+    const toolCount = m.tool_calls?.length || S.toolCalls?.filter(tc => tc.assistant_msg_idx === rawIdx).length || 0;
+    const toolBtn = (!isUser && hasToolCalls) ? `<button class="msg-tool-badge" data-msg-idx="${rawIdx}" onclick="toggleToolCardsForMessage(${rawIdx})" title="show tool calls">${li('paperclip',10)} tool (${toolCount||'1+'})</button>` : '';
+    const toolCardContainer = (!isUser && hasToolCalls) ? `<div class="tool-card-container" data-msg-idx="${rawIdx}"></div>` : '';
+    row.innerHTML=`<div class="msg-role ${m.role}" ${tsTitle?`title="${esc(tsTitle)}"`:''}><div class="role-icon ${m.role}">${roleIconContent}</div><span style="font-size:12px">${isUser?t('you'):esc(_bn)}</span><span class="msg-actions">${editBtn}<button class="msg-copy-btn msg-action-btn" title="${t('copy')}" onclick="copyMsg(this)">${li('copy',13)}</button>${retryBtn}</span></div>${toolBtn}${toolCardContainer}${filesHtml}<div class="msg-body">${bodyHtml}</div>${tsBottom?`<div class="msg-timestamp">${tsBottom}</div>`:''}`;
+    row.dataset.rawText = String(content).trim();
+    inner.appendChild(row);
+    // Render thinking card after the assistant message (collapsed by default)
+    // Only render if we haven't already rendered a thinking card for this message index.
+    // Live streaming thoughts should still appear as a collapsed card while the
+    // model continues to think, rather than disappearing on reload.
+    if(thinkingText&&!isUser&&!_thinkingCardsRendered.has(rawIdx)){
+      _thinkingCardsRendered.add(rawIdx);
       const thinkRow=document.createElement('div');thinkRow.className='msg-row thinking-card-row';
       thinkRow.innerHTML=`<div class="thinking-card"><div class="thinking-card-header" onclick="this.parentElement.classList.toggle('open')"><span class="thinking-card-icon">${li('lightbulb',14)}</span><span class="thinking-card-label">${t('thinking')}</span><span class="thinking-card-toggle">${li('chevron-right',12)}</span></div><div class="thinking-card-body"><pre>${esc(thinkingText)}</pre></div></div>`;
       inner.appendChild(thinkRow);
     }
-    const row=document.createElement('div');row.className='msg-row';
-    row.dataset.msgIdx=rawIdx;row.dataset.role=m.role||'assistant';
-    if(m._live) row.setAttribute('data-live-assistant','1');
-    let filesHtml='';
-    if(m.attachments&&m.attachments.length)
-      filesHtml=`<div class="msg-files">${m.attachments.map(f=>`<div class="msg-file-badge">${li('paperclip',12)} ${esc(f)}</div>`).join('')}</div>`;
-    const bodyHtml = isUser ? esc(String(content)).replace(/\n/g,'<br>') : renderMd(String(content));
-    // Action buttons for this bubble
-    const editBtn  = isUser  ? `<button class="msg-action-btn" title="${t('edit_message')}" onclick="editMessage(this)">${li('pencil',13)}</button>` : '';
-    const retryBtn = isLastAssistant ? `<button class="msg-action-btn" title="${t('regenerate')}" onclick="regenerateResponse(this)">${li('rotate-ccw',13)}</button>` : '';
-    const tsVal=m._ts||m.timestamp;
-    const tsTitle=tsVal?new Date(tsVal*1000).toLocaleString():'';
-    const _bn=window._botName||'Hermes';
-    // Use hermes.png for assistant avatar, circle letter for user
-    const roleIconContent=isUser?'Y':'<img src="static/hermes.png" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;" alt="'+esc(_bn)+'">';
-    row.innerHTML=`<div class="msg-role ${m.role}" ${tsTitle?`title="${esc(tsTitle)}"`:''}><div class="role-icon ${m.role}">${roleIconContent}</div><span style="font-size:12px">${isUser?t('you'):esc(_bn)}</span>${tsTitle?`<span class="msg-time">${new Date(tsVal*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>`:''}<span class="msg-actions">${editBtn}<button class="msg-copy-btn msg-action-btn" title="${t('copy')}" onclick="copyMsg(this)">${li('copy',13)}</button>${retryBtn}</span></div>${filesHtml}<div class="msg-body">${bodyHtml}</div>`;
-    row.dataset.rawText = String(content).trim();
-    inner.appendChild(row);
   }
   // Insert settled tool call cards (history view only).
   // During live streaming, tool cards are rendered in #liveToolCards by the
@@ -1228,6 +2088,19 @@ function renderMessages(){
   // tracking, or runs that didn't go through the normal streaming path), build
   // a display list from per-message tool_calls (OpenAI format) stored in each
   // assistant message. This covers the reload case described in issue #140.
+  // Collect XML-derived tool calls from all assistant messages
+  const allXmlTools=[];
+  if(!S.busy){
+    S.messages.forEach((m,rawIdx)=>{
+      if(m.role!=='assistant'||!m.content) return;
+      const c=typeof m.content==='string'?m.content:'';
+      if(!c) return;
+      const xmlResult=extractXmlToolCalls(c);
+      for(const tc of xmlResult.toolCalls){
+        allXmlTools.push({...tc,assistant_msg_idx:rawIdx});
+      }
+    });
+  }
   if(!S.busy && (!S.toolCalls||!S.toolCalls.length)){
     const derived=[];
     S.messages.forEach((m,rawIdx)=>{
@@ -1242,13 +2115,30 @@ function renderMessages(){
         Object.keys(args).slice(0,4).forEach(k=>{ const v=String(args[k]); argsSnap[k]=v.slice(0,120)+(v.length>120?'...':''); });
         derived.push({name,snippet:'',tid:tc.id||tc.call_id||'',assistant_msg_idx:rawIdx,args:argsSnap,done:true});
       });
+      // Also add XML-derived tools for this message
+      const c=typeof m.content==='string'?m.content:'';
+      if(c){
+        const xmlResult=extractXmlToolCalls(c);
+        for(const tc of xmlResult.toolCalls){
+          derived.push({...tc,assistant_msg_idx:rawIdx});
+        }
+      }
     });
     if(derived.length) S.toolCalls=derived;
   }
-  if(!S.busy && S.toolCalls && S.toolCalls.length){
+  // Deduplicate by tid so XML-derived tools don't duplicate structured ones
+  const _allToolCallsMap=new Map();
+  for(const tc of [...(S.toolCalls||[]),...allXmlTools]){
+    if(tc.tid) _allToolCallsMap.set(tc.tid,tc);
+    else _allToolCallsMap.set(Math.random().toString(36),tc);
+  }
+  const _allToolCalls=Array.from(_allToolCallsMap.values());
+  if(!S.busy && _allToolCalls.length){
     inner.querySelectorAll('.tool-card-row').forEach(el=>el.remove());
+    // Also clear tool-card containers so they get fresh cards
+    inner.querySelectorAll('.tool-card-container').forEach(el=>{while(el.firstChild)el.removeChild(el.firstChild);});
     const byAssistant = {};
-    for(const tc of S.toolCalls){
+    for(const tc of _allToolCalls){
       const key = tc.assistant_msg_idx !== undefined ? tc.assistant_msg_idx : -1;
       if(!byAssistant[key]) byAssistant[key] = [];
       byAssistant[key].push(tc);
@@ -1286,9 +2176,14 @@ function renderMessages(){
         }
       }
       const frag=document.createDocumentFragment();
-      for(const tc of cards){frag.appendChild(buildToolCard(tc));}
-      // Add expand/collapse toggle for groups with 2+ cards
-      if(cards.length>=2){
+      for(const tc of cards){
+        const card=buildToolCard(tc);
+        card.dataset.msgIdx=aIdx;
+        frag.appendChild(card);
+      }
+      // Add expand/collapse toggle for groups with 2+ collapsible cards
+      const collapsibleCards = cards.filter(tc => tc.snippet || (tc.args && Object.keys(tc.args).length > 0));
+      if(collapsibleCards.length>=2){
         const toggle=document.createElement('div');
         toggle.className='tool-cards-toggle';
         // Collect card elements before they get moved to DOM
@@ -1303,15 +2198,35 @@ function renderMessages(){
         toggle.appendChild(collapseBtn);
         frag.insertBefore(toggle,frag.firstChild);
       }
-      // Insert after the anchor row (or after any previously inserted group for
-      // the same anchor), preserving chronological order for multi-step chains.
-      const insertAfterNode = anchorInsertAfter.get(anchorRow) || anchorRow;
-      const refNode = insertAfterNode ? insertAfterNode.nextSibling : null;
-      if(refNode) inner.insertBefore(frag,refNode);
-      else inner.appendChild(frag);
-      // Record the last child we inserted so the next group for this anchor
-      // goes after it rather than back at anchorRow.nextSibling.
-      anchorInsertAfter.set(anchorRow, inner.lastChild);
+      // Insert the tool cards into the container inside the anchor row,
+      // directly under the tool pill button. Fall back to after the row
+      // if no container exists (e.g. for older sessions without container).
+      let container = anchorRow ? anchorRow.querySelector(`.tool-card-container[data-msg-idx="${aIdx}"]`) : null;
+      // If no container, create one inside the row
+      if(!container && anchorRow){
+        container = document.createElement('div');
+        container.className = 'tool-card-container';
+        container.dataset.msgIdx = aIdx;
+        const toolBtn = anchorRow.querySelector(`.msg-tool-badge[data-msg-idx="${aIdx}"]`);
+        if(toolBtn){
+          toolBtn.insertAdjacentElement('afterend', container);
+        } else {
+          anchorRow.appendChild(container);
+        }
+      }
+      // Now place the fragment into the container
+      if(container){
+        // Clear any existing cards in this container first
+        while(container.firstChild) container.removeChild(container.firstChild);
+        container.appendChild(frag);
+      } else {
+        // Fallback: insert after the row as before
+        const insertAfterNode = anchorInsertAfter.get(anchorRow) || anchorRow;
+        const refNode = insertAfterNode ? insertAfterNode.nextSibling : null;
+        if(refNode) inner.insertBefore(frag,refNode);
+        else inner.appendChild(frag);
+        anchorInsertAfter.set(anchorRow, inner.lastChild);
+      }
     }
   }
   // Render usage badge on the last assistant message row (if enabled and usage data exists)
@@ -1334,6 +2249,11 @@ function renderMessages(){
   scrollToBottom();
   // Apply syntax highlighting after DOM is built
   requestAnimationFrame(()=>{highlightCode();addCopyButtons();renderMermaidBlocks();renderKatexBlocks();});
+  // inject canvas inline cards and file links
+  inner.querySelectorAll('.msg-row').forEach(row=>{
+   if(typeof injectCanvasCards==='function')injectCanvasCards(row);
+   if(typeof injectCanvasFileLinks==='function')injectCanvasFileLinks(row);
+  });
   // Refresh todo panel if it's currently open
   if(typeof loadTodos==='function' && document.getElementById('panelTodos') && document.getElementById('panelTodos').classList.contains('active')){
     loadTodos();
@@ -1359,13 +2279,41 @@ function toolIcon(name){
     browser_navigate:li('globe'),
     vision_analyze:  li('eye'),
     subagent_progress:li('shuffle'),
+ swarm_start:li('zap'),
   };
   return icons[name]||li('wrench');
+}
+
+function toggleToolCardsForMessage(msgIdx){
+  const inner=$('msgInner');
+  if(!inner)return;
+  // Find the tool card container inside the message row for this msgIdx
+  const container=inner.querySelector(`.tool-card-container[data-msg-idx="${msgIdx}"]`);
+  // Also find any legacy tool-card-row siblings outside the container
+  const legacyRows=inner.querySelectorAll(`.tool-card-row[data-msg-idx="${msgIdx}"]`);
+  // Get the cards inside the container
+  const containerCards=container?container.querySelectorAll('.tool-card-row'):[];
+  // Check if any are currently visible
+  const anyContainerOpen=Array.from(containerCards).some(r=>r.style.display!=='none');
+  const anyLegacyOpen=Array.from(legacyRows).some(r=>r.style.display!=='none');
+  const anyOpen=anyContainerOpen||anyLegacyOpen;
+  const shouldShow=!anyOpen;
+  // Toggle container cards
+  if(container) containerCards.forEach(r=>{r.style.display=shouldShow?'':'none';});
+  // Toggle legacy cards too
+  legacyRows.forEach(r=>{r.style.display=shouldShow?'':'none';});
+  // Update button text/icon
+  const btn=inner.querySelector(`.msg-tool-badge[data-msg-idx="${msgIdx}"]`);
+  if(btn){
+    const count=containerCards.length||legacyRows.length;
+    btn.innerHTML=shouldShow?`${li('paperclip',10)} hide`:`${li('paperclip',10)} tool (${count})`;
+  }
 }
 
 function buildToolCard(tc){
   const row=document.createElement('div');
   row.className='msg-row tool-card-row';
+  row.style.display='none';  // Hidden by default, shown when tool button clicked
   const icon=toolIcon(tc.name);
   const hasDetail=tc.snippet||(tc.args&&Object.keys(tc.args).length>0);
   let displaySnippet='';
@@ -1382,11 +2330,13 @@ function buildToolCard(tc){
   const runIndicator=tc.done===false?'<span class="tool-card-running-dot"></span>':'';
   const isSubagent=tc.name==='subagent_progress';
   const isDelegation=tc.name==='delegate_task';
-  const cardClass='tool-card'+(tc.done===false?' tool-card-running':'')+(isSubagent?' tool-card-subagent':'');
+ const isSwarm=tc.name==='swarm_start';
+  const cardClass='tool-card'+(tc.done===false?' tool-card-running':'')+(isSubagent?' tool-card-subagent':'')+(isSwarm?' tool-card-swarm':'');
   // Clean up legacy subagent prefixes since the Lucide icon already shows it
   let displayName=tc.name;
   if(isSubagent) displayName='Subagent';
   if(isDelegation) displayName='Delegate task';
+ if(isSwarm) displayName='Swarm';
   let previewText=tc.preview||displaySnippet||'';
   if(isSubagent) previewText=previewText.replace(/^(?:\u{1F500}|↳)\s*/u,'');
   row.innerHTML=`
@@ -1652,39 +2602,62 @@ function _thinkingMarkup(text=''){
   const _bn=window._botName||'Hermes';
   const icon=esc(_bn.charAt(0).toUpperCase());
   const label=esc(_bn);
-  const body=(text&&String(text).trim())
-    ? `<div class="thinking-card"><div class="thinking-card-header" onclick="this.parentElement.classList.toggle('open')"><span class="thinking-card-icon">${li('lightbulb',14)}</span><span class="thinking-card-label">${t('thinking')}</span><span class="thinking-card-toggle">${li('chevron-right',12)}</span></div><div class="thinking-card-body"><pre>${esc(String(text).trim())}</pre></div></div>`
-    : `<div class="thinking"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+  const textStr=String(text||'').trim();
+  // Show a short preview of what the model is thinking so the stream doesn't feel frozen
+  const preview=textStr
+    ? `<span class="thinking-preview">${esc(textStr.slice(0,120))}${textStr.length>120?'…':''}</span>`
+    : '';
+  const body=`<div class="thinking"><div class="thinking-label">${t('thinking')}</div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>${preview}`;
   return `<div class="msg-role assistant"><div class="role-icon assistant">${icon}</div>${label}</div>${body}`;
 }
+// Track the last thinking text to avoid unnecessary DOM updates that reset CSS animation
+let _lastThinkingText = null;
+
 function appendThinking(text=''){
   $('emptyState').style.display='none';
   let row=$('thinkingRow');
+  const textStr = String(text || '');
+
   if(!row){
     row=document.createElement('div');
     row.className='msg-row';
     row.id='thinkingRow';
     $('msgInner').appendChild(row);
+    // Always set innerHTML when creating new row
+    row.innerHTML=_thinkingMarkup(text);
+    _lastThinkingText = textStr;
+  } else {
+    // Move existing thinking row to end to ensure it's always after the latest message
+    $('msgInner').appendChild(row);
+    row.className='msg-row';
+    // Only update innerHTML if text content changed to prevent animation glitch
+    if (textStr !== _lastThinkingText) {
+      row.innerHTML=_thinkingMarkup(text);
+      _lastThinkingText = textStr;
+    }
   }
-  row.className=(text&&String(text).trim())?'msg-row thinking-card-row':'msg-row';
-  row.innerHTML=_thinkingMarkup(text);
   scrollToBottom();
 }
 function updateThinking(text=''){appendThinking(text);}
-function removeThinking(){const el=$('thinkingRow');if(el)el.remove();}
+function removeThinking(){const el=$('thinkingRow');if(el){el.remove();_lastThinkingText=null;}}
+
+function gearIcon(size){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><path fill-rule="evenodd" d="M16 12a4 4 0 11-8 0 4 4 0 018 0zm-1.5 0a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/><path fill-rule="evenodd" d="M12 1c-.268 0-.534.01-.797.028-.763.055-1.345.617-1.512 1.304l-.352 1.45c-.02.078-.09.172-.225.22a8.45 8.45 0 00-.728.303c-.13.06-.246.044-.315.002l-1.274-.776c-.604-.368-1.412-.354-1.99.147-.403.348-.78.726-1.129 1.128-.5.579-.515 1.387-.147 1.99l.776 1.275c.042.069.059.185-.002.315-.112.237-.213.48-.302.728-.05.135-.143.206-.221.225l-1.45.352c-.687.167-1.249.749-1.304 1.512a11.149 11.149 0 000 1.594c.055.763.617 1.345 1.304 1.512l1.45.352c.078.02.172.09.22.225.09.248.191.491.303.729.06.129.044.245.002.314l-.776 1.274c-.368.604-.354 1.412.147 1.99.348.403.726.78 1.128 1.129.579.5 1.387.515 1.99.147l1.275-.776c.069-.042.185-.059.315.002.237.112.48.213.728.302.135.05.206.143.225.221l.352 1.45c.167.687.749 1.249 1.512 1.303a11.125 11.125 0 001.594 0c.763-.054 1.345-.616 1.512-1.303l.352-1.45c.02-.078.09-.172.225-.22.248-.09.491-.191.729-.303.129-.06.245-.044.314-.002l1.274.776c.604.368 1.412.354 1.99-.147.403-.348.78-.726 1.129-1.128.5-.579.515-1.387.147-1.99l-.776-1.275c-.042-.069-.059-.185.002-.315.112-.237.213-.48.302-.728.05-.135.143-.206.221-.225l1.45-.352c.687-.167 1.249-.749 1.303-1.512a11.125 11.125 0 000-1.594c-.054-.763-.616-1.345-1.303-1.512l-1.45-.352c-.078-.02-.172-.09-.22-.225a8.469 8.469 0 00-.303-.728c-.06-.13-.044-.246-.002-.315l.776-1.274c.368-.604.354-1.412-.147-1.99-.348-.403-.726-.78-1.128-1.129-.579-.5-1.387-.515-1.99-.147l-1.275.776c-.069.042-.185.059-.315-.002a8.465 8.465 0 00-.728-.302c-.135-.05-.206-.143-.225-.221l-.352-1.45c-.167-.687-.749-1.249-1.512-1.304A11.149 11.149 0 0012 1zm-.69 1.525a9.648 9.648 0 011.38 0c.055.004.135.05.162.16l.351 1.45c.153.628.626 1.08 1.173 1.278.205.074.405.157.6.249a1.832 1.832 0 001.733-.074l1.275-.776c.097-.06.186-.036.228 0 .348.302.674.628.976.976.036.042.06.13 0 .228l-.776 1.274a1.832 1.832 0 00-.074 1.734c.092.195.175.395.248.6.198.547.652 1.02 1.278 1.172l1.45.353c.111.026.157.106.161.161a9.653 9.653 0 010 1.38c-.004.055-.05.135-.16.162l-1.45.351a1.833 1.833 0 00-1.278 1.173 6.926 6.926 0 01-.25.6 1.832 1.832 0 00.075 1.733l.776 1.275c.06.097.036.186 0 .228a9.555 9.555 0 01-.976.976c-.042.036-.13.06-.228 0l-1.275-.776a1.832 1.832 0 00-1.733-.074 6.926 6.926 0 01-.6.248 1.833 1.833 0 00-1.172 1.278l-.353 1.45c-.026.111-.106.157-.161.161a9.653 9.653 0 01-1.38 0c-.055-.004-.135-.05-.162-.16l-.351-1.45a1.833 1.833 0 00-1.173-1.278 6.928 6.928 0 01-.6-.25 1.832 1.832 0 00-1.734.075l-1.274.776c-.097.06-.186.036-.228 0a9.56 9.56 0 01-.976-.976c-.036-.042-.06-.13 0-.228l.776-1.275a1.832 1.832 0 00.074-1.733 6.948 6.948 0 01-.249-.6 1.833 1.833 0 00-1.277-1.172l-1.45-.353c-.111-.026-.157-.106-.161-.161a9.648 9.648 0 010-1.38c.004-.055.05-.135.16-.162l1.45-.351a1.833 1.833 0 001.278-1.173 6.95 6.95 0 01.249-.6 1.832 1.832 0 00-.074-1.734l-.776-1.274c-.06-.097-.036-.186 0-.228.302-.348.628-.674.976-.976.042-.036.13-.06.228 0l1.274.776a1.832 1.832 0 001.734.074 6.95 6.95 0 01.6-.249 1.833 1.833 0 001.172-1.277l.353-1.45c.026-.111.106-.157.161-.161z"/></svg>`;
+}
 
 function fileIcon(name, type){
   if(type==='dir') return li('folder',14);
   const e=fileExt(name);
-  if(IMAGE_EXTS.has(e)) return li('image',14);
-  if(MD_EXTS.has(e))    return li('file-text',14);
+  if(IMAGE_EXTS.has(e)) return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M14.2639 15.9375L12.5958 14.2834C11.7909 13.4851 11.3884 13.086 10.9266 12.9401C10.5204 12.8118 10.0838 12.8165 9.68048 12.9536C9.22188 13.1095 8.82814 13.5172 8.04068 14.3326L4.04409 18.2801M14.2639 15.9375L14.6053 15.599C15.4112 14.7998 15.8141 14.4002 16.2765 14.2543C16.6831 14.126 17.12 14.1311 17.5236 14.2687C17.9824 14.4251 18.3761 14.8339 19.1634 15.6514L20 16.4934M14.2639 15.9375L18.275 19.9565M18.275 19.9565C17.9176 20 17.4543 20 16.8 20H7.2C6.07989 20 5.51984 20 5.09202 19.782C4.71569 19.5903 4.40973 19.2843 4.21799 18.908C4.12796 18.7313 4.07512 18.5321 4.04409 18.2801M18.275 19.9565C18.5293 19.9256 18.7301 19.8727 18.908 19.782C19.2843 19.5903 19.5903 19.2843 19.782 18.908C20 18.4802 20 17.9201 20 16.8V16.4934M4.04409 18.2801C4 17.9221 4 17.4575 4 16.8V7.2C4 6.0799 4 5.51984 4.21799 5.09202C4.40973 4.71569 4.71569 4.40973 5.09202 4.21799C5.51984 4 6.07989 4 7.2 4H16.8C17.9201 4 18.4802 4 18.908 4.21799C19.2843 4.40973 19.5903 4.71569 19.782 5.09202C20 5.51984 20 6.0799 20 7.2V16.4934M17 8.99989C17 10.1045 16.1046 10.9999 15 10.9999C13.8954 10.9999 13 10.1045 13 8.99989C13 7.89532 13.8954 6.99989 15 6.99989C16.1046 6.99989 17 7.89532 17 8.99989Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"></path> </g></svg>';
+  if(MD_EXTS.has(e))    return gearIcon(14);
+  if(e==='.zip') return '<svg width="14" height="14" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><path d="M422.741,42.667h-60.07V32.491C362.671,14.543,348.128,0,330.18,0H181.828c-17.947,0-32.491,14.543-32.491,32.491v10.176 H89.259c-25.734,0-46.592,20.858-46.592,46.592v376.149c0,25.734,20.858,46.592,46.592,46.592h333.483 c25.734,0,46.592-20.858,46.592-46.592V89.259C469.333,63.525,448.475,42.667,422.741,42.667z M192.004,42.667H320v42.667 H192.004V42.667z M426.667,465.408c0,2.17-1.755,3.925-3.925,3.925H89.259c-2.17,0-3.925-1.755-3.925-3.925V89.259 c0-2.17,1.755-3.925,3.925-3.925h60.075v10.176c0,17.947,14.543,32.491,32.491,32.491h0.004h148.348h0.004 c17.947,0,32.491-14.543,32.491-32.491V85.333h60.07c2.17,0,3.925,1.755,3.925,3.925V465.408z M298.667,234.667c11.782,0,21.333-9.551,21.333-21.333c0-11.782-9.551-21.333-21.333-21.333h-21.333v-21.333 c0-11.782-9.551-21.333-21.333-21.333c-11.782,0-21.333,9.551-21.333,21.333V192h-21.333C201.551,192,192,201.551,192,213.333 c0,11.782,9.551,21.333,21.333,21.333h21.333V256h-21.333C201.551,256,192,265.551,192,277.333 c0,11.782,9.551,21.333,21.333,21.333h21.333V320h-21.333C201.551,320,192,329.551,192,341.333v85.333 c0,11.782,9.551,21.333,21.333,21.333h85.333c11.782,0,21.333-9.551,21.333-21.333v-85.333c0-11.782-9.551-21.333-21.333-21.333 h-21.333v-21.333h21.333c11.782,0,21.333-9.551,21.333-21.333c0-11.782-9.551-21.333-21.333-21.333h-21.333v-21.333H298.667z M277.333,405.333h-42.667v-42.667h42.667V405.333z"/></svg>';
   if(typeof DOWNLOAD_EXTS!=='undefined'&&DOWNLOAD_EXTS.has(e)) return li('download',14);
   if(e==='.py')   return li('file-code',14);
   if(e==='.js'||e==='.ts'||e==='.jsx'||e==='.tsx') return li('zap',14);
-  if(e==='.json'||e==='.yaml'||e==='.yml'||e==='.toml') return li('settings',14);
+  if(e==='.json'||e==='.yaml'||e==='.yml'||e==='.toml') return gearIcon(14);
   if(e==='.sh'||e==='.bash') return li('terminal',14);
   if(e==='.pdf') return li('download',14);
-  return li('file-text',14);
+  return gearIcon(14);
 }
 
 function renderBreadcrumb(){
@@ -1724,6 +2697,28 @@ function renderBreadcrumb(){
     }
     bar.appendChild(seg);
   }
+  // Edit icon to trigger path input
+  const editIcon=document.createElement('span');
+  editIcon.className='breadcrumb-seg';
+  editIcon.style.cssText='margin-left:auto;cursor:pointer;opacity:.5;font-size:11px;';
+  editIcon.innerHTML='✎';
+  editIcon.title='Type path (Ctrl+L)';
+  editIcon.onclick=()=>{
+    const pathBar=$('pathInputBar');
+    const input=$('dirPathInput');
+    if(pathBar&&input){
+      const isVisible=pathBar.style.display!=='none';
+      if(isVisible){
+        pathBar.style.display='none';
+      } else {
+        pathBar.style.display='block';
+        input.focus();
+        if(S.session) input.value=S.session.workspace+'/';
+        input.setSelectionRange(input.value.length,input.value.length);
+      }
+    }
+  };
+  bar.appendChild(editIcon);
 }
 
 // Track expanded directories for tree view
@@ -1776,7 +2771,6 @@ function _renderTreeItems(container, entries, depth){
               await api('/api/file/rename',{method:'POST',body:JSON.stringify({
                 session_id:S.session.session_id,path:item.path,new_name:newName
               })});
-              showToast(t('renamed_to')+newName);
               // Invalidate cache and re-render
               delete S._dirCache[S.currentDir];
               await loadDir(S.currentDir);
@@ -1863,7 +2857,6 @@ async function deleteWorkspaceFile(relPath, name){
   if(!_delFile) return;
   try{
     await api('/api/file/delete',{method:'POST',body:JSON.stringify({session_id:S.session.session_id,path:relPath})});
-    showToast(t('deleted')+name);
     // Close preview if we just deleted the viewed file
     if($('previewPathText').textContent===relPath)$('btnClearPreview').onclick();
     await loadDir(S.currentDir);
@@ -1874,8 +2867,24 @@ function _showFileContextMenu(event,item){
   const menu=document.createElement('div');
   menu.className='file-context-menu';
   menu.style.cssText='position:fixed;background:#0a0a0a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.6);z-index:1000;min-width:160px;overflow:hidden;';
-  menu.style.left=event.clientX+'px';
-  menu.style.top=event.clientY+'px';
+  
+  // Estimate menu height (2 items ~70px)
+  const menuHeight = 70;
+  const menuWidth = 160;
+  
+  // Adjust position to stay within viewport
+  let x = event.clientX;
+  let y = event.clientY;
+  
+  if (y + menuHeight > window.innerHeight) {
+    y = Math.max(10, y - menuHeight);
+  }
+  if (x + menuWidth > window.innerWidth) {
+    x = Math.max(10, x - menuWidth);
+  }
+  
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
 
   // Rename option
   const renameOpt=document.createElement('div');
@@ -1938,7 +2947,6 @@ async function _startRenameFile(item){
           await api('/api/file/rename',{method:'POST',body:JSON.stringify({
             session_id:S.session.session_id,path:item.path,new_name:newName
           })});
-          showToast(t('renamed_to')+newName);
           delete S._dirCache[S.currentDir];
           await loadDir(S.currentDir);
         }catch(err){showToast(t('rename_failed')+err.message);}
@@ -1968,7 +2976,6 @@ async function promptNewFile(){
   const relPath=S.currentDir==='.'?name.trim():(S.currentDir+'/'+name.trim());
   try{
     await api('/api/file/create',{method:'POST',body:JSON.stringify({session_id:S.session.session_id,path:relPath,content:''})});
-    showToast(t('created')+name.trim());
     await loadDir(S.currentDir);
     openFile(relPath);
   }catch(e){setStatus(t('create_failed')+e.message);}
@@ -1981,7 +2988,6 @@ async function promptNewFolder(){
   const relPath=S.currentDir==='.'?name.trim():(S.currentDir+'/'+name.trim());
   try{
     await api('/api/file/create-dir',{method:'POST',body:JSON.stringify({session_id:S.session.session_id,path:relPath})});
-    showToast(t('folder_created')+name.trim());
     await loadDir(S.currentDir);
   }catch(e){setStatus(t('folder_create_failed')+e.message);}
 }
@@ -2010,7 +3016,7 @@ async function uploadPendingFiles(){
     const f=S.pendingFiles[i];const fd=new FormData();
     fd.append('session_id',S.session.session_id);fd.append('file',f,f.name);
     try{
-      const res=await fetch(new URL('api/upload',location.href).href,{method:'POST',credentials:'include',body:fd});
+      const res=await fetch(new URL('api/upload', window.HERMES_API_BASE || location.href).href,{method:'POST',credentials:'include',body:fd});
       if(!res.ok){const err=await res.text();throw new Error(err);}
       const data=await res.json();
       if(data.error)throw new Error(data.error);

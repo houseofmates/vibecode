@@ -33,10 +33,33 @@ class MemsterClient:
         if getattr(cls, cache_key) is None:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            
+            # Check if SSH key exists
+            key_exists = os.path.exists(SSH_KEY_PATH)
+            
             try:
-                ssh.connect(target_host, username=MEMSTER_USER, key_filename=SSH_KEY_PATH)
-            except:
-                ssh.connect(target_host, username=MEMSTER_USER)
+                if key_exists:
+                    ssh.connect(target_host, username=MEMSTER_USER, key_filename=SSH_KEY_PATH, timeout=10)
+                else:
+                    ssh.connect(target_host, username=MEMSTER_USER, timeout=10)
+            except paramiko.AuthenticationException as e:
+                # Clear the cached connection so we can retry
+                error_msg = f"SSH authentication failed to {target_host}. "
+                if key_exists:
+                    error_msg += f"Check that SSH key {SSH_KEY_PATH} is authorized on {target_host}. "
+                    error_msg += f"Try: ssh-copy-id -i {SSH_KEY_PATH} {MEMSTER_USER}@{target_host}"
+                else:
+                    error_msg += f"No SSH key found at {SSH_KEY_PATH}. "
+                    error_msg += f"Generate one with: ssh-keygen -t ed25519 -f {SSH_KEY_PATH}"
+                raise Exception(error_msg) from e
+            except paramiko.SSHException as e:
+                error_msg = f"SSH connection failed to {target_host}: {str(e)}. "
+                error_msg += f"Ensure {target_host} is reachable and SSH is enabled."
+                raise Exception(error_msg) from e
+            except Exception as e:
+                error_msg = f"Failed to connect to {target_host}: {str(e)}"
+                raise Exception(error_msg) from e
+            
             setattr(cls, cache_key, ssh)
         return getattr(cls, cache_key)
     

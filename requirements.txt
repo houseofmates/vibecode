@@ -2,6 +2,12 @@
 # Core runtime (stdlib only - no pinned versions needed)
 # pyyaml: optional, for config.yaml loading. auto-installed if missing.
 
+# SSH dependencies for enhanced wiki/memory features
+paramiko>=2.9.0
+
+# YAML configuration support
+PyYAML>=6.0
+
 # For full functionality with hermes-agent integration:
 # Run the server once and it will auto-install agent dependencies.
 # Or install hermes-agent separately and point via HERMES_WEBUI_AGENT_DIR

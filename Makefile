@@ -1,7 +1,7 @@
 .PHONY: help install run dev test clean build package appimage apk all update
 
 help:
-	@echo "VibeCode - Make targets"
+	@echo "vibecode - Make targets"
 	@echo ""
 	@echo "Development:"
 	@echo "  install   Install package in editable mode"
@@ -18,7 +18,7 @@ help:
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  check-appdir  Verify AppDir structure"
-	@echo "  update        Check for VibeCode updates"
+	@echo "  update        Check for vibecode updates"
 
 install:
 	pip install -e .
@@ -47,19 +47,19 @@ build:
 package: appimage
 
 appimage:
-	@echo "Building VibeCode AppImage..."
-	@./build-appimage.sh
+	@echo "Building vibecode AppImage..."
+	@./build-desktop.sh
 
 apk:
-	@echo "Building VibeCode APK..."
+	@echo "Building vibecode APK..."
 	@./build-apk.sh
 
 all:
-	@echo "Building all VibeCode packages..."
+	@echo "Building all vibecode packages..."
 	@./build-all.sh
 
 update:
-	@echo "Checking for VibeCode updates..."
+	@echo "Checking for vibecode updates..."
 	@./check-update.sh
 
 check-appdir:

@@ -2,6 +2,7 @@
 const ICONS={
   pin:'<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" stroke="none"><polygon points="8,1.5 9.8,5.8 14.5,6.2 11,9.4 12,14 8,11.5 4,14 5,9.4 1.5,6.2 6.2,5.8"/></svg>',
   unpin:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><polygon points="8,2 9.8,6.2 14.2,6.2 10.7,9.2 12,13.8 8,11 4,13.8 5.3,9.2 1.8,6.2 6.2,6.2"/></svg>',
+  pencil:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 11.5V13h1.5l7-7-1.5-1.5-7 7z"/><path d="M10.5 3.5l2 2"/></svg>',
   folder:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 4.5h4l1.5 1.5H14v7H2z"/></svg>',
   archive:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="2" width="13" height="3" rx="1"/><path d="M2.5 5v8h11V5"/><line x1="6" y1="8.5" x2="10" y2="8.5"/></svg>',
   unarchive:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="2" width="13" height="3" rx="1"/><path d="M2.5 5v8h11V5"/><polyline points="6.5,7 8,5.5 9.5,7"/></svg>',
@@ -109,11 +110,9 @@ async function loadSession(sid){
     S.messages=data.session.messages||[];
     const pendingMsg=typeof getPendingSessionMessage==='function'?getPendingSessionMessage(data.session):null;
     if(pendingMsg) S.messages.push(pendingMsg);
-    // Fix (PR #402): do NOT pre-fill S.toolCalls from session-level tool_calls —
-    // those have stale assistant_msg_idx values after B9 sanitization. Instead,
-    // set S.toolCalls=[] and let renderMessages() derive them from per-message
-    // tool_calls (which already have correct sanitized-array indices).
-    S.toolCalls=[];
+    // Set S.toolCalls from session-level tool_calls (indices were remapped above
+    // during B9 sanitization, so they point to the correct sanitized positions).
+    S.toolCalls = (data.session.tool_calls || []).map(tc => ({...tc, done: true}));
     clearLiveToolCards();
     if(activeStreamId){
       S.busy=true;
@@ -141,7 +140,10 @@ async function loadSession(sid){
       setComposerStatus('');
       updateQueueBadge(sid);
       syncTopbar();renderMessages();highlightCode();loadDir('.');
+      if(typeof _resetComposerElapsedTimer==='function') _resetComposerElapsedTimer();
     }
+    // Re-render session list to update active state highlighting
+    renderSessionListFromCache();
   }
   // Sync context usage indicator from session data
   const _s=S.session;
@@ -162,12 +164,31 @@ async function loadSession(sid){
 let _allSessions = [];  // cached for search filter
 let _renamingSid = null;  // session_id currently being renamed (blocks list re-renders)
 let _showArchived = false;  // toggle to show archived sessions
+let _showSwarmSessions = false;  // toggle to show swarm worker sessions (#-prefixed)
 let _allProjects = [];  // cached project list
 let _activeProject = null;  // project_id filter (null = show all)
 let _showAllProfiles = false;  // false = filter to active profile only
 let _sessionActionMenu = null;
 let _sessionActionAnchor = null;
 let _sessionActionSessionId = null;
+
+// Expose for remote_sessions.js merging
+window._allSessions = _allSessions;
+window._allProjects = _allProjects;
+
+// Debug helper: call from console to reset stuck rename state
+window._debugResetRename = ()=>{
+  console.log('[debug] _renamingSid was:', _renamingSid);
+  _renamingSid = null;
+  console.log('[debug] _renamingSid reset to null');
+};
+window._debugSessionState = ()=>{
+  console.log({
+    _renamingSid,
+    _allSessionsCount: _allSessions.length,
+    _allSessions: _allSessions.slice(0,5).map(s=>({id:s.session_id, title:s.title||'Untitled', is_cli: s.is_cli_session}))
+  });
+};
 
 function closeSessionActionMenu(){
   if(_sessionActionMenu){
@@ -230,8 +251,8 @@ function _openSessionActionMenu(session, anchorEl){
   const menu=document.createElement('div');
   menu.className='session-action-menu open';
   menu.appendChild(_buildSessionAction(
-    session.pinned?'Unpin conversation':'Pin conversation',
-    session.pinned?'Remove from the pinned section':'Keep this conversation at the top',
+    session.pinned?'unpin conversation':'pin conversation',
+    session.pinned?'remove from the pinned section':'keep this conversation at the top',
     session.pinned?ICONS.pin:ICONS.unpin,
     async()=>{
       closeSessionActionMenu();
@@ -241,13 +262,41 @@ function _openSessionActionMenu(session, anchorEl){
         session.pinned=newPinned;
         if(S.session&&S.session.session_id===session.session_id) S.session.pinned=newPinned;
         renderSessionList();
-      }catch(err){showToast('Pin failed: '+err.message);}
+      }catch(err){showToast('pin failed: '+err.message);}
     },
     session.pinned?'is-active':''
   ));
   menu.appendChild(_buildSessionAction(
-    'Move to project',
-    session.project_id?'Change which project this conversation belongs to':'Assign this conversation to a project',
+    'rename conversation',
+    'change the title of this conversation',
+    ICONS.pencil,
+    async()=>{
+      closeSessionActionMenu();
+      const newTitle = prompt('enter new title:', session.title || session.session_id);
+      if (!newTitle || newTitle === session.title) return;
+      // Optimistic update: update UI immediately
+      const oldTitle = session.title;
+      session.title = newTitle;
+      const cached = _allSessions.find(s => s.session_id === session.session_id);
+      if (cached) cached.title = newTitle;
+      if (S.session && S.session.session_id === session.session_id) { S.session.title = newTitle; syncTopbar(); }
+      renderSessionListFromCache();
+      showToast('session renamed');
+      try {
+        await api('/api/session/rename', {method:'POST', body:JSON.stringify({session_id:session.session_id, title:newTitle})});
+      } catch(err) {
+        // Revert on failure
+        session.title = oldTitle;
+        if (cached) cached.title = oldTitle;
+        if (S.session && S.session.session_id === session.session_id) { S.session.title = oldTitle; syncTopbar(); }
+        renderSessionListFromCache();
+        showToast('rename failed: '+err.message);
+      }
+    }
+  ));
+  menu.appendChild(_buildSessionAction(
+    'move to project',
+    session.project_id?'change which project this conversation belongs to':'assign this conversation to a project',
     ICONS.folder,
     async()=>{
       closeSessionActionMenu();
@@ -255,8 +304,8 @@ function _openSessionActionMenu(session, anchorEl){
     }
   ));
   menu.appendChild(_buildSessionAction(
-    session.archived?'Restore conversation':'Archive conversation',
-    session.archived?'Bring this conversation back into the main list':'Hide this conversation until archived is shown',
+    session.archived?'restore conversation':'archive conversation',
+    session.archived?'bring this conversation back into the main list':'hide this conversation until archived is shown',
     session.archived?ICONS.unarchive:ICONS.archive,
     async()=>{
       closeSessionActionMenu();
@@ -265,13 +314,13 @@ function _openSessionActionMenu(session, anchorEl){
         session.archived=!session.archived;
         if(S.session&&S.session.session_id===session.session_id) S.session.archived=session.archived;
         await renderSessionList();
-        showToast(session.archived?'Session archived':'Session restored');
-      }catch(err){showToast('Archive failed: '+err.message);}
+        showToast(session.archived?'session archived':'session restored');
+      }catch(err){showToast('archive failed: '+err.message);}
     }
   ));
   menu.appendChild(_buildSessionAction(
-    'Duplicate conversation',
-    'Create a copy with the same workspace and model',
+    'duplicate conversation',
+    'create a copy with the same workspace and model',
     ICONS.dup,
     async()=>{
       closeSessionActionMenu();
@@ -281,14 +330,14 @@ function _openSessionActionMenu(session, anchorEl){
           await api('/api/session/rename',{method:'POST',body:JSON.stringify({session_id:res.session.session_id,title:(session.title||'Untitled')+' (copy)'})});
           await loadSession(res.session.session_id);
           await renderSessionList();
-          showToast('Session duplicated');
+          showToast('session duplicated');
         }
-      }catch(err){showToast('Duplicate failed: '+err.message);}
+      }catch(err){showToast('duplicate failed: '+err.message);}
     }
   ));
   menu.appendChild(_buildSessionAction(
-    'Delete conversation',
-    'Permanently remove this conversation',
+    'delete conversation',
+    'permanently remove this conversation',
     ICONS.trash,
     async()=>{
       closeSessionActionMenu();
@@ -327,12 +376,33 @@ window.addEventListener('resize',()=>{
 async function renderSessionList(){
   try{
     if(!($('sessionSearch').value||'').trim()) _contentSearchResults = [];
+    // Show cached sessions instantly while fetching fresh data
+    const cached = localStorage.getItem('hermes-sessions-cache');
+    if(cached && !_allSessions.length){
+      try{
+        _allSessions = JSON.parse(cached);
+        renderSessionListFromCache();
+      }catch(e){ /* ignore parse errors */ }
+    }
     const [sessData, projData] = await Promise.all([
-      api('/api/sessions'),
+      api('/api/sessions' + (_showSwarmSessions ? '?show_swarm=true' : '')),
       api('/api/projects'),
     ]);
     _allSessions = sessData.sessions||[];
     _allProjects = projData.projects||[];
+    // Update global for remote merging
+    window._allSessions = _allSessions;
+    window._allProjects = _allProjects;
+    // Cache for instant load next time
+    try{
+      localStorage.setItem('hermes-sessions-cache', JSON.stringify(_allSessions));
+      localStorage.setItem('hermes-projects-cache', JSON.stringify(_allProjects));
+    }catch(e){}
+    // Show total in console for debugging
+    if (typeof window._debugShowCount === 'undefined') {
+      window._debugShowCount = true;
+      console.log('[sessions] TOTAL:', _allSessions.length, '(local + remote should be ~193)');
+    }
     renderSessionListFromCache();  // no-ops if rename is in progress
   }catch(e){console.warn('renderSessionList',e);}
 }
@@ -369,6 +439,12 @@ function stopGatewaySSE(){
 let _searchDebounceTimer = null;
 let _contentSearchResults = [];  // results from /api/sessions/search content scan
 
+function _shouldShowSession(session) {
+  const title = (session.title || "").trim();
+  if (_showSwarmSessions) return true;  // show everything when toggle is on
+  return !title.startsWith('#');
+}
+
 function filterSessions(){
   // Immediate client-side title filter (no flicker)
   renderSessionListFromCache();
@@ -379,8 +455,8 @@ function filterSessions(){
   _searchDebounceTimer = setTimeout(async () => {
     try {
       const data = await api(`/api/sessions/search?q=${encodeURIComponent(q)}&content=1&depth=5`);
-      const titleIds = new Set(_allSessions.filter(s => (s.title||'Untitled').toLowerCase().includes(q.toLowerCase())).map(s=>s.session_id));
-      _contentSearchResults = (data.sessions||[]).filter(s => s.match_type === 'content' && !titleIds.has(s.session_id));
+      const titleIds = new Set(_allSessions.filter(s => _shouldShowSession(s) && (s.title||'Untitled').toLowerCase().includes(q.toLowerCase())).map(s=>s.session_id));
+      _contentSearchResults = (data.sessions||[]).filter(s => _shouldShowSession(s) && s.match_type === 'content' && !titleIds.has(s.session_id));
       renderSessionListFromCache();
     } catch(e) { /* ignore */ }
   }, 350);
@@ -457,20 +533,33 @@ function renderSessionListFromCache(){
   if(_renamingSid) return;
   closeSessionActionMenu();
   const q=($('sessionSearch').value||'').toLowerCase();
-  const titleMatches=q?_allSessions.filter(s=>(s.title||'Untitled').toLowerCase().includes(q)):_allSessions;
+  const titleMatches=q?_allSessions.filter(s=>_shouldShowSession(s) && (s.title||'Untitled').toLowerCase().includes(q)):_allSessions.filter(_shouldShowSession);
   // Merge content matches (deduped): content matches appended after title matches
   const titleIds=new Set(titleMatches.map(s=>s.session_id));
-  const allMatched=q?[...titleMatches,..._contentSearchResults.filter(s=>!titleIds.has(s.session_id))]:titleMatches;
+  const allMatched=q?[...titleMatches,..._contentSearchResults.filter(s=>_shouldShowSession(s) && !titleIds.has(s.session_id))]:titleMatches;
   // Filter by active profile (unless "All profiles" is toggled on)
   // Server backfills profile='default' for legacy sessions, so every session has a profile.
   // Show only sessions tagged to the active profile; 'All profiles' toggle overrides.
-  const profileFiltered=_showAllProfiles?allMatched:allMatched.filter(s=>s.is_cli_session||s.profile===S.activeProfile);
+  const activeProfile = S.activeProfile || 'default';
+  const profileFiltered=_showAllProfiles?allMatched:allMatched.filter(s=>s.is_cli_session||s.profile===activeProfile);
   // Filter by active project
   const projectFiltered=_activeProject?profileFiltered.filter(s=>s.project_id===_activeProject):profileFiltered;
   // Filter archived unless toggle is on
   const sessions=_showArchived?projectFiltered:projectFiltered.filter(s=>!s.archived);
   const archivedCount=projectFiltered.filter(s=>s.archived).length;
-  const list=$('sessionList');list.innerHTML='';
+  const list=$('sessionList');
+  // Save scroll position before clearing
+  const scrollTop = list.scrollTop;
+  list.innerHTML='';
+  // Schedule scroll restoration after DOM rebuild
+  const restoreScroll = () => {
+    // Clamp scroll position to valid range (in case list got shorter)
+    const maxScroll = list.scrollHeight - list.clientHeight;
+    const clampedScroll = Math.min(scrollTop, maxScroll);
+    if (list.scrollTop !== clampedScroll) {
+      list.scrollTop = clampedScroll;
+    }
+  };
   // Project filter bar (only when projects exist)
   if(_allProjects.length>0){
     const bar=document.createElement('div');
@@ -478,7 +567,7 @@ function renderSessionListFromCache(){
     // "All" chip
     const allChip=document.createElement('span');
     allChip.className='project-chip'+(!_activeProject?' active':'');
-    allChip.textContent='All';
+    allChip.textContent='all';
     allChip.onclick=()=>{_activeProject=null;renderSessionListFromCache();};
     bar.appendChild(allChip);
     // Project chips
@@ -509,7 +598,7 @@ function renderSessionListFromCache(){
     list.appendChild(bar);
   }
   // Profile filter toggle (show sessions from other profiles)
-  const otherProfileCount=allMatched.filter(s=>s.profile&&s.profile!==S.activeProfile).length;
+  const otherProfileCount=allMatched.filter(s=>s.profile&&s.profile!==activeProfile).length;
   if(otherProfileCount>0&&!_showAllProfiles){
     const pfToggle=document.createElement('div');
     pfToggle.style.cssText='font-size:10px;padding:4px 10px;color:var(--muted);cursor:pointer;text-align:center;opacity:.7;';
@@ -519,7 +608,7 @@ function renderSessionListFromCache(){
   } else if(_showAllProfiles&&otherProfileCount>0){
     const pfToggle=document.createElement('div');
     pfToggle.style.cssText='font-size:10px;padding:4px 10px;color:var(--muted);cursor:pointer;text-align:center;opacity:.7;';
-    pfToggle.textContent='Show active profile only';
+    pfToggle.textContent='show active profile only';
     pfToggle.onclick=()=>{_showAllProfiles=false;renderSessionListFromCache();};
     list.appendChild(pfToggle);
   }
@@ -527,15 +616,24 @@ function renderSessionListFromCache(){
   if(archivedCount>0){
     const toggle=document.createElement('div');
     toggle.style.cssText='font-size:10px;padding:4px 10px;color:var(--muted);cursor:pointer;text-align:center;opacity:.7;';
-    toggle.textContent=_showArchived?'Hide archived':'Show '+archivedCount+' archived';
+    toggle.textContent=_showArchived?'hide archived':'show '+archivedCount+' archived';
     toggle.onclick=()=>{_showArchived=!_showArchived;renderSessionListFromCache();};
     list.appendChild(toggle);
+  }
+  // Show/hide swarm sessions toggle if there are any #-prefixed sessions
+  const swarmCount=projectFiltered.filter(s=>(s.title||'').startsWith('#')).length;
+  if(swarmCount>0){
+    const swarmToggle=document.createElement('div');
+    swarmToggle.style.cssText='font-size:10px;padding:4px 10px;color:var(--muted);cursor:pointer;text-align:center;opacity:.7;';
+    swarmToggle.textContent=_showSwarmSessions?'hide swarm sessions':'show '+swarmCount+' swarm sessions';
+    swarmToggle.onclick=()=>{_showSwarmSessions=!_showSwarmSessions;renderSessionListFromCache();};
+    list.appendChild(swarmToggle);
   }
   // Empty state for active project filter
   if(_activeProject&&sessions.length===0){
     const empty=document.createElement('div');
     empty.style.cssText='padding:20px 14px;color:var(--muted);font-size:12px;text-align:center;opacity:.7;';
-    empty.textContent='No sessions in this project yet.';
+    empty.textContent='no sessions in this project yet.';
     list.appendChild(empty);
   }
   const orderedSessions=[...sessions].sort((a,b)=>_sessionTimestampMs(b)-_sessionTimestampMs(a));
@@ -608,7 +706,7 @@ function renderSessionListFromCache(){
     titleRow.className='session-title-row';
     const title=document.createElement('span');
     title.className='session-title';
-    title.textContent=cleanTitle||'Untitled';
+    title.textContent=cleanTitle||'untitled';
     title.title='Double-click to rename';
     const tsMs=_sessionTimestampMs(s);
     titleRow.appendChild(title);
@@ -643,15 +741,15 @@ function renderSessionListFromCache(){
           const newTitle=inp.value.trim()||'Untitled';
           title.textContent=newTitle;
           s.title=newTitle;
+          // Optimistic update: update cache and sidebar immediately
+          const cached=_allSessions.find(sess=>sess.session_id===s.session_id);
+          if(cached)cached.title=newTitle;
+          renderSessionListFromCache();
           if(S.session&&S.session.session_id===s.session_id){S.session.title=newTitle;syncTopbar();}
-          try{await api('/api/session/rename',{method:'POST',body:JSON.stringify({session_id:s.session_id,title:newTitle})});
-            const cached=_allSessions.find(sess=>sess.session_id===s.session_id);
-            if(cached)cached.title=newTitle;
-          }catch(err){setStatus('Rename failed: '+err.message);}
+          try{await api('/api/session/rename',{method:'POST',body:JSON.stringify({session_id:s.session_id,title:newTitle})});}
+          catch(err){setStatus('Rename failed: '+err.message);}
         }
         inp.replaceWith(title);
-        // Allow list re-renders again after a short delay
-        setTimeout(()=>{ if(_renamingSid===null) renderSessionListFromCache(); },50);
       };
       inp.onkeydown=e2=>{
         if(e2.key==='Enter'){
@@ -662,10 +760,25 @@ function renderSessionListFromCache(){
         }
         if(e2.key==='Escape'){e2.preventDefault();e2.stopPropagation();finish(false);}
       };
-      // onblur: cancel only -- no accidental saves
-      inp.onblur=()=>{ if(_renamingSid===s.session_id) finish(false); };
+      // onblur: always finish to prevent _renamingSid from getting stuck
+      inp.onblur=()=>{ finish(false); };
       title.replaceWith(inp);
       setTimeout(()=>{inp.focus();inp.select();},10);
+      // Safety timeout: force reset _renamingSid if it gets stuck (e.g., due to errors)
+      const safetyTimeout = setTimeout(()=>{
+        if(_renamingSid===s.session_id){
+          console.warn('[sessions] Force resetting stuck _renamingSid:', s.session_id);
+          _renamingSid = null;
+          // Remove input if it's still in DOM
+          if(inp.parentNode) inp.replaceWith(title);
+        }
+      }, 30000); // 30 second safety timeout
+      // Clean up safety timeout when finish is called
+      const originalFinish = finish;
+      finish = function(save){
+        clearTimeout(safetyTimeout);
+        return originalFinish(save);
+      };
     };
 
     // Pin indicator (inline, only when pinned — no space reserved otherwise)
@@ -710,19 +823,52 @@ function renderSessionListFromCache(){
     // which would re-render the list and destroy the dblclick target before it fires.
     let _clickTimer=null;
     el.onclick=async(e)=>{
-      if(_renamingSid) return; // ignore while any rename is active
+      if(_renamingSid){
+        console.log('[sessions] Click blocked, _renamingSid:', _renamingSid);
+        return; // ignore while any rename is active
+      }
       if(actions.contains(e.target)) return;
       clearTimeout(_clickTimer);
+      console.log('[sessions] Click on session:', s.session_id, 'title:', s.title||'Untitled', 'is_cli:', s.is_cli_session, 'is_remote:', s._remote);
       _clickTimer=setTimeout(async()=>{
         _clickTimer=null;
         if(_renamingSid) return;
-        // For CLI sessions, import into WebUI store first (idempotent)
-        if(s.is_cli_session){
+        // For remote sessions, fetch from remote machine first
+        let targetSessionId = s.session_id;
+        if(s._remote){
+          console.log('[sessions] Fetching remote session:', s.session_id);
           try{
-            await api('/api/session/import_cli',{method:'POST',body:JSON.stringify({session_id:s.session_id})});
-          }catch(e){ /* import failed -- fall through to read-only view */ }
+            const res=await api('/api/remote/sessions/'+s.session_id);
+            console.log('[sessions] Remote fetch result:', res);
+            if(res.ok && res.session){
+              // Import into local store - capture the new session ID
+              const importRes = await api('/api/session/import',{method:'POST',body:JSON.stringify(res.session)});
+              console.log('[sessions] Import result:', importRes);
+              if(importRes.ok && importRes.session){
+                targetSessionId = importRes.session.session_id; // Use NEW session ID
+                showToast('session imported from remote');
+              }
+            }
+          }catch(e){ console.log('[sessions] Remote import failed:', e.message); }
         }
-        await loadSession(s.session_id);renderSessionListFromCache();
+        // For CLI sessions, import into WebUI store first (idempotent)
+        else if(s.is_cli_session){
+          console.log('[sessions] Importing CLI session:', s.session_id);
+          try{
+            const importRes = await api('/api/session/import_cli',{method:'POST',body:JSON.stringify({session_id:s.session_id})});
+            if(importRes.ok && importRes.session){
+              targetSessionId = importRes.session.session_id; // Use NEW session ID
+            }
+          }catch(e){ console.log('[sessions] CLI import failed:', e.message); }
+        }
+        console.log('[sessions] Loading session:', targetSessionId);
+        try{
+          await loadSession(targetSessionId);
+          renderSessionListFromCache();
+        }catch(e){
+          console.error('[sessions] loadSession failed:', e.message);
+          showToast('failed to load session: ' + e.message);
+        }
         if(typeof closeMobileSidebar==='function')closeMobileSidebar();
       }, 220);
     };
@@ -741,23 +887,49 @@ function renderSessionListFromCache(){
     };
     return el;
   }
+  // Restore scroll position after DOM rebuild
+  requestAnimationFrame(restoreScroll);
+  // Double-check after a short delay (in case of async image loads, etc.)
+  setTimeout(restoreScroll, 50);
 }
 
 async function deleteSession(sid){
-  const ok=await showConfirmDialog({
-    message:'Delete this conversation?',
-    confirmLabel:t('delete_title'),
-    danger:true
-  });
-  if(!ok)return;
-  try{
-    await api('/api/session/delete',{method:'POST',body:JSON.stringify({session_id:sid})});
-  }catch(e){setStatus(`Delete failed: ${e.message}`);return;}
+  // Close any open menu and clear state before deleting
+  closeSessionActionMenu();
+
+  // Check if this is a remote session
+  const session = _allSessions.find(s => s.session_id === sid);
+  const isRemote = session && session._remote;
+
+  // Track this session as deleted to prevent remote cache from re-adding it
+  if (window.Sessions && window.Sessions._recentlyDeleted) {
+    window.Sessions._recentlyDeleted.add(sid);
+    // Persist to localStorage to survive page reloads
+    try {
+      localStorage.setItem('hermes-deleted-sessions', JSON.stringify([...window.Sessions._recentlyDeleted]));
+    } catch (e) {
+      console.warn('Failed to save deleted sessions:', e);
+    }
+  }
+
+  // Remove the session from the local cache immediately for instant UI feedback
+  _allSessions = _allSessions.filter(s => s.session_id !== sid);
+  renderSessionListFromCache();
+
+  // Fire the delete request in the background (don't wait for it)
+  // Pass remote flag if this is a remote session
+  const deleteBody = {session_id: sid};
+  if (isRemote) {
+    deleteBody.remote = true;
+  }
+  api('/api/session/delete',{method:'POST',body:JSON.stringify(deleteBody)})
+    .catch(e => console.error('Delete failed:', e));
+
   if(S.session&&S.session.session_id===sid){
     S.session=null;S.messages=[];S.entries=[];
     localStorage.removeItem('hermes-webui-session');
     // load the most recent remaining session, or show blank if none left
-    const remaining=await api('/api/sessions');
+    const remaining=await api('/api/sessions' + (_showSwarmSessions ? '?show_swarm=true' : ''));
     if(remaining.sessions&&remaining.sessions.length){
       await loadSession(remaining.sessions[0].session_id);
     }else{
@@ -768,8 +940,9 @@ async function deleteSession(sid){
       $('fileTree').innerHTML='';
     }
   }
-  showToast('Conversation deleted');
-  await renderSessionList();
+  showToast('conversation deleted');
+  // Session already removed from cache and UI via optimistic update
+  // Background refresh will happen naturally via remote_sessions.js cache TTL
 }
 
 // ── Delete all cron sessions ─────────────────────────────────────────────
@@ -779,7 +952,7 @@ async function deleteAllCronSessions(){
   const cronPatterns = ['cron_', 'session_cron', 'sessions_cron'];
 
   // Get all sessions
-  const data = await api('/api/sessions');
+  const data = await api('/api/sessions' + (_showSwarmSessions ? '?show_swarm=true' : ''));
   const allSessions = data.sessions || [];
 
   // Filter sessions that start with cron patterns
@@ -789,16 +962,9 @@ async function deleteAllCronSessions(){
   });
 
   if (cronSessions.length === 0) {
-    showToast('No cron sessions found');
+    showToast('no cron sessions found');
     return;
   }
-
-  const ok = await showConfirmDialog({
-    message: `Delete ${cronSessions.length} cron session${cronSessions.length === 1 ? '' : 's'}?`,
-    confirmLabel: t('delete_title'),
-    danger: true
-  });
-  if (!ok) return;
 
   let deleted = 0;
   let failed = 0;
@@ -816,9 +982,9 @@ async function deleteAllCronSessions(){
   }
 
   if (failed > 0) {
-    showToast(`Deleted ${deleted} cron sessions, ${failed} failed`, 4000);
+    showToast(`deleted ${deleted} cron sessions, ${failed} failed`, 4000);
   } else {
-    showToast(`Deleted ${deleted} cron session${deleted === 1 ? '' : 's'}`);
+    showToast(`deleted ${deleted} cron session${deleted === 1 ? '' : 's'}`);
   }
 
   // If current session was a cron session, clear it
@@ -827,7 +993,7 @@ async function deleteAllCronSessions(){
     S.messages = [];
     S.entries = [];
     localStorage.removeItem('hermes-webui-session');
-    const remaining = await api('/api/sessions');
+    const remaining = await api('/api/sessions' + (_showSwarmSessions ? '?show_swarm=true' : ''));
     if (remaining.sessions && remaining.sessions.length) {
       await loadSession(remaining.sessions[0].session_id);
     } else {
@@ -839,6 +1005,9 @@ async function deleteAllCronSessions(){
     }
   }
 
+  // Force clear and re-fetch session list
+  closeSessionActionMenu();
+  _allSessions = [];
   await renderSessionList();
 }
 
@@ -854,14 +1023,14 @@ function _showProjectPicker(session, anchorEl){
   // "No project" option
   const none=document.createElement('div');
   none.className='project-picker-item'+(!session.project_id?' active':'');
-  none.textContent='No project';
+  none.textContent='no project';
   none.onclick=async()=>{
     picker.remove();
     document.removeEventListener('click',close);
     await api('/api/session/move',{method:'POST',body:JSON.stringify({session_id:session.session_id,project_id:null})});
     session.project_id=null;
     renderSessionListFromCache();
-    showToast('Removed from project');
+    showToast('removed from project');
   };
   picker.appendChild(none);
   // Project options
@@ -883,7 +1052,7 @@ function _showProjectPicker(session, anchorEl){
       await api('/api/session/move',{method:'POST',body:JSON.stringify({session_id:session.session_id,project_id:p.project_id})});
       session.project_id=p.project_id;
       renderSessionListFromCache();
-      showToast('Moved to '+p.name);
+      showToast('moved to '+p.name);
     };
     picker.appendChild(item);
   }
@@ -908,7 +1077,7 @@ function _showProjectPicker(session, anchorEl){
       await api('/api/session/move',{method:'POST',body:JSON.stringify({session_id:session.session_id,project_id:res.project.project_id})});
       session.project_id=res.project.project_id;
       await renderSessionList();
-      showToast('Created "'+res.project.name+'" and moved session');
+      showToast('created "'+res.project.name+'" and moved session');
     }
   };
   picker.appendChild(createItem);
@@ -946,7 +1115,7 @@ function _startProjectCreate(bar, addBtn){
       const color=PROJECT_COLORS[_allProjects.length%PROJECT_COLORS.length];
       await api('/api/projects/create',{method:'POST',body:JSON.stringify({name:inp.value.trim(),color})});
       await renderSessionList();
-      showToast('Project created');
+      showToast('project created');
     }else{
       inp.replaceWith(addBtn);
     }
@@ -972,7 +1141,7 @@ function _startProjectRename(proj, chip){
     if(save&&inp.value.trim()&&inp.value.trim()!==proj.name){
       await api('/api/projects/rename',{method:'POST',body:JSON.stringify({project_id:proj.project_id,name:inp.value.trim()})});
       await renderSessionList();
-      showToast('Project renamed');
+      showToast('project renamed');
     }else{
       renderSessionListFromCache();
     }
@@ -993,7 +1162,7 @@ function _startProjectRename(proj, chip){
 
 async function _confirmDeleteProject(proj){
   const ok=await showConfirmDialog({
-    message:'Delete project "'+proj.name+'"? Sessions will be unassigned but not deleted.',
+    message:'delete project "'+proj.name+'"? sessions will be unassigned but not deleted.',
     confirmLabel:t('delete_title'),
     danger:true
   });
@@ -1001,5 +1170,5 @@ async function _confirmDeleteProject(proj){
   await api('/api/projects/delete',{method:'POST',body:JSON.stringify({project_id:proj.project_id})});
   if(_activeProject===proj.project_id) _activeProject=null;
   await renderSessionList();
-  showToast('Project deleted');
+  showToast('project deleted');
 }

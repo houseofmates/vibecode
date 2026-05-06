@@ -1,124 +1,228 @@
-// Sessions Loader
+// Sessions Loader - with aggressive caching for .250 remote sessions
 
 (function() {
   'use strict';
 
   let _remoteSessions = [];
   let _localSessions = [];
-  const REMOTE_SESSIONS_API = '/api/remote/sessions';
+  // Detect Tauri and use the configured local backend URL
+  const isCapacitorApp = !!(window.Capacitor || window.__capacitor || location.protocol==='capacitor:' || document.documentElement.classList.contains('apk-force-mobile'));
+  const isTauri = !isCapacitorApp && (window.__TAURI__ || location.protocol==='tauri:' || location.protocol==='file:' || location.hostname==='tauri.localhost' || location.host==='tauri.localhost');
+  const TAURI_API_BASE = window.HERMES_API_BASE || (()=>{ try{ return localStorage.getItem('hermes-api-base'); }catch(e){ return null; } })() || (()=>{ try{ return localStorage.getItem('hermes-api-origin'); }catch(e){ return null; } })() || 'http://localhost:8786';
+  const API_BASE = isTauri ? TAURI_API_BASE : (isCapacitorApp ? 'https://vc.houseofmates.space' : '');
+  const REMOTE_SESSIONS_API = API_BASE.replace(/\/$/, '') + '/api/remote/sessions';
 
-  // Fetch sessions from server
-  async function fetchRemoteSessions() {
+  // Cache configuration
+  const CACHE_TTL_MS = 30000; // 30 seconds - background refresh interval
+  let _lastFetchTime = 0;
+  let _isFetching = false;
+  let _pendingFetch = null;
+
+  // Track recently deleted sessions to prevent re-adding from remote cache
+  // Persist to localStorage to survive page reloads
+  const _recentlyDeleted = new Set();
+  const DELETED_STORAGE_KEY = 'hermes-deleted-sessions';
+
+  function _loadDeletedSessions() {
+    try {
+      const stored = localStorage.getItem(DELETED_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Filter out entries older than 7 days to prevent infinite growth
+        const now = Date.now();
+        const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+        const validEntries = parsed.filter(entry => {
+          // Handle both simple IDs and timestamped entries
+          if (typeof entry === 'string') return true; // Legacy format, keep for now
+          if (entry && entry.id && entry.deletedAt) {
+            return (now - entry.deletedAt) < maxAge;
+          }
+          return true;
+        }).map(entry => typeof entry === 'string' ? entry : entry.id);
+        validEntries.forEach(id => _recentlyDeleted.add(id));
+      }
+    } catch (e) {
+      console.warn('[Sessions] Failed to load deleted sessions from storage:', e);
+    }
+  }
+
+  function _saveDeletedSessions() {
+    try {
+      const now = Date.now();
+      // Load existing entries to preserve their timestamps
+      let existing = [];
+      try {
+        existing = JSON.parse(localStorage.getItem(DELETED_STORAGE_KEY) || '[]');
+      } catch (e) {}
+      
+      // Create map of existing entries by ID to preserve timestamps
+      const existingMap = new Map();
+      for (const entry of existing) {
+        if (typeof entry === 'string') {
+          existingMap.set(entry, now); // Legacy format, use current time
+        } else if (entry && entry.id) {
+          existingMap.set(entry.id, entry.deletedAt || now);
+        }
+      }
+      
+      // Merge: use existing timestamp if present, otherwise use now
+      const entries = [..._recentlyDeleted].map(id => ({ 
+        id, 
+        deletedAt: existingMap.get(id) || now 
+      }));
+      
+      localStorage.setItem(DELETED_STORAGE_KEY, JSON.stringify(entries));
+    } catch (e) {
+      console.warn('[Sessions] Failed to save deleted sessions to storage:', e);
+    }
+  }
+
+  // Load deleted sessions on initialization
+  _loadDeletedSessions();
+
+  // Fetch sessions from remote .250/.233 for unified list
+  async function fetchRemoteSessions(force = false) {
+    const now = Date.now();
+    
+    // Return cached if fresh and not forced
+    if (!force && _remoteSessions.length > 0 && (now - _lastFetchTime) < CACHE_TTL_MS) {
+      console.log('[Sessions] Using cached remote sessions:', _remoteSessions.length);
+      return _remoteSessions;
+    }
+    
+    // Dedupe concurrent fetches
+    if (_isFetching) {
+      console.log('[Sessions] Fetch in progress, waiting...');
+      return _pendingFetch || _remoteSessions;
+    }
+    
+    _isFetching = true;
+    _pendingFetch = _doFetchRemoteSessions().finally(() => {
+      _isFetching = false;
+      _pendingFetch = null;
+    });
+    
+    return _pendingFetch;
+  }
+  
+  // Internal fetch implementation
+  async function _doFetchRemoteSessions() {
     try {
       console.log('[Sessions] Fetching from', REMOTE_SESSIONS_API);
-      const response = await fetch(REMOTE_SESSIONS_API, { credentials: 'include' });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      const response = await fetch(REMOTE_SESSIONS_API, { credentials: 'include', signal: controller.signal });
+      console.log('[Sessions] Fetch URL:', REMOTE_SESSIONS_API, 'isTauri:', isTauri);
+      clearTimeout(timeoutId);
+      
       if (!response.ok) {
         console.warn('[Sessions] Failed to fetch sessions:', response.status);
-        return [];
+        return _remoteSessions; // Return stale cache on error
       }
+      
       const data = await response.json();
-      console.log('[Sessions] API response:', data);
       if (data.ok && Array.isArray(data.sessions)) {
-        console.log('[Sessions] Loaded', data.sessions.length, 'sessions from', data.source);
-        if (data.errors && data.errors.length > 0) {
-          console.warn('[Sessions] API errors:', data.errors);
-        }
-        if (data.debug && data.debug.length > 0) {
-          console.log('[Sessions] Debug info:', data.debug);
-        }
-        // Log first few sessions for debugging
-        data.sessions.slice(0, 5).forEach((s, i) => {
-          console.log(`[Sessions] Session ${i}:`, s.session_id, s.title, s.source);
-        });
-        return data.sessions.map(s => ({
+        const limited = data.sessions.slice(0, 200);
+        console.log('[Sessions] Loaded', limited.length, 'remote sessions from', data.source);
+        
+        _remoteSessions = limited.map(s => ({
           ...s,
-          _remote: true,  
-          _source: data.source
+          _remote: true,
+          _source: data.source,
+          title: s.title || s.session_id,
+          pinned: s.pinned || false,
+          archived: s.archived || false,
+          updated_at: s.updated_at || s.created_at || Date.now()/1000,
+          created_at: s.created_at || Date.now()/1000
         }));
+        
+        _lastFetchTime = Date.now();
+        return _remoteSessions;
       }
-      console.warn('[Sessions] Invalid response format:', data);
-      return [];
+      return _remoteSessions;
     } catch (e) {
       console.warn('[Sessions] Error fetching sessions:', e);
-      return [];
+      return _remoteSessions; // Return stale cache on error
     }
   }
 
-  // Wrap the original renderSessionList if it exists
+  // Wrap the original renderSessionList to merge remote sessions
   function wrapRenderSessionList() {
+    console.log('[remote_sessions] wrapRenderSessionList checking:', typeof window.renderSessionList, !!window._originalRenderSessionList);
     if (typeof window.renderSessionList === 'function' && !window._originalRenderSessionList) {
       window._originalRenderSessionList = window.renderSessionList;
-
       window.renderSessionList = async function() {
-        // Fetch remote sessions before rendering
-        _remoteSessions = await fetchRemoteSessions();
-
-        // Call original function
+        console.log('[remote_sessions] renderSessionList called');
+        // Fetch remote in parallel, but do not block local session rendering.
+        fetchRemoteSessions().then(remote => {
+          _remoteSessions = remote;
+          console.log('[remote_sessions] Fetched remote:', remote.length);
+          mergeRemoteSessions();
+        }).catch(e => {
+          console.warn('[remote_sessions] Remote fetch failed:', e);
+        });
+        // Call original function (loads local sessions)
         const result = await window._originalRenderSessionList.apply(this, arguments);
-
-        // After rendering, merge remote sessions into the DOM
+        console.log('[remote_sessions] After original, window._allSessions:', window._allSessions?.length);
+        // Try a merge immediately as well in case remote sessions were cached.
         mergeRemoteSessions();
-
         return result;
       };
-
-      console.log('[Sessions] Wrapped renderSessionList');
+      console.log('[Sessions] Wrapped renderSessionList for unified session list');
     }
   }
 
-  // Merge remote sessions into the session list in the DOM
+  // Merge remote sessions into _allSessions for unified list display
   function mergeRemoteSessions() {
-    const sessionList = document.getElementById('sessionList');
-    if (!sessionList) {
-      console.warn('[Sessions] sessionList element not found');
+    // Access _allSessions from sessions.js scope (now on window)
+    const allSess = window._allSessions;
+    const allProj = window._allProjects;
+    if (!allSess || !Array.isArray(allSess)) {
+      console.warn('[Sessions] _allSessions not available for merging');
       return;
     }
-
-    console.log('[Sessions] Merging', _remoteSessions.length, 'remote sessions into DOM');
-
-    // Always remove old section if it exists (it may have been cleared by renderSessionList)
-    let remoteSection = document.getElementById('remoteSessionsSection');
-    if (remoteSection) {
-      remoteSection.remove();
+    
+    if (_remoteSessions.length === 0) {
+      console.log('[Sessions] No remote sessions to merge');
+      return;
+    }
+    
+    // Get existing session IDs to avoid duplicates
+    const existingIds = new Set(allSess.map(s => s.session_id));
+    let added = 0;
+    
+    for (const remote of _remoteSessions) {
+      // Skip if already exists locally or was recently deleted
+      if (!existingIds.has(remote.session_id) && !_recentlyDeleted.has(remote.session_id)) {
+        // Add required fields for compatibility with sessions.js
+        const session = {
+          ...remote,
+          pinned: remote.pinned || false,
+          archived: remote.archived || false,
+          updated_at: remote.updated_at || remote.created_at || Date.now()/1000,
+          profile: remote.profile || 'default'  // Required for profile filter
+        };
+        allSess.push(session);
+        added++;
+      }
     }
 
-    // Create new section if we have remote sessions
-    if (_remoteSessions.length > 0) {
-      remoteSection = document.createElement('div');
-      remoteSection.id = 'remoteSessionsSection';
-      remoteSection.className = 'session-section remote-sessions';
+    console.log('[Sessions] Merged', added, 'remote sessions into unified list (total:', allSess.length, ')');
 
-      // Add a header
-      const header = document.createElement('div');
-      header.className = 'session-section-header';
-      header.innerHTML = '<span class="section-title">Remote Sessions (.250)</span>';
-      header.style.cssText = 'padding: 8px 12px; font-weight: 600; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); margin-bottom: 4px;';
-      remoteSection.appendChild(header);
+    // Don't clear recently deleted set - persist to localStorage to prevent re-adding on reload
 
-      // Add session items
-      _remoteSessions.forEach(session => {
-        const item = createSessionItem(session, true);
-        remoteSection.appendChild(item);
-      });
-
-      // Insert at the top of the session list
-      const firstChild = sessionList.firstChild;
-      if (firstChild) {
-        sessionList.insertBefore(remoteSection, firstChild);
-      } else {
-        sessionList.appendChild(remoteSection);
-      }
-
-      console.log('[Sessions] Added', _remoteSessions.length, 'sessions to DOM');
-    } else {
-      console.log('[Sessions] No remote sessions to add');
+    // Only re-render if we actually added something
+    if (added > 0 && typeof renderSessionListFromCache === 'function') {
+      console.log('[remote_sessions] Calling renderSessionListFromCache');
+      renderSessionListFromCache();
     }
   }
 
   // Create a session list item element
   function createSessionItem(session, isRemote) {
     const div = document.createElement('div');
-    div.className = 'session-item' + (isRemote ? ' remote-session' : '');
+    const isActive = S.session && session.session_id === S.session.session_id;
+    div.className = 'session-item' + (isActive ? ' active' : '') + (isRemote ? ' remote-session' : '');
     div.dataset.sessionId = session.session_id;
     div.dataset.isRemote = isRemote ? 'true' : 'false';
 
@@ -137,50 +241,20 @@
     return div;
   }
 
-  // Load a remote session (needs to be imported or viewed)
+  // Load a remote session - backend now handles importing via _get_or_import_session
   async function loadRemoteSession(session) {
     try {
-      showToast(`Loading session: ${session.title || session.session_id}...`);
-
-      // Fetch full session content from remote
-      const response = await fetch(`/api/remote/sessions/${encodeURIComponent(session.session_id)}`, {
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to load remote session: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      if (data.ok && data.session) {
-        // Import the session into local storage
-        const importResponse = await fetch('/api/session/import', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(data.session)
-        });
-
-        if (!importResponse.ok) {
-          throw new Error('Failed to import remote session');
-        }
-
-        const imported = await importResponse.json();
-
-        if (imported.ok && imported.session) {
-          // Load the imported session
-          if (typeof loadSession === 'function') {
-            await loadSession(imported.session.session_id);
-          }
-          showToast('Session loaded');
-          if (typeof renderSessionList === 'function') {
-            await renderSessionList();
-          }
-        }
+      // Loading session...
+      
+      // Just use the standard loadSession - backend will import if needed
+      if (typeof loadSession === 'function') {
+        await loadSession(session.session_id);
+      } else {
+        // Fallback: navigate to session
+        window.location.hash = '#' + session.session_id;
       }
     } catch (e) {
-      console.error('[Sessions] Error loading remote session:', e);
+      console.error('[Sessions] Error loading session:', e);
       showToast('Error loading session: ' + e.message);
     }
   }
@@ -211,14 +285,14 @@
     menu.style.cssText = 'position:fixed;z-index:9999;background:var(--bg,#222);border:1px solid var(--border,#444);border-radius:6px;padding:4px 0;min-width:150px;box-shadow:0 4px 12px rgba(0,0,0,.4);';
 
     const renameBtn = document.createElement('div');
-    renameBtn.textContent = 'Rename';
+    renameBtn.textContent = 'rename';
     renameBtn.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:13px;color:var(--text,#eee);';
     renameBtn.onmouseover = () => renameBtn.style.background = 'var(--hover,#333)';
     renameBtn.onmouseout = () => renameBtn.style.background = '';
     renameBtn.onclick = () => { menu.remove(); promptRenameSession(session, isRemote); };
 
     const deleteBtn = document.createElement('div');
-    deleteBtn.textContent = 'Delete';
+    deleteBtn.textContent = 'delete';
     deleteBtn.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:13px;color:#f66;';
     deleteBtn.onmouseover = () => deleteBtn.style.background = 'var(--hover,#333)';
     deleteBtn.onmouseout = () => deleteBtn.style.background = '';
@@ -240,35 +314,94 @@
   async function promptRenameSession(session, isRemote) {
     const newTitle = prompt('Enter new title:', session.title || session.session_id);
     if (!newTitle || newTitle === session.title) return;
+    
+    // Optimistic update: update cache immediately
+    const sessionIndex = _remoteSessions.findIndex(s => s.session_id === session.session_id);
+    if (sessionIndex !== -1) {
+      _remoteSessions[sessionIndex].title = newTitle;
+      _remoteSessions[sessionIndex].updated_at = Date.now() / 1000;
+    }
+    
+    // Update window._allSessions if present
+    if (window._allSessions) {
+      const allIndex = window._allSessions.findIndex(s => s.session_id === session.session_id);
+      if (allIndex !== -1) {
+        window._allSessions[allIndex].title = newTitle;
+        window._allSessions[allIndex].updated_at = Date.now() / 1000;
+      }
+    }
+    
+    // Re-render immediately from cache
+    if (typeof renderSessionListFromCache === 'function') {
+      renderSessionListFromCache();
+    }
+    
+    // Background API call
     try {
-      const res = await fetch('/api/session/rename', {
+      const res = await fetch(API_BASE + '/api/session/rename', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         credentials: 'include',
-        body: JSON.stringify({session_id: session.session_id, title: newTitle})
+        body: JSON.stringify({session_id: session.session_id, title: newTitle, remote: isRemote})
       });
       const d = await res.json();
-      if (d.ok) { showToast('Session renamed'); renderSessionList(); }
-      else { showToast('Failed to rename'); }
-    } catch(e) { showToast('Error: ' + e.message); }
+      if (!d.ok) {
+        // Revert on failure
+        if (sessionIndex !== -1) _remoteSessions[sessionIndex].title = session.title;
+        showToast('Failed to rename - reverted');
+        renderSessionListFromCache();
+      }
+    } catch(e) { 
+      showToast('Error: ' + e.message); 
+    }
   }
 
   async function deleteSessionFromMenu(session, isRemote) {
     if (!confirm('Delete session "' + (session.title || session.session_id) + '"?')) return;
+
+    // Track this session as deleted to prevent remote cache from re-adding it
+    _recentlyDeleted.add(session.session_id);
+    _saveDeletedSessions(); // Persist to localStorage
+
+    // Optimistic update: remove from cache immediately
+    _remoteSessions = _remoteSessions.filter(s => s.session_id !== session.session_id);
+
+    // Update window._allSessions if present
+    if (window._allSessions) {
+      window._allSessions = window._allSessions.filter(s => s.session_id !== session.session_id);
+    }
+    
+    // Remove from open tabs if present
+    removeFromOpenSessions(session.session_id);
+    
+    // Re-render immediately from cache
+    if (typeof renderSessionListFromCache === 'function') {
+      renderSessionListFromCache();
+    }
+    
+    // Background API call
     try {
-      const res = await fetch('/api/session/delete', {
+      const res = await fetch(API_BASE + '/api/session/delete', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         credentials: 'include',
-        body: JSON.stringify({session_id: session.session_id})
+        body: JSON.stringify({session_id: session.session_id, remote: isRemote})
       });
       const d = await res.json();
-      if (d.ok) { showToast('Session deleted'); renderSessionList(); }
-      else { showToast('Failed to delete'); }
-    } catch(e) { showToast('Error: ' + e.message); }
+      if (!d.ok) {
+        // Revert on failure - add back to cache and remove from deleted set
+        _recentlyDeleted.delete(session.session_id);
+        _remoteSessions.push(session);
+        if (window._allSessions) window._allSessions.push(session);
+        showToast('Failed to delete - reverted');
+        renderSessionListFromCache();
+      }
+    } catch(e) { 
+      showToast('Error: ' + e.message); 
+    }
   }
 
-  // Enabled - wrap renderSessionList to fetch remote sessions
-  console.log('[Sessions] Module loaded (wrapping enabled)');
-
+  // Unified session list - remote sessions appear alongside local sessions
+  console.log('[Sessions] Module loaded (unified list mode)');
+  
   // Wait for DOM to be ready then wrap
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', wrapRenderSessionList);
@@ -276,9 +409,32 @@
     wrapRenderSessionList();
   }
 
-  // Expose for debugging
+  // Force refresh - call this when user wants fresh data
+  async function forceRefresh() {
+    // Refreshing remote sessions...
+    const sessions = await fetchRemoteSessions(true); // force = true
+    // Merge into _allSessions
+    if (window._allSessions && sessions.length > 0) {
+      const existingIds = new Set(window._allSessions.map(s => s.session_id));
+      for (const s of sessions) {
+        if (!existingIds.has(s.session_id)) {
+          window._allSessions.push(s);
+        }
+      }
+      if (typeof renderSessionListFromCache === 'function') {
+        renderSessionListFromCache();
+      }
+    }
+    // Remote sessions refreshed
+    return sessions;
+  }
+
+  // Expose for debugging and manual refresh
   window.Sessions = {
     fetchRemoteSessions,
-    getRemoteSessions: () => _remoteSessions
+    getRemoteSessions: () => _remoteSessions,
+    forceRefresh,
+    invalidateCache: () => { _lastFetchTime = 0; },
+    _recentlyDeleted  // Exposed so deleteSession can use it
   };
 })();

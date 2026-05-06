@@ -1,15 +1,28 @@
 [Unit]
 Description=vibecode server
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
 User=house
 WorkingDirectory=/home/house/vibecode
-ExecStart=/usr/bin/python3 /home/house/vibecode/server.py
+ExecStart=/home/house/vibecode/start-server.sh
+ExecStartPre=/bin/sh -c 'if pgrep -f python3.*server.py > /dev/null; then pkill -f python3.*server.py; sleep 1; fi'
 Restart=always
-RestartSec=5
-Environment="HOME=/home/house"
+RestartSec=2
+StartLimitInterval=60
+StartLimitBurst=5
+Environment=HOME=/home/house
+Environment=HERMES_WEBUI_PORT=8786
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONOPTIMIZE=1
+Environment=PYTHONPATH=/home/house/vibecode
+StandardOutput=journal
+StandardError=journal
+# Performance optimizations
+LimitNOFILE=65536
+LimitNPROC=4096
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target

@@ -23,6 +23,9 @@ def _sanitize_error(e: Exception) -> str:
     """Strip filesystem paths from exception messages before returning to client."""
     import re
     msg = str(e)
+    lower_msg = msg.lower()
+    if "<html" in lower_msg and ("bad gateway" in lower_msg or "cloudflare" in lower_msg):
+        return "Upstream gateway error (502 Bad Gateway)"
     # Remove absolute paths (Unix and Windows)
     msg = re.sub(r'(?:(?:/[a-zA-Z0-9_.-]+)+|(?:[A-Z]:\\[^\s]+))', '<path>', msg)
     return msg
@@ -164,11 +167,20 @@ def redact_session_data(session_dict: dict) -> dict:
 
 
 def read_body(handler) -> dict:
-    """Read and JSON-parse a POST request body (capped at 20MB)."""
-    length = int(handler.headers.get('Content-Length', 0))
-    if length > MAX_BODY_BYTES:
-        raise ValueError(f'Request body too large ({length} bytes, max {MAX_BODY_BYTES})')
-    raw = handler.rfile.read(length) if length else b'{}'
+    """Read and JSON-parse a POST request body (capped at 20MB).
+
+    Supports pre-read body from do_POST (stored in handler._post_body).
+    This prevents 100-continue hang and allows check_auth to read body
+    without consuming the stream.
+    """
+    # Use pre-read body if available (set by do_POST pre-read)
+    if hasattr(handler, '_post_body') and handler._post_body:
+        raw = handler._post_body
+    else:
+        length = int(handler.headers.get('Content-Length', 0))
+        if length > MAX_BODY_BYTES:
+            raise ValueError(f'Request body too large ({length} bytes, max {MAX_BODY_BYTES})')
+        raw = handler.rfile.read(length) if length else b'{}'
     try:
         return _json.loads(raw)
     except Exception:

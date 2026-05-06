@@ -11,16 +11,24 @@ from pathlib import Path
 import api.config as _cfg
 from api.config import (
     SESSION_DIR, SESSION_INDEX_FILE, SESSIONS, SESSIONS_MAX,
-    LOCK, DEFAULT_WORKSPACE, DEFAULT_MODEL, PROJECTS_FILE, HOME
+    LOCK, DEFAULT_WORKSPACE, DEFAULT_MODEL, PROJECTS_FILE, HOME,
+    REMOTE_SESSIONS_CACHE_FILE
 )
 from api.workspace import get_last_workspace
+from api.memory_optimizer import cache_session, get_cached_session
 
 logger = logging.getLogger(__name__)
 
 _index_cache = {}
 _INDEX_CACHE_LOADED = False
 
+# Session list cache with TTL for fast API responses
+_SESSIONS_LIST_CACHE = None
+_SESSIONS_LIST_CACHE_TIME = 0
+_SESSIONS_LIST_CACHE_TTL = 30  # Cache for 30 seconds
+
 def _load_index_map():
+    """Load the on-disk index into an in-memory dict. Returns a dict keyed by session_id."""
     global _index_cache, _INDEX_CACHE_LOADED
     if _INDEX_CACHE_LOADED:
         return _index_cache
@@ -34,12 +42,23 @@ def _load_index_map():
     _INDEX_CACHE_LOADED = True
     return _index_cache
 
+def invalidate_sessions_list_cache():
+    """Invalidate the sessions list cache. Call this when sessions are modified."""
+    global _SESSIONS_LIST_CACHE, _SESSIONS_LIST_CACHE_TIME
+    _SESSIONS_LIST_CACHE = None
+    _SESSIONS_LIST_CACHE_TIME = 0
+
 def _rebuild_session_index():
+    """Full rebuild of the session index. Called once at startup or when the index is stale."""
     entries = []
     for p in SESSION_DIR.glob('*.json'):
         if p.name.startswith('_'): continue
         try:
+            # Try loading by filename stem, but also try stripping 'session_' prefix
             s = Session.load(p.stem)
+            if not s and p.stem.startswith('session_'):
+                # Try loading by the ID inside the filename (without session_ prefix)
+                s = Session.load(p.stem[8:])  # Remove 'session_' prefix
             if s: entries.append(s.compact())
         except Exception:
             logger.debug("Failed to load session from %s", p)
@@ -54,14 +73,32 @@ def _rebuild_session_index():
     _INDEX_CACHE_LOADED = True
 
 def _upsert_session_index(session_compact):
+    """Incrementally update the index with a single session. No full scan needed."""
     idx = _load_index_map()
     sid = session_compact['session_id']
     idx[sid] = session_compact
+    # Write full index (acceptable since index is small -- only metadata, no messages)
     try:
         entries = sorted(idx.values(), key=lambda s: s['updated_at'], reverse=True)
         SESSION_INDEX_FILE.write_text(json.dumps(entries, ensure_ascii=False, indent=2), encoding='utf-8')
     except Exception:
         pass
+
+def _remove_session_from_index(session_id: str):
+    """Remove a session from the index without deleting the entire file."""
+    idx = _load_index_map()
+    if session_id in idx:
+        del idx[session_id]
+        # Write updated index
+        try:
+            entries = sorted(idx.values(), key=lambda s: s['updated_at'], reverse=True)
+            SESSION_INDEX_FILE.write_text(json.dumps(entries, ensure_ascii=False, indent=2), encoding='utf-8')
+        except Exception:
+            pass
+    # Invalidate cache
+    global _index_cache, _INDEX_CACHE_LOADED
+    _index_cache = idx
+    _INDEX_CACHE_LOADED = True
 
 
 class Session:
@@ -76,6 +113,8 @@ class Session:
                  pending_user_message: str=None,
                  pending_attachments=None,
                  pending_started_at=None,
+                 machine_id: str=None,
+                 machine_hostname: str=None,
                  **kwargs):
         self.session_id = session_id or uuid.uuid4().hex[:12]
         self.title = title
@@ -97,6 +136,8 @@ class Session:
         self.pending_user_message = pending_user_message
         self.pending_attachments = pending_attachments or []
         self.pending_started_at = pending_started_at
+        self.machine_id = machine_id
+        self.machine_hostname = machine_hostname
 
     @property
     def path(self):
@@ -110,16 +151,30 @@ class Session:
             encoding='utf-8',
         )
         _upsert_session_index(self.compact())
+        invalidate_sessions_list_cache()
 
     @classmethod
     def load(cls, sid):
+        # Try cache first
+        cached = get_cached_session(sid)
+        if cached:
+            return cls(**cached)
+        
         # Validate session ID format to prevent path traversal
-        if not sid or not all(c in '0123456789abcdefghijklmnopqrstuvwxyz_' for c in sid):
+        # Allow hyphens for CLI sessions (UUID format), but no other special chars
+        if not sid or not all(c in '0123456789abcdefghijklmnopqrstuvwxyz_-' for c in sid):
             return None
+        # Try both naming conventions: {sid}.json and session_{sid}.json
         p = SESSION_DIR / f'{sid}.json'
         if not p.exists():
+            p = SESSION_DIR / f'session_{sid}.json'
+        if not p.exists():
             return None
-        return cls(**json.loads(p.read_text(encoding='utf-8')))
+        
+        session_data = json.loads(p.read_text(encoding='utf-8'))
+        # Cache the session data
+        cache_session(sid, session_data)
+        return cls(**session_data)
 
     def compact(self) -> dict:
         return {
@@ -138,6 +193,8 @@ class Session:
             'output_tokens': self.output_tokens,
             'estimated_cost': self.estimated_cost,
             'personality': self.personality,
+            'machine_id': self.machine_id,
+            'machine_hostname': self.machine_hostname,
         }
 
 def get_session(sid):
@@ -155,14 +212,15 @@ def get_session(sid):
         return s
     raise KeyError(sid)
 
-def new_session(workspace=None, model=None):
+def new_session(workspace=None, model=None, machine_id=None, machine_hostname=None):
     # Use _cfg.DEFAULT_MODEL (not the import-time snapshot) so save_settings() changes take effect
     try:
         from api.profiles import get_active_profile_name
         _profile = get_active_profile_name()
     except ImportError:
         _profile = None
-    s = Session(workspace=workspace or get_last_workspace(), model=model or _cfg.DEFAULT_MODEL, profile=_profile)
+    s = Session(workspace=workspace or get_last_workspace(), model=model or _cfg.DEFAULT_MODEL, profile=_profile,
+                machine_id=machine_id, machine_hostname=machine_hostname)
     with LOCK:
         SESSIONS[s.session_id] = s
         SESSIONS.move_to_end(s.session_id)
@@ -171,13 +229,25 @@ def new_session(workspace=None, model=None):
     s.save()
     return s
 
-def all_sessions():
+def all_sessions(limit=500, include_hashtag=True):
+    global _SESSIONS_LIST_CACHE, _SESSIONS_LIST_CACHE_TIME
+    now = time.time()
+    
+    # Return cached result if fresh (avoid expensive file I/O)
+    if _SESSIONS_LIST_CACHE is not None and (now - _SESSIONS_LIST_CACHE_TIME) < _SESSIONS_LIST_CACHE_TTL:
+        return _SESSIONS_LIST_CACHE[:limit]
+    
     # Phase C: try index first for O(1) read; fall back to full scan
+    result = []
     if SESSION_INDEX_FILE.exists():
         try:
             index = json.loads(SESSION_INDEX_FILE.read_text(encoding='utf-8'))
+            # Trust the index - skip expensive file.exists() checks
+            # Only filter out entries without a session_id
+            valid_entries = [s for s in index if s.get('session_id')]
+            
             # Overlay any in-memory sessions that may be newer than the index
-            index_map = {s['session_id']: s for s in index}
+            index_map = {s['session_id']: s for s in valid_entries}
             with LOCK:
                 for s in SESSIONS.values():
                     index_map[s.session_id] = s.compact()
@@ -189,13 +259,27 @@ def all_sessions():
             for s in result:
                 if not s.get('profile'):
                     s['profile'] = 'default'
-            return result
+            
+            # Update cache
+            _SESSIONS_LIST_CACHE = result
+            _SESSIONS_LIST_CACHE_TIME = now
+            return result[:limit]
         except Exception:
             logger.debug("Failed to load session index, falling back to full scan")
-    # Full scan fallback
+    # Full scan fallback - optimized: pre-sort by mtime, only load recent files
     out = []
+    # Get all json files with their mtimes, sort by mtime desc, take 2x limit as buffer
+    files_with_mtime = []
     for p in SESSION_DIR.glob('*.json'):
         if p.name.startswith('_'): continue
+        try:
+            files_with_mtime.append((p, p.stat().st_mtime))
+        except Exception:
+            pass
+    # Sort by mtime descending (most recent first) and only load top N
+    files_with_mtime.sort(key=lambda x: x[1], reverse=True)
+    files_to_load = files_with_mtime[:limit * 2]  # 2x buffer for filtering
+    for p, _ in files_to_load:
         try:
             s = Session.load(p.stem)
             if s: out.append(s)
@@ -204,11 +288,24 @@ def all_sessions():
     for s in SESSIONS.values():
         if all(s.session_id != x.session_id for x in out): out.append(s)
     out.sort(key=lambda s: (getattr(s, 'pinned', False), s.updated_at), reverse=True)
-    result = [s.compact() for s in out if not (s.title=='Untitled' and len(s.messages)==0)]
+    # Build result, filtering out hashtag subagent sessions when requested
+    result = []
+    for s in out:
+        if not s.title or s.title == 'Untitled':
+            if not s.messages or len(s.messages) == 0:
+                continue
+        # Filter hashtag-prefixed subagent sessions
+        if not include_hashtag and s.title and s.title.startswith('#'):
+            continue
+        result.append(s.compact())
     for s in result:
         if not s.get('profile'):
             s['profile'] = 'default'
-    return result
+    
+    # Update cache even for fallback case
+    _SESSIONS_LIST_CACHE = result
+    _SESSIONS_LIST_CACHE_TIME = now
+    return result[:limit]
 
 
 def title_from(messages, fallback: str='Untitled'):

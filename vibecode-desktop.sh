@@ -1,10 +1,10 @@
 #!/bin/bash
-# VibeCode Desktop - Opens remote VibeCode in a dedicated browser window
+# vibecode Desktop - Opens remote vibecode in a dedicated browser window
 # This connects to the existing server at 192.168.4.233:8786
 
 REMOTE_URL="http://192.168.4.233:8786"
 
-echo "[vibecode] Opening VibeCode Desktop..."
+echo "[vibecode] Opening vibecode Desktop..."
 echo "[vibecode] Connecting to: $REMOTE_URL"
 
 # Check if server is reachable
@@ -25,4 +25,4 @@ else
     xdg-open "$REMOTE_URL"
 fi
 
-echo "[vibecode] VibeCode Desktop opened!"
+echo "[vibecode] vibecode Desktop opened!"

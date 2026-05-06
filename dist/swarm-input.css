@@ -1,0 +1,130 @@
+/* ── swarm trigger button (in composer footer) ────────────────────────── */
+.swarm-trigger-btn{
+ background:rgba(108,180,255,.08);border:1px solid rgba(108,180,255,.2);
+ color:var(--blue,#6cb4ff);font-size:15px;
+ padding:4px 8px;border-radius:6px;cursor:pointer;
+ transition:background .15s,border-color .15s;
+ line-height:1;font-family:'Varela Round',sans-serif;
+}
+.swarm-trigger-btn:hover{
+ background:rgba(108,180,255,.16);border-color:rgba(108,180,255,.35);
+}
+
+/* ── swarm modal ─────────────────────────────────────────────────────── */
+.swarm-modal{
+ position:fixed;inset:0;z-index:10000;
+ display:none;align-items:center;justify-content:center;
+ font-family:'Varela Round',sans-serif;
+}
+.swarm-modal.open{display:flex;}
+
+.swarm-modal-backdrop{
+ position:absolute;inset:0;
+ background:rgba(5,5,5,.75);
+}
+
+.swarm-modal-box{
+ position:relative;width:480px;max-width:90vw;
+ background:var(--surface,#0a0a0a);
+ border:1px solid var(--border,#1e1e1e);
+ border-radius:12px;
+ box-shadow:0 24px 48px rgba(0,0,0,.5);
+ color:var(--text,#e0e0e0);
+}
+
+/* ── modal header ────────────────────────────────────────────────────── */
+.swarm-modal-header{
+ display:flex;align-items:center;gap:8px;
+ padding:16px 20px 12px;
+ border-bottom:1px solid var(--border,#1e1e1e);
+}
+.swarm-modal-icon{
+ font-size:18px;color:var(--blue,#6cb4ff);
+}
+.swarm-modal-title{
+ font-size:15px;font-weight:600;letter-spacing:.02em;
+ text-transform:lowercase;color:var(--text,#e0e0e0);
+}
+.swarm-modal-close{
+ margin-left:auto;background:none;border:none;
+ color:var(--muted,#777);font-size:20px;cursor:pointer;
+ padding:0 4px;line-height:1;transition:color .15s;
+}
+.swarm-modal-close:hover{color:var(--text,#e0e0e0);}
+
+/* ── modal body ──────────────────────────────────────────────────────── */
+.swarm-modal-body{padding:16px 20px;}
+
+.swarm-label{
+ display:block;font-size:12px;font-weight:600;
+ text-transform:lowercase;letter-spacing:.04em;
+ color:var(--muted,#999);margin-bottom:6px;
+}
+.swarm-hint{
+ font-weight:400;color:var(--muted,#666);font-size:11px;
+}
+
+.swarm-textarea{
+ width:100%;background:var(--bg,#050505);
+ border:1px solid var(--border,#1e1e1e);
+ border-radius:8px;color:var(--text,#e0e0e0);
+ padding:10px 12px;font-size:13px;font-family:inherit;
+ resize:vertical;outline:none;
+ transition:border-color .15s;
+}
+.swarm-textarea:focus{border-color:var(--blue,#6cb4ff);}
+.swarm-textarea::placeholder{color:var(--muted,#555);}
+
+.swarm-textarea+.swarm-label{margin-top:14px;}
+
+/* ── options row ─────────────────────────────────────────────────────── */
+.swarm-options{
+ margin-top:14px;display:flex;align-items:center;gap:10px;
+}
+.swarm-opt-label{
+ font-size:12px;font-weight:600;text-transform:lowercase;
+ letter-spacing:.04em;color:var(--muted,#999);
+}
+.swarm-select{
+ background:var(--bg,#050505);border:1px solid var(--border,#1e1e1e);
+ border-radius:6px;color:var(--text,#e0e0e0);
+ padding:5px 8px;font-size:12px;font-family:inherit;
+ outline:none;cursor:pointer;
+}
+.swarm-select:focus{border-color:var(--blue,#6cb4ff);}
+
+/* ── modal footer ────────────────────────────────────────────────────── */
+.swarm-modal-footer{
+ display:flex;gap:8px;justify-content:flex-end;
+ padding:12px 20px 16px;
+}
+
+.swarm-btn{
+ font-family:inherit;font-size:13px;font-weight:500;
+ padding:8px 18px;border-radius:8px;border:none;
+ cursor:pointer;transition:background .15s,opacity .15s;
+ text-transform:lowercase;letter-spacing:.02em;
+}
+.swarm-btn:disabled{opacity:.5;cursor:not-allowed;}
+
+.swarm-btn-cancel{
+ background:var(--bg,#050505);color:var(--muted,#888);
+ border:1px solid var(--border,#1e1e1e);
+}
+.swarm-btn-cancel:hover{color:var(--text,#e0e0e0);background:var(--surface,#0a0a0a);}
+
+.swarm-btn-go{
+ background:var(--accent,#e94560);color:#fff;
+}
+.swarm-btn-go:hover{background:#d13a54;}
+
+/* ── dark/light ──────────────────────────────────────────────────────── */
+@media(prefers-color-scheme:light){
+ .swarm-modal-box{background:#f5f5f5;border-color:#ddd;}
+ .swarm-modal-header{border-bottom-color:#ddd;}
+ .swarm-textarea{background:#fff;border-color:#ddd;color:#222;}
+ .swarm-select{background:#fff;border-color:#ddd;color:#222;}
+ .swarm-btn-cancel{background:#fff;color:#666;border-color:#ddd;}
+ .swarm-btn-go{background:var(--accent,#e94560);color:#fff;}
+}
+.swarm-trigger-btn .swarm-icon{vertical-align:middle;pointer-events:none}

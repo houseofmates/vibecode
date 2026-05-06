@@ -1,16 +1,16 @@
 #!/bin/bash
-# Build all VibeCode distribution packages
+# Build all vibecode distribution packages
 set -e
 
 echo "======================================"
-echo "    VibeCode Build System"
+echo "    vibecode Build System"
 echo "======================================"
 echo ""
 echo "This will build:"
-echo "  - releases/vibecode.appimage (Linux desktop)"
+echo "  - releases/vibecode.appimage (Linux desktop - Tauri)"
 echo "  - releases/vibecode.apk (Android mobile)"
 echo ""
-echo "Server URL: http://192.168.4.233:8786"
+echo "AppImage will use the local packaged UI and attempt a backend on localhost:8786"
 echo ""
 
 # Create releases directory
@@ -20,18 +20,18 @@ mkdir -p releases
 APPIMAGE_SUCCESS=false
 APK_SUCCESS=false
 
-# Build AppImage
+# Build Tauri AppImage
 echo "========================================"
-echo "Building AppImage..."
+echo "Building Tauri AppImage..."
 echo "========================================"
-if [ -f "build-appimage.sh" ]; then
-    if ./build-appimage.sh; then
+if [ -f "build-desktop.sh" ]; then
+    if ./build-desktop.sh; then
         APPIMAGE_SUCCESS=true
     else
-        echo "WARNING: AppImage build failed"
+        echo "WARNING: Tauri AppImage build failed"
     fi
 else
-    echo "WARNING: build-appimage.sh not found"
+    echo "WARNING: build-desktop.sh not found - skipping Tauri build"
 fi
 
 echo ""
@@ -61,7 +61,7 @@ if [ "$APPIMAGE_SUCCESS" = true ] && [ -f "releases/vibecode.appimage" ]; then
     echo "✓ AppImage: releases/vibecode.appimage"
     ls -lh releases/vibecode.appimage | awk '{print "  Size:", $5}'
 else
-    echo "✗ AppImage: FAILED"
+    echo "✗ AppImage: FAILED (or not built)"
 fi
 
 if [ "$APK_SUCCESS" = true ] && [ -f "releases/vibecode.apk" ]; then
@@ -87,11 +87,6 @@ if [ "$APPIMAGE_SUCCESS" = true ] || [ "$APK_SUCCESS" = true ]; then
     if [ "$APK_SUCCESS" = true ]; then
         echo "  Install APK: adb install releases/vibecode.apk"
     fi
-    echo ""
-    echo "Auto-update setup:"
-    echo "  The AppImage supports delta updates via GitHub Releases."
-    echo "  Publish releases/vibecode.appimage to GitHub Releases with"
-echo "  the zsync file for automatic updates to work."
     exit 0
 else
     echo "ERROR: All builds failed"

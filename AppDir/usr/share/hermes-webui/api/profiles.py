@@ -31,6 +31,71 @@ _active_profile = 'default'
 _profile_lock = threading.Lock()
 _loaded_profile_env_keys: set[str] = set()
 
+
+def _profile_info_from_path(name: str, profile_path: Path, *, is_default: bool = False) -> dict:
+    """Build a profile info dict from an on-disk profile directory."""
+    model = None
+    provider = None
+    try:
+        config_path = profile_path / 'config.yaml'
+        if config_path.exists():
+            import yaml as _yaml
+
+            cfg = _yaml.safe_load(config_path.read_text(encoding='utf-8')) or {}
+            model_cfg = cfg.get('model', {})
+            if isinstance(model_cfg, str):
+                model = model_cfg
+            elif isinstance(model_cfg, dict):
+                model = model_cfg.get('default') or model_cfg.get('model')
+                provider = model_cfg.get('provider')
+    except Exception:
+        logger.debug("Failed to read config metadata for profile %s", name)
+
+    skill_count = 0
+    try:
+        skills_dir = profile_path / 'skills'
+        if skills_dir.is_dir():
+            skill_count = sum(1 for child in skills_dir.iterdir() if child.is_file() or child.is_dir())
+    except Exception:
+        logger.debug("Failed to count skills for profile %s", name)
+
+    return {
+        'name': name,
+        'path': str(profile_path),
+        'is_default': is_default,
+        'is_active': name == _active_profile,
+        'gateway_running': False,
+        'model': model,
+        'provider': provider,
+        'has_env': (profile_path / '.env').exists(),
+        'skill_count': skill_count,
+    }
+
+
+def _list_profiles_from_filesystem() -> list:
+    """Enumerate profiles directly from the filesystem when hermes_cli is unavailable."""
+    result = [_profile_info_from_path('default', _DEFAULT_HERMES_HOME, is_default=True)]
+    profiles_root = _profiles_root()
+    try:
+        if profiles_root.is_dir():
+            for child in sorted(profiles_root.iterdir(), key=lambda p: p.name.lower()):
+                if not child.is_dir():
+                    continue
+                name = child.name
+                if not _PROFILE_ID_RE.fullmatch(name):
+                    continue
+                result.append(_profile_info_from_path(name, child))
+    except Exception:
+        logger.debug("Failed to enumerate profiles from %s", profiles_root)
+
+    active_found = any(profile['name'] == _active_profile for profile in result)
+    if not active_found and _active_profile != 'default':
+        active_home = get_active_hermes_home()
+        if active_home.is_dir():
+            result.append(_profile_info_from_path(_active_profile, active_home))
+
+    return result
+
 def _resolve_base_hermes_home() -> Path:
     """Return the BASE ~/.hermes directory — the root that contains profiles/.
 
@@ -239,12 +304,13 @@ def list_profiles_api() -> list:
     try:
         from hermes_cli.profiles import list_profiles
         infos = list_profiles()
-    except ImportError:
-        # hermes_cli not available -- return just the default
-        return [_default_profile_dict()]
+    except Exception as e:
+        logger.warning("list_profiles failed (%s), falling back to filesystem scan", e)
+        return _list_profiles_from_filesystem()
 
     active = _active_profile
     result = []
+    has_default = False
     for p in infos:
         result.append({
             'name': p.name,
@@ -257,6 +323,12 @@ def list_profiles_api() -> list:
             'has_env': p.has_env,
             'skill_count': p.skill_count,
         })
+        if p.is_default:
+            has_default = True
+
+    # Always ensure the default profile is present
+    if not has_default:
+        result.insert(0, _default_profile_dict())
     return result
 
 

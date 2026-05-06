@@ -15,6 +15,7 @@ from api.config import (
     REMOTE_SESSIONS_CACHE_FILE
 )
 from api.workspace import get_last_workspace
+from api.memory_optimizer import cache_session, get_cached_session
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,8 @@ class Session:
                  pending_user_message: str=None,
                  pending_attachments=None,
                  pending_started_at=None,
+                 machine_id: str=None,
+                 machine_hostname: str=None,
                  **kwargs):
         self.session_id = session_id or uuid.uuid4().hex[:12]
         self.title = title
@@ -133,6 +136,8 @@ class Session:
         self.pending_user_message = pending_user_message
         self.pending_attachments = pending_attachments or []
         self.pending_started_at = pending_started_at
+        self.machine_id = machine_id
+        self.machine_hostname = machine_hostname
 
     @property
     def path(self):
@@ -150,6 +155,11 @@ class Session:
 
     @classmethod
     def load(cls, sid):
+        # Try cache first
+        cached = get_cached_session(sid)
+        if cached:
+            return cls(**cached)
+        
         # Validate session ID format to prevent path traversal
         # Allow hyphens for CLI sessions (UUID format), but no other special chars
         if not sid or not all(c in '0123456789abcdefghijklmnopqrstuvwxyz_-' for c in sid):
@@ -160,7 +170,11 @@ class Session:
             p = SESSION_DIR / f'session_{sid}.json'
         if not p.exists():
             return None
-        return cls(**json.loads(p.read_text(encoding='utf-8')))
+        
+        session_data = json.loads(p.read_text(encoding='utf-8'))
+        # Cache the session data
+        cache_session(sid, session_data)
+        return cls(**session_data)
 
     def compact(self) -> dict:
         return {
@@ -179,6 +193,8 @@ class Session:
             'output_tokens': self.output_tokens,
             'estimated_cost': self.estimated_cost,
             'personality': self.personality,
+            'machine_id': self.machine_id,
+            'machine_hostname': self.machine_hostname,
         }
 
 def get_session(sid):
@@ -196,14 +212,15 @@ def get_session(sid):
         return s
     raise KeyError(sid)
 
-def new_session(workspace=None, model=None):
+def new_session(workspace=None, model=None, machine_id=None, machine_hostname=None):
     # Use _cfg.DEFAULT_MODEL (not the import-time snapshot) so save_settings() changes take effect
     try:
         from api.profiles import get_active_profile_name
         _profile = get_active_profile_name()
     except ImportError:
         _profile = None
-    s = Session(workspace=workspace or get_last_workspace(), model=model or _cfg.DEFAULT_MODEL, profile=_profile)
+    s = Session(workspace=workspace or get_last_workspace(), model=model or _cfg.DEFAULT_MODEL, profile=_profile,
+                machine_id=machine_id, machine_hostname=machine_hostname)
     with LOCK:
         SESSIONS[s.session_id] = s
         SESSIONS.move_to_end(s.session_id)
@@ -212,7 +229,7 @@ def new_session(workspace=None, model=None):
     s.save()
     return s
 
-def all_sessions(limit=500):
+def all_sessions(limit=500, include_hashtag=True):
     global _SESSIONS_LIST_CACHE, _SESSIONS_LIST_CACHE_TIME
     now = time.time()
     
@@ -271,7 +288,16 @@ def all_sessions(limit=500):
     for s in SESSIONS.values():
         if all(s.session_id != x.session_id for x in out): out.append(s)
     out.sort(key=lambda s: (getattr(s, 'pinned', False), s.updated_at), reverse=True)
-    result = [s.compact() for s in out if not (s.title=='Untitled' and len(s.messages)==0)]
+    # Build result, filtering out hashtag subagent sessions when requested
+    result = []
+    for s in out:
+        if not s.title or s.title == 'Untitled':
+            if not s.messages or len(s.messages) == 0:
+                continue
+        # Filter hashtag-prefixed subagent sessions
+        if not include_hashtag and s.title and s.title.startswith('#'):
+            continue
+        result.append(s.compact())
     for s in result:
         if not s.get('profile'):
             s['profile'] = 'default'

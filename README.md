@@ -1,4 +1,4 @@
-# VibeCode
+# vibecode
 
 Browser-based coding interface with AI agent integration.
 
@@ -56,6 +56,8 @@ make appimage    # Build releases/vibecode.appimage
 ```
 
 **Requirements:** `pip install appimage-builder`
+
+**Additional build dependency:** install `appimagetool` so the packaging script can rebuild the AppImage with a GTK backend compatibility fix.
 
 **Install:**
 ```bash
