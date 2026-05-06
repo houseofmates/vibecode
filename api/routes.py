@@ -49,6 +49,7 @@ from api.helpers import (
     t,
     read_body,
     _security_headers,
+    _cors_headers,
     _sanitize_error,
     redact_session_data,
     _redact_text,
@@ -3327,6 +3328,7 @@ def _handle_sse_stream(handler, parsed):
     handler.send_header("Cache-Control", "no-cache")
     handler.send_header("X-Accel-Buffering", "no")
     handler.send_header("Connection", "keep-alive")
+    _cors_headers(handler)
     handler.end_headers()
     try:
         while True:
@@ -3368,6 +3370,7 @@ def _handle_gateway_sse_stream(handler):
     handler.send_header('Cache-Control', 'no-cache')
     handler.send_header('X-Accel-Buffering', 'no')
     handler.send_header('Connection', 'keep-alive')
+    _cors_headers(handler)
     handler.end_headers()
 
     import queue
@@ -3438,6 +3441,7 @@ def _handle_multiplex_sse_stream(handler, parsed):
     handler.send_header("Cache-Control", "no-cache, no-transform")
     handler.send_header("X-Accel-Buffering", "no")
     handler.send_header("Connection", "keep-alive")
+    _cors_headers(handler)
     handler.end_headers()
     handler.wfile.write(b": connected\n\n")
     handler.wfile.flush()
@@ -3477,6 +3481,7 @@ def _handle_terminal_sse_stream(handler, parsed):
     if not terminal_id:
         handler.send_response(400)
         handler.send_header("Content-Type", "application/json")
+        _cors_headers(handler)
         handler.end_headers()
         handler.wfile.write(b'{"error": "terminal_id required"}')
         return True
@@ -3487,6 +3492,7 @@ def _handle_terminal_sse_stream(handler, parsed):
     if term is None:
         handler.send_response(404)
         handler.send_header("Content-Type", "application/json")
+        _cors_headers(handler)
         handler.end_headers()
         handler.wfile.write(b'{"error": "Terminal not found"}')
         return True
@@ -3499,6 +3505,7 @@ def _handle_terminal_sse_stream(handler, parsed):
     handler.send_header("Cache-Control", "no-cache, no-transform")
     handler.send_header("X-Accel-Buffering", "no")
     handler.send_header("Connection", "keep-alive")
+    _cors_headers(handler)
     handler.end_headers()
     
     # Send ready event

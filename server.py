@@ -13,7 +13,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
 # Set up JSON logging for the root logger
-from pythonjsonlogger import JsonFormatter
+try:
+    from pythonjsonlogger import JsonFormatter
+except ImportError:
+    from pythonjsonlogger.json import JsonFormatter
 
 logHandler = logging.StreamHandler(sys.stdout)
 formatter = JsonFormatter('%(timestamp)s %(level)s %(name)s %(message)s')

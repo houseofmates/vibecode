@@ -13,17 +13,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PIDFILE="/tmp/vibecode.pid"
 LOGFILE="/tmp/vibecode.log"
 
-# Export environment for low-latency startup
+# Export environment for ultra-low-latency startup
 export HERMES_WEBUI_PORT=8786
 export PYTHONUNBUFFERED=1
-export PYTHONOPTIMIZE=1
+export PYTHONOPTIMIZE=2
 export PYTHONPATH="/home/house/vibecode"
 export PYTHONDONTWRITEBYTECODE=1
 export PYTHONHASHSEED=random
 export OMP_NUM_THREADS=4
-# Additional optimizations for faster startup
+# Aggressive optimizations for faster startup
 export PYTHONASYNCIODEBUG=0
 export PYTHONTRACEMALLOC=0
+export PYTHONFAULTHANDLER=0
+export PYTHONPROFILEIMPORTTIME=0
+export PYTHONMALLOC=malloc
 
 # Kill any existing server gracefully
 if [ -f "$PIDFILE" ]; then
@@ -77,10 +80,9 @@ check_server_health() {
     return 1
 }
 
-# Preload critical modules in background for faster startup
-(
-    echo "Preloading modules..."
-    $PYTHON -c "
+# Preload critical modules synchronously for faster startup
+echo "Preloading modules..."
+$PYTHON -c "
 import sys
 import json
 import logging
@@ -97,10 +99,9 @@ try:
 except ImportError:
     pass
 " 2>/dev/null
-) &
 
-# Start with optimized Python flags for faster startup
-$PYTHON -u -O -X faulthandler -X importtime=0 -X dev -X pycache_prefix=/tmp/vibecode_pycache server.py > "$LOGFILE" 2>&1 &
+# Start with ultra-optimized Python flags for fastest startup
+$PYTHON -u -OO -X importtime=0 -X pycache_prefix=/tmp/vibecode_pycache server.py > "$LOGFILE" 2>&1 &
 NEW_PID=$!
 echo $NEW_PID > "$PIDFILE"
 
