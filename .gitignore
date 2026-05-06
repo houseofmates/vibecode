@@ -1,38 +1,52 @@
-node_modules/
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
-*.orig
+*.pyd
+
+# Backup and temporary files
 *.bak
-*.backup
-*.before_edit
 *.swp
 *.swo
-.DS_Store
+
+# Archive directory (pre-git backups, kept on disk but not tracked)
+archive/
+
+# Local environment and secrets (but keep the example templates)
 .env
-*.log
-.vite/
-.kilo/
-.temp/
-tmp/
+.env.*
+!.env.example
+!.env.docker.example
+.claude/
+CLAUDE.md
+AGENTS.md
+.cursorrules
+.windsurfrules
+.aider*
+copilot-instructions.md
 
-# Build outputs
-releases/*.appimage
-releases/*.apk
-releases/*.keystore
-android/
-*.AppImage
-*.zsync
+# Generated screenshots and transient artifacts
+screenshot-*.png
+full-UI.png
 
-# Debug and extraction scripts
-debug_*.sh
-extract_*.sh
-run_*.sh
+# Version file written by Docker/CI build — generated, never committed
+api/_version.py
 
-# Temporary directories
-lib/
-squashfs-root/
+# OS files
+.DS_Store
+Thumbs.db
 
-# Capacitor
-ios/
-node_modules
+# Local reference clones — never committed (except tracked design/UI-UX reference pages)
+docs/*
+!docs/ui-ux/
+!docs/ui-ux/**
+!docs/docker.md
+!docs/supervisor.md
+!docs/troubleshooting.md
+
+# Local-only PR review harness: rendering drivers, sample bank, fixtures.
+# Used by Claude during deep reviews; never shared in the repo.
+.local-review/
+graphify-out/
+.graphify_cached.json
+.graphify_uncached.txt

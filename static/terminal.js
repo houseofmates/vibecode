@@ -1,1005 +1,632 @@
-/**
- * Terminal panel with xterm.js integration
- * Supports multiple tabs, workspace sync, right-click context menu,
- * URL link provider, search, connection status, and smart reconnection.
- */
-
-// Terminal state
-const TerminalState = {
-    terminals: new Map(), // terminal_id -> TerminalInstance
-    activeTerminalId: null,
-    nextClientId: 1,
-    panelVisible: false
+const TERMINAL_UI={
+  open:false,
+  collapsed:false,
+  sessionId:null,
+  workspace:null,
+  source:null,
+  term:null,
+  fitAddon:null,
+  resizeObserver:null,
+  resizeTimer:null,
+  closeTimer:null,
+  typedLine:'',
+  height:null,
+  resizeHandleReady:false,
+  resizing:false,
+  resizeStartY:0,
+  resizeStartHeight:0,
 };
 
-// Terminal icon SVG
-const TERMINAL_ICON = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>`;
+const TERMINAL_HEIGHT_DEFAULT=260;
+const TERMINAL_HEIGHT_MIN=180;
+const TERMINAL_HEIGHT_MAX=520;
+const TERMINAL_MOBILE_HEIGHT_DEFAULT=190;
+const TERMINAL_MOBILE_HEIGHT_MIN=140;
+const TERMINAL_MOBILE_HEIGHT_MAX=300;
 
-// Terminal close icon
-const CLOSE_ICON = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
-
-// Terminal add icon
-const ADD_ICON = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`;
-
-// Search icon
-const SEARCH_ICON = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`;
-
-// Generate unique client ID
-function getClientId() {
-    return `client_${Date.now()}_${TerminalState.nextClientId++}`;
+function _terminalEls(){
+  return {
+    panel:$('composerTerminalPanel'),
+    inner:$('composerTerminalPanel')&&$('composerTerminalPanel').querySelector('.composer-terminal-inner'),
+    dock:$('composerTerminalDock'),
+    viewport:$('terminalViewport'),
+    surface:$('terminalSurface'),
+    toggle:$('btnTerminalToggle'),
+    workspace:$('terminalWorkspaceLabel'),
+    dockWorkspace:$('terminalDockWorkspaceLabel'),
+    handle:$('terminalResizeHandle'),
+  };
 }
 
-// Resolve API base URL — never fall back to localhost in production
-function getApiBase() {
-    return window.HERMES_API_BASE || (location.origin + '/');
+function _terminalSessionId(){
+  return S.session&&S.session.session_id;
 }
 
-// Debounce helper
-function debounce(fn, ms) {
-    let t;
-    return (...args) => {
-        clearTimeout(t);
-        t = setTimeout(() => fn(...args), ms);
-    };
+function _terminalWorkspaceName(){
+  const ws=S.session&&S.session.workspace;
+  if(!ws)return '';
+  const parts=String(ws).split(/[\\/]+/).filter(Boolean);
+  return parts[parts.length-1]||ws;
 }
 
-// TerminalInstance class
-class TerminalInstance {
-    constructor(terminalId, name, cwd) {
-        this.terminalId = terminalId;
-        this.name = name;
-        this.cwd = cwd;
-        this.xterm = null;
-        this.eventSource = null;
-        this.clientId = getClientId();
-        this.container = null;
-        this.tabElement = null;
-        this.connected = false;
-        this._reconnectAttempts = 0;
-        this._maxReconnects = 10;
-        this._reconnectDelay = 1000;
-        this._reconnectTimer = null;
-        this._fitDebounced = debounce(() => this.fit(), 100);
-        this._outputBuffer = []; // buffer output while disconnected
-        this._searchOverlay = null;
-        this._statusTimer = null;
-    }
-
-    async init(container) {
-        console.log('[terminal] TerminalInstance.init called, container:', container);
-        console.log('[terminal] Terminal class available:', typeof Terminal !== 'undefined');
-        if (typeof Terminal === 'undefined') {
-            console.error('[terminal] Terminal class not available - xterm.js not loaded');
-            container.innerHTML = '<div style="padding:20px;color:#e94560;font-size:13px;">xterm.js failed to load. Please refresh the page.</div>';
-            return;
-        }
-        this.container = container;
-
-        // Create xterm instance — optimized for snappiness
-        this.xterm = new Terminal({
-            fontFamily: 'JetBrains Mono, Droid Sans Mono, ui-monospace, monospace',
-            fontSize: 14,
-            fontWeight: 'normal',
-            fontWeightBold: 'bold',
-            cursorBlink: false,
-            cursorStyle: 'bar',
-            scrollback: 5000,
-            cols: 80,
-            rows: 24,
-            allowProposedApi: true,
-            screenReaderMode: false,
-            fastScrollModifier: 'alt',
-            macOptionIsMeta: true,
-            drawBoldTextInBrightColors: false,
-            minimumContrastRatio: 1,
-            theme: {
-                background: '#0d0d0d',
-                foreground: '#ffd45f',
-                cursor: '#35c7ff',
-                selection: '#35c7ff33',
-                black: '#000000',
-                red: '#ff5f56',
-                green: '#27c93f',
-                yellow: '#f6b012',
-                blue: '#35c7ff',
-                magenta: '#ff5f98',
-                cyan: '#28b9ff',
-                white: '#ffffff'
-            }
-        });
-        console.log('[terminal] xterm instance created');
-
-        // Create fit addon container
-        const termContainer = document.createElement('div');
-        termContainer.style.cssText = 'width: 100%; height: 100%; padding: 8px;';
-        container.appendChild(termContainer);
-        console.log('[terminal] termContainer appended to container');
-
-        this.xterm.open(termContainer);
-        console.log('[terminal] xterm opened');
-
-        // Register URL link provider
-        this._registerLinkProvider();
-
-        // Custom terminal hotkeys for copy, paste, select-all, search, clear, and terminal interrupt.
-        this.xterm.attachCustomKeyEventHandler((e) => {
-            const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
-            const isCtrl = isMac ? e.metaKey : e.ctrlKey;
-            const isShift = e.shiftKey;
-            const key = e.key.toLowerCase();
-
-            if (!isCtrl || e.altKey) return true;
-
-            // Ctrl+Shift+A: select all
-            if (key === 'a' && isShift) {
-                this.xterm.selectAll();
-                this._setStatus('selected all');
-                e.preventDefault();
-                return false;
-            }
-
-            // Ctrl+Shift+F: toggle search
-            if (key === 'f' && isShift) {
-                this.toggleSearch();
-                e.preventDefault();
-                return false;
-            }
-
-            // Ctrl+Shift+K: clear terminal
-            if (key === 'k' && isShift) {
-                this.xterm.clear();
-                this._setStatus('cleared');
-                e.preventDefault();
-                return false;
-            }
-
-            // Ctrl+V: paste
-            if (key === 'v' && !isShift) {
-                navigator.clipboard.readText().then(text => {
-                    if (text) {
-                        this.sendInput(text);
-                        this._setStatus('pasted');
-                    }
-                }).catch(() => {});
-                e.preventDefault();
-                return false;
-            }
-
-            // Ctrl+C: copy if selection, else pass through
-            if (key === 'c') {
-                if (isShift) {
-                    this.sendInput('\x03');
-                    this._setStatus('sent SIGINT');
-                    e.preventDefault();
-                    return false;
-                }
-                const selection = this.xterm.getSelection();
-                if (selection) {
-                    navigator.clipboard.writeText(selection).catch(() => {});
-                    this._setStatus('copied');
-                    e.preventDefault();
-                    return false;
-                }
-                return true;
-            }
-
-            return true;
-        });
-
-        // Handle input
-        this.xterm.onData((data) => {
-            if (this.connected) {
-                this.sendInput(data);
-            } else {
-                // Queue input while disconnected
-                this._outputBuffer.push({ type: 'input', data });
-            }
-        });
-
-        // Handle resize
-        this.xterm.onResize(({ cols, rows }) => {
-            if (this.connected) {
-                this.resize(cols, rows);
-            }
-        });
-
-        // Fit terminal to container
-        this.fit();
-
-        // Connect to SSE stream
-        this.connect();
-
-        // Handle window resize
-        window.addEventListener('resize', () => this._fitDebounced());
-    }
-
-    _registerLinkProvider() {
-        if (!this.xterm || typeof this.xterm.registerLinkProvider !== 'function') return;
-        const urlRegex = /(https?:\/\/[^\s"'<>(){}\[\]]+)/g;
-        this.xterm.registerLinkProvider({
-            provideLinks: (y, callback) => {
-                const line = this.xterm.buffer.active.getLine(y);
-                if (!line) return callback(undefined);
-                const text = line.translateToString(true);
-                const links = [];
-                let m;
-                while ((m = urlRegex.exec(text)) !== null) {
-                    links.push({
-                        range: { start: { x: m.index, y }, end: { x: m.index + m[0].length, y } },
-                        text: m[0],
-                        activate: () => window.open(m[0], '_blank')
-                    });
-                }
-                callback(links);
-            }
-        });
-    }
-
-    _setStatus(msg) {
-        const term = this;
-        if (term.tabElement) {
-            const statusEl = term.tabElement.querySelector('.terminal-tab-status');
-            if (statusEl) {
-                statusEl.textContent = msg;
-                statusEl.style.opacity = '1';
-                clearTimeout(term._statusTimer);
-                term._statusTimer = setTimeout(() => {
-                    statusEl.style.opacity = '0';
-                }, 1200);
-            }
-        }
-    }
-
-    _updateConnectionStatus(status) {
-        if (!this.tabElement) return;
-        const dot = this.tabElement.querySelector('.terminal-status-dot');
-        if (!dot) return;
-        dot.classList.remove('connected', 'connecting', 'disconnected');
-        dot.classList.add(status);
-    }
-
-    connect() {
-        this._reconnectAttempts = 0;
-        this._baseCandidateIndex = 0;
-        // Build candidate list using the same logic as window.api
-        let candidates = [getApiBase()];
-        if (typeof window._getApiBaseCandidates === 'function') {
-            try {
-                const isCapacitorApp = !!(window.Capacitor || window.__capacitor || location.protocol==='capacitor:' || document.documentElement.classList.contains('capacitor'));
-                const isTauri = !isCapacitorApp && (
-                    window.__TAURI__ ||
-                    location.protocol==='tauri:' ||
-                    location.protocol==='file:' ||
-                    location.hostname==='tauri.localhost' ||
-                    location.host==='tauri.localhost' ||
-                    location.hostname.includes('tauri')
-                );
-                candidates = window._getApiBaseCandidates(isCapacitorApp, isTauri);
-            } catch (e) {}
-        }
-        const seen = new Set();
-        this._baseCandidates = candidates.filter(c => { if (!c || seen.has(c)) return false; seen.add(c); return true; });
-        this._doConnect();
-    }
-
-    _doConnect() {
-        if (this._baseCandidateIndex >= this._baseCandidates.length) {
-            // All candidates exhausted — start a retry cycle
-            this._baseCandidateIndex = 0;
-            this._reconnectAttempts++;
-            if (this._reconnectAttempts > this._maxReconnects) {
-                this.xterm.writeln('\r\n\x1b[31m● connection failed after multiple retries. close and reopen the terminal.\x1b[0m');
-                return;
-            }
-            const baseDelay = this._reconnectDelay * Math.pow(1.5, this._reconnectAttempts - 1);
-            const jitter = Math.random() * 500;
-            const delay = Math.min(30000, baseDelay + jitter);
-            console.log(`[terminal] all candidates failed, retrying in ${Math.round(delay)}ms (attempt ${this._reconnectAttempts})`);
-            this._reconnectTimer = setTimeout(() => {
-                if (TerminalState.terminals.has(this.terminalId)) {
-                    this._doConnect();
-                }
-            }, delay);
-            return;
-        }
-
-        const base = this._baseCandidates[this._baseCandidateIndex];
-        const url = new URL('api/terminal/stream', base);
-        url.searchParams.set('terminal_id', this.terminalId);
-        url.searchParams.set('client_id', this.clientId);
-
-        console.log(`[terminal] Connecting SSE to ${url.href} (candidate ${this._baseCandidateIndex + 1}/${this._baseCandidates.length})`);
-        this.eventSource = new EventSource(url.href, { withCredentials: true });
-        this._updateConnectionStatus('connecting');
-
-        this.eventSource.addEventListener('open', () => {
-            console.log('[terminal] SSE transport open');
-        });
-
-        this.eventSource.addEventListener('ready', (e) => {
-            const data = JSON.parse(e.data);
-            console.log('[terminal] Connected:', data.terminal_id);
-            this.connected = true;
-            this._reconnectAttempts = 0;
-            this._baseCandidateIndex = 0;
-            this._updateConnectionStatus('connected');
-            this.xterm.writeln(`\r\n\x1b[38;2;246;176;18m● connected to ${data.name}\x1b[0m\r\n`);
-            // Flush any buffered input
-            const buffered = this._outputBuffer.filter(o => o.type === 'input');
-            this._outputBuffer = [];
-            for (const item of buffered) {
-                this.sendInput(item.data);
-            }
-        });
-
-        this.eventSource.addEventListener('output', (e) => {
-            const data = JSON.parse(e.data);
-            if (data.type === 'output') {
-                this.xterm.write(data.data);
-            } else if (data.type === 'exit') {
-                this.xterm.writeln(`\r\n\x1b[31m● terminal exited (code: ${data.code})\x1b[0m`);
-                this.connected = false;
-                this._updateConnectionStatus('disconnected');
-            }
-        });
-
-        this.eventSource.addEventListener('heartbeat', () => {
-            // Heartbeat received, connection is alive
-        });
-
-        this.eventSource.addEventListener('error', (e) => {
-            const wasConnected = this.connected;
-            this.connected = false;
-            this._updateConnectionStatus('disconnected');
-
-            if (this.eventSource) {
-                this.eventSource.close();
-                this.eventSource = null;
-            }
-
-            if (wasConnected) {
-                // Mid-stream drop — reset candidates and reconnect after delay
-                this.xterm.writeln(`\r\n\x1b[33m● connection lost\x1b[0m`);
-                this._reconnectAttempts++;
-                if (this._reconnectAttempts > this._maxReconnects) {
-                    this.xterm.writeln('\r\n\x1b[31m● connection failed after multiple retries. close and reopen the terminal.\x1b[0m');
-                    return;
-                }
-                const baseDelay = this._reconnectDelay * Math.pow(1.5, this._reconnectAttempts - 1);
-                const jitter = Math.random() * 500;
-                const delay = Math.min(30000, baseDelay + jitter);
-                this.xterm.writeln(`\x1b[33m  reconnecting in ${Math.round(delay/1000)}s… (attempt ${this._reconnectAttempts}/${this._maxReconnects})\x1b[0m`);
-                this._baseCandidateIndex = 0;
-                this._reconnectTimer = setTimeout(() => {
-                    if (TerminalState.terminals.has(this.terminalId)) {
-                        this._doConnect();
-                    }
-                }, delay);
-            } else {
-                // First-connect failure — try next candidate immediately
-                console.log(`[terminal] Candidate ${this._baseCandidateIndex + 1} failed, trying next`);
-                this._baseCandidateIndex++;
-                clearTimeout(this._reconnectTimer);
-                this._reconnectTimer = setTimeout(() => {
-                    if (TerminalState.terminals.has(this.terminalId)) {
-                        this._doConnect();
-                    }
-                }, 100);
-            }
-        });
-    }
-
-    async sendInput(data) {
-        try {
-            const _api = typeof window.api === 'function' ? window.api : null;
-            if (_api) {
-                await _api(`api/terminal/${this.terminalId}/write`, {
-                    method: 'POST',
-                    body: JSON.stringify({ data })
-                });
-            } else {
-                await fetch(new URL(`api/terminal/${this.terminalId}/write`, getApiBase()).href, {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ data })
-                });
-            }
-        } catch (e) {
-            console.error('[terminal] Failed to send input:', e);
-        }
-    }
-
-    async resize(cols, rows) {
-        try {
-            const _api = typeof window.api === 'function' ? window.api : null;
-            if (_api) {
-                await _api(`api/terminal/${this.terminalId}/resize`, {
-                    method: 'POST',
-                    body: JSON.stringify({ cols, rows })
-                });
-            } else {
-                await fetch(new URL(`api/terminal/${this.terminalId}/resize`, getApiBase()).href, {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cols, rows })
-                });
-            }
-        } catch (e) {
-            console.error('[terminal] Failed to resize:', e);
-        }
-    }
-
-    fit() {
-        if (!this.xterm || !this.container) return;
-
-        const container = this.container.querySelector('div');
-        if (!container) return;
-
-        // Calculate cols/rows based on container size
-        // Use xterm's measured dimensions when available; fallback to sensible defaults
-        let charWidth = 9;
-        let charHeight = 18;
-        try {
-            const dims = this.xterm._core?._renderService?.dimensions;
-            if (dims?.actualCellWidth) charWidth = dims.actualCellWidth;
-            if (dims?.actualCellHeight) charHeight = dims.actualCellHeight;
-        } catch (_) {}
-
-        const width = container.clientWidth - 16; // minus padding
-        const height = container.clientHeight - 16;
-
-        const cols = Math.floor(width / charWidth);
-        const rows = Math.floor(height / charHeight);
-
-        if (cols > 0 && rows > 0 && (cols !== this.xterm.cols || rows !== this.xterm.rows)) {
-            this.xterm.resize(cols, rows);
-        }
-    }
-
-    toggleSearch() {
-        if (this._searchOverlay && this._searchOverlay.parentNode) {
-            this._searchOverlay.remove();
-            this._searchOverlay = null;
-            this.focus();
-            return;
-        }
-        const overlay = document.createElement('div');
-        overlay.className = 'terminal-search-overlay';
-        overlay.style.cssText = `
-            position: absolute;
-            top: 8px; right: 8px;
-            background: rgba(13,13,13,0.95);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 6px 8px;
-            display: flex; align-items: center; gap: 6px;
-            z-index: 100; font-size: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-        `;
-        overlay.innerHTML = `
-            <span style="color:var(--muted);">${SEARCH_ICON}</span>
-            <input type="text" placeholder="search…" style="
-                background:transparent; border:none; color:var(--text);
-                outline:none; font-size:12px; width:140px;
-            ">
-            <span class="ts-count" style="color:var(--muted);font-size:11px;"></span>
-            <button class="ts-close" style="
-                background:none; border:none; color:var(--muted);
-                cursor:pointer; font-size:14px; line-height:1;
-            ">×</button>
-        `;
-        this.container.style.position = 'relative';
-        this.container.appendChild(overlay);
-
-        const input = overlay.querySelector('input');
-        const countEl = overlay.querySelector('.ts-count');
-        const closeBtn = overlay.querySelector('.ts-close');
-
-        let currentMatch = -1;
-        let matches = [];
-
-        const doSearch = () => {
-            const query = input.value;
-            if (!query) {
-                countEl.textContent = '';
-                this.xterm.clearSelection();
-                matches = [];
-                currentMatch = -1;
-                return;
-            }
-            matches = [];
-            const buffer = this.xterm.buffer.active;
-            for (let y = buffer.viewportY; y < buffer.length; y++) {
-                const line = buffer.getLine(y);
-                if (!line) continue;
-                const text = line.translateToString(true);
-                let idx = text.toLowerCase().indexOf(query.toLowerCase());
-                while (idx !== -1) {
-                    matches.push({ x: idx, y, len: query.length });
-                    idx = text.toLowerCase().indexOf(query.toLowerCase(), idx + 1);
-                }
-            }
-            countEl.textContent = matches.length ? `${matches.length}` : '0';
-            currentMatch = matches.length ? 0 : -1;
-            if (currentMatch >= 0) {
-                const m = matches[currentMatch];
-                this.xterm.select(m.x, m.y, m.len);
-            }
-        };
-
-        const nextMatch = () => {
-            if (!matches.length) return;
-            currentMatch = (currentMatch + 1) % matches.length;
-            const m = matches[currentMatch];
-            this.xterm.select(m.x, m.y, m.len);
-            this.xterm.scrollLines(m.y - this.xterm.buffer.active.viewportY);
-        };
-
-        input.addEventListener('input', doSearch);
-        input.addEventListener('keydown', (ev) => {
-            if (ev.key === 'Enter') { ev.preventDefault(); nextMatch(); }
-            if (ev.key === 'Escape') { ev.preventDefault(); this.toggleSearch(); }
-        });
-        closeBtn.addEventListener('click', () => this.toggleSearch());
-        input.focus();
-
-        this._searchOverlay = overlay;
-    }
-
-    focus() {
-        if (this.xterm) {
-            this.xterm.focus();
-        }
-    }
-
-    destroy() {
-        if (this._reconnectTimer) {
-            clearTimeout(this._reconnectTimer);
-        }
-        if (this.eventSource) {
-            this.eventSource.close();
-        }
-        if (this.xterm) {
-            this.xterm.dispose();
-        }
-        if (this.container && this.container.parentNode) {
-            this.container.remove();
-        }
-    }
+function _isTerminalCloseCommand(value){
+  return ['exit','quit','logout','close'].includes(String(value||'').trim().toLowerCase());
 }
 
-// Initialize terminal panel
-function initTerminalPanel() {
-    if (TerminalState._initialized) return;
-    TerminalState._initialized = true;
+function _trackTerminalInput(data){
+  if(data==='\r'||data==='\n'){
+    const command=TERMINAL_UI.typedLine;
+    TERMINAL_UI.typedLine='';
+    return command;
+  }
+  if(data==='\u0003'){
+    TERMINAL_UI.typedLine='';
+    return null;
+  }
+  if(data==='\u007f'||data==='\b'){
+    TERMINAL_UI.typedLine=TERMINAL_UI.typedLine.slice(0,-1);
+    return null;
+  }
+  if(data.length===1&&data>=' '){
+    TERMINAL_UI.typedLine+=data;
+  }else if(data.length>1&&/^[\x20-\x7e]+$/.test(data)){
+    TERMINAL_UI.typedLine+=data;
+  }
+  return null;
+}
 
-    console.log('[terminal] initTerminalPanel called');
-    const tabsContainer = document.getElementById('terminalTabs');
-    const termContainer = document.getElementById('terminalContainer');
-    console.log('[terminal] tabsContainer:', tabsContainer, 'termContainer:', termContainer);
-    if (!tabsContainer || !termContainer) {
-        console.error('[terminal] Missing containers');
-        return;
+function _terminalCssVar(name,fallback){
+  const value=getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value||fallback;
+}
+
+function _terminalTheme(){
+  const isDark=document.documentElement.classList.contains('dark');
+  const background=_terminalCssVar('--code-bg',isDark?'#1A1A2E':'#F5F0E5');
+  const foreground=_terminalCssVar('--pre-text',_terminalCssVar('--text',isDark?'#E2E8F0':'#1A1610'));
+  const muted=_terminalCssVar('--muted',isDark?'#C0C0C0':'#5C5344');
+  const accent=_terminalCssVar('--accent-text',_terminalCssVar('--accent',isDark?'#FFD700':'#8B6508'));
+  const error=_terminalCssVar('--error',isDark?'#EF5350':'#C62828');
+  const success=_terminalCssVar('--success',isDark?'#4CAF50':'#3D8B40');
+  const warning=_terminalCssVar('--warning',isDark?'#FFA726':'#E68A00');
+  const info=_terminalCssVar('--info',isDark?'#4DD0E1':'#0288A8');
+  return {
+    background,
+    foreground,
+    cursor:accent,
+    selectionBackground:_terminalCssVar('--accent-bg-strong',isDark?'rgba(255,215,0,.18)':'rgba(184,134,11,.18)'),
+    black:isDark?'#0D0D1A':'#1A1610',
+    red:error,
+    green:success,
+    yellow:warning,
+    blue:info,
+    magenta:accent,
+    cyan:info,
+    white:foreground,
+    brightBlack:muted,
+    brightRed:error,
+    brightGreen:success,
+    brightYellow:accent,
+    brightBlue:info,
+    brightMagenta:accent,
+    brightCyan:info,
+    brightWhite:isDark?'#FFFFFF':'#0F0D08',
+  };
+}
+
+function syncComposerTerminalTheme(){
+  if(TERMINAL_UI.term)TERMINAL_UI.term.options.theme=_terminalTheme();
+}
+
+function _xtermReady(){
+  return typeof window.Terminal==='function';
+}
+
+function _ensureXterm(){
+  const {surface}= _terminalEls();
+  if(!surface)return null;
+  if(TERMINAL_UI.term)return TERMINAL_UI.term;
+  if(!_xtermReady()){
+    surface.textContent='Terminal library failed to load. Check network access to cdn.jsdelivr.net.';
+    return null;
+  }
+  const term=new window.Terminal({
+    cursorBlink:true,
+    fontSize:13,
+    fontFamily:'Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+    scrollback:1000,
+    convertEol:false,
+    theme:_terminalTheme(),
+  });
+  let fitAddon=null;
+  if(window.FitAddon&&typeof window.FitAddon.FitAddon==='function'){
+    fitAddon=new window.FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+  }
+  if(window.WebLinksAddon&&typeof window.WebLinksAddon.WebLinksAddon==='function'){
+    term.loadAddon(new window.WebLinksAddon.WebLinksAddon());
+  }
+  term.open(surface);
+  term.onData(data=>{
+    const completedCommand=_trackTerminalInput(data);
+    if(completedCommand!==null&&_isTerminalCloseCommand(completedCommand)){
+      closeComposerTerminal();
+      return;
     }
+    const sid=TERMINAL_UI.sessionId||_terminalSessionId();
+    if(!sid)return;
+    api('/api/terminal/input',{method:'POST',body:JSON.stringify({
+      session_id:sid,
+      data,
+    })}).catch(e=>showToast(t('terminal_input_failed')+e.message,2600,'error'));
+  });
+  TERMINAL_UI.term=term;
+  TERMINAL_UI.fitAddon=fitAddon;
+  _fitTerminal();
+  return term;
+}
 
-    // Bind events to existing buttons
-    const panelNewBtn = document.getElementById('btnNewTerminal');
-    const panelCloseBtn = document.getElementById('btnCloseTerminal');
-    if (panelNewBtn) panelNewBtn.addEventListener('click', () => createNewTerminal());
-    if (panelCloseBtn) panelCloseBtn.addEventListener('click', () => {
-        // Toggle panel off via switchPanel so button state stays in sync
-        if (typeof switchPanel === 'function') {
-            switchPanel('terminal');
-        } else {
-            closeActiveTerminal();
-        }
+function _terminalDimensions(){
+  const term=TERMINAL_UI.term;
+  if(term&&term.cols&&term.rows)return {rows:term.rows,cols:term.cols};
+  return {rows:18,cols:80};
+}
+
+function _terminalHeightBounds(){
+  const mobile=window.matchMedia&&window.matchMedia('(max-width: 700px)').matches;
+  const min=mobile?TERMINAL_MOBILE_HEIGHT_MIN:TERMINAL_HEIGHT_MIN;
+  const maxByViewport=Math.floor(window.innerHeight*(mobile?0.44:0.5));
+  const hardMax=mobile?TERMINAL_MOBILE_HEIGHT_MAX:TERMINAL_HEIGHT_MAX;
+  return {
+    min,
+    max:Math.max(min,Math.min(hardMax,maxByViewport)),
+    defaultHeight:mobile?TERMINAL_MOBILE_HEIGHT_DEFAULT:TERMINAL_HEIGHT_DEFAULT,
+  };
+}
+
+function _clampTerminalHeight(height){
+  const bounds=_terminalHeightBounds();
+  const n=Number(height);
+  const fallback=TERMINAL_UI.height||bounds.defaultHeight;
+  return Math.max(bounds.min,Math.min(bounds.max,Number.isFinite(n)?n:fallback));
+}
+
+function _applyTerminalHeight(height){
+  const {inner,handle}= _terminalEls();
+  const next=_clampTerminalHeight(height);
+  TERMINAL_UI.height=next;
+  if(inner)inner.style.setProperty('--composer-terminal-height',next+'px');
+  if(handle){
+    const bounds=_terminalHeightBounds();
+    handle.setAttribute('aria-valuemin',String(bounds.min));
+    handle.setAttribute('aria-valuemax',String(bounds.max));
+    handle.setAttribute('aria-valuenow',String(next));
+  }
+  if(TERMINAL_UI.open&&!TERMINAL_UI.collapsed){
+    _fitTerminal();
+    _syncTerminalTranscriptSpace(true);
+  }
+  return next;
+}
+
+function _resetTerminalHeightForViewport(){
+  const bounds=_terminalHeightBounds();
+  _applyTerminalHeight(TERMINAL_UI.height||bounds.defaultHeight);
+}
+
+function _startTerminalHeightResize(ev){
+  if(ev.pointerType==='touch')return;
+  const {inner,handle}= _terminalEls();
+  if(!inner||!handle)return;
+  ev.preventDefault();
+  TERMINAL_UI.resizing=true;
+  TERMINAL_UI.resizeStartY=ev.clientY;
+  TERMINAL_UI.resizeStartHeight=TERMINAL_UI.height||inner.getBoundingClientRect().height||_terminalHeightBounds().defaultHeight;
+  inner.classList.add('is-resizing');
+  try{handle.setPointerCapture(ev.pointerId);}catch(_){}
+}
+
+function _moveTerminalHeightResize(ev){
+  if(!TERMINAL_UI.resizing)return;
+  ev.preventDefault();
+  _applyTerminalHeight(TERMINAL_UI.resizeStartHeight+(TERMINAL_UI.resizeStartY-ev.clientY));
+}
+
+function _endTerminalHeightResize(ev){
+  if(!TERMINAL_UI.resizing)return;
+  TERMINAL_UI.resizing=false;
+  const {inner,handle}= _terminalEls();
+  if(inner)inner.classList.remove('is-resizing');
+  if(handle&&ev&&ev.pointerId!==undefined)try{handle.releasePointerCapture(ev.pointerId);}catch(_){}
+  _fitTerminal();
+}
+
+function _handleTerminalResizeKey(ev){
+  let delta=0;
+  if(ev.key==='ArrowUp')delta=16;
+  else if(ev.key==='ArrowDown')delta=-16;
+  else if(ev.key==='PageUp')delta=64;
+  else if(ev.key==='PageDown')delta=-64;
+  else if(ev.key==='Home'){
+    ev.preventDefault();
+    return _applyTerminalHeight(_terminalHeightBounds().min);
+  }
+  else if(ev.key==='End'){
+    ev.preventDefault();
+    return _applyTerminalHeight(_terminalHeightBounds().max);
+  }
+  else return;
+  ev.preventDefault();
+  _applyTerminalHeight((TERMINAL_UI.height||_terminalHeightBounds().defaultHeight)+delta);
+}
+
+function _initTerminalResizeHandle(){
+  if(TERMINAL_UI.resizeHandleReady)return;
+  const {handle}= _terminalEls();
+  if(!handle)return;
+  TERMINAL_UI.resizeHandleReady=true;
+  handle.addEventListener('pointerdown',_startTerminalHeightResize);
+  handle.addEventListener('pointermove',_moveTerminalHeightResize);
+  handle.addEventListener('pointerup',_endTerminalHeightResize);
+  handle.addEventListener('pointercancel',_endTerminalHeightResize);
+  handle.addEventListener('keydown',_handleTerminalResizeKey);
+}
+
+function _terminalMessagesEl(){
+  return document.getElementById('messages');
+}
+
+function _terminalIsMessagesNearBottom(el){
+  if(!el)return false;
+  return el.scrollHeight-el.scrollTop-el.clientHeight<150;
+}
+
+function _syncTerminalTranscriptSpace(open,opts){
+  opts=opts||{};
+  const messages=_terminalMessagesEl();
+  if(!messages)return;
+  const wasNearBottom=_terminalIsMessagesNearBottom(messages);
+  if(!open){
+    messages.classList.remove('terminal-open');
+    messages.classList.remove('terminal-collapsed');
+    messages.classList.remove('terminal-expanding-from-dock');
+    messages.style.removeProperty('--terminal-card-height');
+    messages.style.removeProperty('--terminal-dock-height');
+    if(wasNearBottom&&typeof scrollToBottom==='function')requestAnimationFrame(scrollToBottom);
+    return;
+  }
+  if(open==='collapsed'){
+    messages.classList.remove('terminal-open');
+    messages.classList.add('terminal-collapsed');
+  }else{
+    messages.classList.add('terminal-open');
+    messages.classList.remove('terminal-collapsed');
+  }
+  const measure=()=>{
+    if(!TERMINAL_UI.open)return;
+    const {panel,inner,dock}= _terminalEls();
+    const target=open==='collapsed'?(dock||panel):(inner||panel);
+    const h=target&&target.getBoundingClientRect().height;
+    if(h>0){
+      if(open==='collapsed')messages.style.setProperty('--terminal-dock-height',Math.ceil(h+24)+'px');
+      else messages.style.setProperty('--terminal-card-height',Math.ceil(h+24)+'px');
+    }
+    if(wasNearBottom&&typeof scrollToBottom==='function')scrollToBottom();
+  };
+  if(opts.immediate)measure();
+  requestAnimationFrame(measure);
+  setTimeout(measure,420);
+}
+
+function _fitTerminal(){
+  const term=TERMINAL_UI.term;
+  if(!term)return;
+  if(TERMINAL_UI.collapsed)return;
+  try{
+    if(TERMINAL_UI.fitAddon)TERMINAL_UI.fitAddon.fit();
+  }catch(_){}
+  _syncTerminalTranscriptSpace(true);
+  _scheduleTerminalResize();
+}
+
+function _setTerminalChromeState(state){
+  const {panel,inner,dock,workspace,dockWorkspace}= _terminalEls();
+  const composerWrap=$('composerWrap');
+  if(!panel)return;
+  const collapsed=state==='collapsed';
+  const expanded=state==='expanded';
+  if(composerWrap)composerWrap.classList.toggle('terminal-dock-visible',collapsed);
+  panel.hidden=!(collapsed||expanded);
+  panel.classList.toggle('is-open',expanded);
+  panel.classList.toggle('is-collapsed',collapsed);
+  if(inner)inner.setAttribute('aria-hidden',collapsed?'true':'false');
+  if(dock)dock.hidden=!collapsed;
+  const label=_terminalWorkspaceName();
+  if(workspace)workspace.textContent=label;
+  if(dockWorkspace)dockWorkspace.textContent=label;
+}
+
+function syncTerminalButton(){
+  const {toggle}= _terminalEls();
+  const currentSid=_terminalSessionId();
+  const currentWorkspace=S.session&&S.session.workspace;
+  if(TERMINAL_UI.open&&TERMINAL_UI.sessionId&&(currentSid!==TERMINAL_UI.sessionId||currentWorkspace!==TERMINAL_UI.workspace)){
+    closeComposerTerminal(TERMINAL_UI.sessionId);
+  }
+  if(!toggle)return;
+  const hasWorkspace=!!(S.session&&S.session.workspace);
+  toggle.disabled=!hasWorkspace;
+  toggle.classList.toggle('active',TERMINAL_UI.open);
+  toggle.setAttribute('aria-pressed',TERMINAL_UI.open?'true':'false');
+  toggle.title=hasWorkspace?(TERMINAL_UI.collapsed?t('terminal_expand'):t('terminal_open_title')):t('terminal_no_workspace_title');
+  toggle.setAttribute('aria-label',toggle.title);
+}
+
+function focusComposerTerminalInput(){
+  if(TERMINAL_UI.term)TERMINAL_UI.term.focus();
+}
+
+function _connectTerminalOutput(){
+  const sid=_terminalSessionId();
+  if(!sid)return;
+  if(TERMINAL_UI.source){
+    try{TERMINAL_UI.source.close();}catch(_){}
+    TERMINAL_UI.source=null;
+  }
+  const url=new URL('api/terminal/output',document.baseURI||location.href);
+  url.searchParams.set('session_id',sid);
+  const source=new EventSource(url.href,{withCredentials:true});
+  TERMINAL_UI.source=source;
+  source.addEventListener('output',ev=>{
+    if(TERMINAL_UI.source!==source)return;
+    let text='';
+    try{text=(JSON.parse(ev.data)||{}).text||'';}
+    catch(_){text=ev.data||'';}
+    if(TERMINAL_UI.term&&text)TERMINAL_UI.term.write(text);
+  });
+  source.addEventListener('terminal_closed',()=>{
+    if(TERMINAL_UI.source!==source)return;
+    if(TERMINAL_UI.term)TERMINAL_UI.term.writeln('\r\n[terminal closed]\r\n');
+    try{source.close();}catch(_){}
+    TERMINAL_UI.source=null;
+    setTimeout(()=>closeComposerTerminal(null,{skipApi:true}),260);
+  });
+  source.addEventListener('terminal_error',ev=>{
+    if(TERMINAL_UI.source!==source)return;
+    let msg=t('terminal_error');
+    try{msg=(JSON.parse(ev.data)||{}).error||msg;}catch(_){}
+    if(TERMINAL_UI.term)TERMINAL_UI.term.writeln('\r\n[terminal error] '+msg+'\r\n');
+    try{source.close();}catch(_){}
+    TERMINAL_UI.source=null;
+  });
+}
+
+async function _startComposerTerminal(restart=false){
+  const sid=_terminalSessionId();
+  if(!sid||!(S.session&&S.session.workspace)){
+    showToast(t('terminal_no_workspace_title'),2600,'warning');
+    syncTerminalButton();
+    return;
+  }
+  const term=_ensureXterm();
+  if(!term)return;
+  _fitTerminal();
+  const dims=_terminalDimensions();
+  await api('/api/terminal/start',{method:'POST',body:JSON.stringify({
+    session_id:sid,
+    rows:dims.rows,
+    cols:dims.cols,
+    restart:!!restart,
+  })});
+  TERMINAL_UI.sessionId=sid;
+  TERMINAL_UI.workspace=S.session&&S.session.workspace||null;
+  TERMINAL_UI.typedLine='';
+  _connectTerminalOutput();
+  _resizeComposerTerminal();
+}
+
+async function toggleComposerTerminal(force){
+  const next=typeof force==='boolean'?force:!TERMINAL_UI.open;
+  if(next){
+    if(TERMINAL_UI.open){
+      if(TERMINAL_UI.collapsed)expandComposerTerminal();
+      else focusComposerTerminalInput();
+      return;
+    }
+    const {panel,inner}= _terminalEls();
+    const messages=_terminalMessagesEl();
+    if(!panel)return;
+    clearTimeout(TERMINAL_UI.closeTimer);
+    _initTerminalResizeHandle();
+    _resetTerminalHeightForViewport();
+    if(messages)messages.classList.add('terminal-expanding-from-dock');
+    _setTerminalChromeState('expanded');
+    TERMINAL_UI.open=true;
+    TERMINAL_UI.collapsed=false;
+    _syncTerminalTranscriptSpace(true,{immediate:true});
+    if(messages)void messages.offsetHeight;
+    requestAnimationFrame(()=>{
+      panel.classList.add('is-open');
+      window.setTimeout(_fitTerminal,80);
+      setTimeout(()=>{
+        if(messages)messages.classList.remove('terminal-expanding-from-dock');
+      },120);
     });
-
-    // Load existing terminals
-    loadTerminals();
+    syncTerminalButton();
+    if(!TERMINAL_UI.resizeObserver&&window.ResizeObserver){
+      TERMINAL_UI.resizeObserver=new ResizeObserver(()=>_fitTerminal());
+      TERMINAL_UI.resizeObserver.observe(inner||panel);
+    }
+    try{
+      await _startComposerTerminal(false);
+      focusComposerTerminalInput();
+    }catch(e){
+      showToast(t('terminal_start_failed')+e.message,3200,'error');
+    }
+  }else{
+    await closeComposerTerminal();
+  }
 }
 
-// Load terminals from server
-async function loadTerminals() {
-    try {
-        const _api = typeof window.api === 'function' ? window.api : null;
-        let data;
-        if (_api) {
-            data = await _api('api/terminal/list');
-        } else {
-            const resp = await fetch(new URL('api/terminal/list', getApiBase()).href, { credentials: 'include' });
-            data = await resp.json();
-        }
-
-        if (data.terminals && data.terminals.length > 0) {
-            for (const term of data.terminals) {
-                // Skip terminals already loaded in this session
-                if (!TerminalState.terminals.has(term.terminal_id)) {
-                    await createTerminalTab(term.terminal_id, term.name, term.cwd);
-                }
-            }
-        } else {
-            // Create default terminal only if none exist yet
-            if (TerminalState.terminals.size === 0) {
-                await createNewTerminal();
-            }
-        }
-    } catch (e) {
-        console.error('[terminal] Failed to load terminals:', e);
-        if (TerminalState.terminals.size === 0) {
-            await createNewTerminal();
-        }
-    }
+function collapseComposerTerminal(){
+  if(!TERMINAL_UI.open||TERMINAL_UI.collapsed)return;
+  TERMINAL_UI.collapsed=true;
+  _setTerminalChromeState('collapsed');
+  _syncTerminalTranscriptSpace('collapsed');
+  syncTerminalButton();
 }
 
-// Get current workspace directory
-function getCurrentWorkspace() {
-    // Try to get from session
-    if (window.S && window.S.session && window.S.session.workspace) {
-        return window.S.session.workspace;
-    }
-    // Try to get from currentDir
-    if (window.S && window.S.currentDir) {
-        return window.S.currentDir;
-    }
-    // Default to home
-    return '~';
+function expandComposerTerminal(){
+  if(!TERMINAL_UI.open)return;
+  const {panel}= _terminalEls();
+  const messages=_terminalMessagesEl();
+  TERMINAL_UI.collapsed=false;
+  clearTimeout(TERMINAL_UI.closeTimer);
+  if(panel)panel.classList.add('is-expanding-from-dock');
+  if(messages)messages.classList.add('terminal-expanding-from-dock');
+  _syncTerminalTranscriptSpace(true,{immediate:true});
+  if(messages)void messages.offsetHeight;
+  _setTerminalChromeState('expanded');
+  _resetTerminalHeightForViewport();
+  requestAnimationFrame(()=>{
+    _fitTerminal();
+    focusComposerTerminalInput();
+    setTimeout(()=>{
+      if(panel)panel.classList.remove('is-expanding-from-dock');
+      if(messages)messages.classList.remove('terminal-expanding-from-dock');
+    },120);
+  });
+  syncTerminalButton();
 }
 
-// Detect APK/Capacitor mode
-function _isApkMode() {
-    return !!(window.Capacitor || window.__capacitor || location.protocol === 'capacitor:' ||
-              document.documentElement.classList.contains('capacitor') ||
-              document.documentElement.hasAttribute('data-capacitor'));
+function _disposeXterm(){
+  if(TERMINAL_UI.term){
+    try{TERMINAL_UI.term.dispose();}catch(_){}
+  }
+  TERMINAL_UI.term=null;
+  TERMINAL_UI.fitAddon=null;
+  TERMINAL_UI.typedLine='';
+  const {surface}= _terminalEls();
+  if(surface)surface.textContent='';
 }
 
-// Create a new terminal
-async function createNewTerminal() {
-    const cwd = getCurrentWorkspace();
-    const sessionId = (window.S && window.S.session && window.S.session.session_id) || 'anonymous';
-    const payload = { cwd, session_id: sessionId };
-    if (_isApkMode()) {
-        payload.ssh_host = 'house@192.168.4.250';
-    }
-
-    try {
-        const _api = typeof window.api === 'function' ? window.api : null;
-        let data;
-        if (_api) {
-            data = await _api('api/terminal/create', {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            });
-        } else {
-            const resp = await fetch(new URL('api/terminal/create', getApiBase()).href, {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            data = await resp.json();
-        }
-        if (data.terminal_id) {
-            await createTerminalTab(data.terminal_id, data.name, data.cwd);
-        }
-    } catch (e) {
-        console.error('[terminal] Failed to create terminal:', e);
-        showToast('Failed to create terminal', 3000);
-    }
+async function closeComposerTerminal(sessionId,opts){
+  opts=opts||{};
+  const sid=sessionId||TERMINAL_UI.sessionId||_terminalSessionId();
+  if(TERMINAL_UI.source){
+    try{TERMINAL_UI.source.close();}catch(_){}
+    TERMINAL_UI.source=null;
+  }
+  if(sid&&!opts.skipApi){
+    api('/api/terminal/close',{method:'POST',body:JSON.stringify({session_id:sid})}).catch(()=>{});
+  }
+  const {panel}= _terminalEls();
+  if(panel){
+    panel.classList.remove('is-open','is-collapsed','is-expanding-from-dock');
+    _syncTerminalTranscriptSpace(false);
+    clearTimeout(TERMINAL_UI.closeTimer);
+    TERMINAL_UI.closeTimer=setTimeout(()=>{
+      if(!TERMINAL_UI.open)panel.hidden=true;
+      _disposeXterm();
+    },280);
+  }else{
+    _syncTerminalTranscriptSpace(false);
+    _disposeXterm();
+  }
+  TERMINAL_UI.open=false;
+  TERMINAL_UI.collapsed=false;
+  const composerWrap=$('composerWrap');
+  if(composerWrap)composerWrap.classList.remove('terminal-dock-visible');
+  TERMINAL_UI.sessionId=null;
+  TERMINAL_UI.workspace=null;
+  syncTerminalButton();
 }
 
-// Create terminal tab
-async function createTerminalTab(terminalId, name, cwd) {
-    const container = document.createElement('div');
-    container.className = 'terminal-instance';
-    container.style.cssText = 'width: 100%; height: 100%; display: none;';
-    container.id = `term-container-${terminalId}`;
-
-    const termContainer = document.getElementById('terminalContainer');
-    if (!termContainer) {
-        console.error('[terminal] terminalContainer not found');
-        return;
-    }
-    termContainer.appendChild(container);
-
-    const term = new TerminalInstance(terminalId, name, cwd);
-    TerminalState.terminals.set(terminalId, term);
-
-    await term.init(container);
-    createTabElement(terminalId, name);
-    activateTerminal(terminalId);
+async function restartComposerTerminal(){
+  if(!TERMINAL_UI.open||TERMINAL_UI.collapsed)return;
+  if(TERMINAL_UI.source){
+    try{TERMINAL_UI.source.close();}catch(_){}
+    TERMINAL_UI.source=null;
+  }
+  if(TERMINAL_UI.term)TERMINAL_UI.term.reset();
+  try{await _startComposerTerminal(true);}
+  catch(e){showToast(t('terminal_start_failed')+e.message,3200,'error');}
 }
 
-// Create tab element
-function createTabElement(terminalId, name) {
-    const tabsContainer = document.getElementById('terminalTabs');
-
-    const tab = document.createElement('div');
-    tab.className = 'terminal-tab';
-    tab.id = `terminal-tab-${terminalId}`;
-    tab.innerHTML = `
-        <span class="terminal-status-dot connecting" title="connection status"></span>
-        <span class="terminal-tab-name">${escapeHtml(name)}</span>
-        <span class="terminal-tab-status"></span>
-        <span class="terminal-tab-close">${CLOSE_ICON}</span>
-    `;
-
-    // Click to activate
-    tab.addEventListener('click', (e) => {
-        if (!e.target.closest('.terminal-tab-close')) {
-            activateTerminal(terminalId);
-        }
-    });
-
-    // Close button
-    tab.querySelector('.terminal-tab-close').addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeTerminal(terminalId);
-    });
-
-    // Right-click context menu
-    tab.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        showTerminalContextMenu(e, terminalId);
-    });
-
-    tabsContainer.appendChild(tab);
-
-    const term = TerminalState.terminals.get(terminalId);
-    if (term) {
-        term.tabElement = tab;
-    }
+function clearComposerTerminal(){
+  if(TERMINAL_UI.term)TERMINAL_UI.term.clear();
 }
 
-// Activate terminal
-function activateTerminal(terminalId) {
-    console.log('[terminal] activateTerminal called for:', terminalId);
-    // Hide all terminals
-    TerminalState.terminals.forEach((term, id) => {
-        if (term.container) {
-            term.container.style.display = 'none';
-        }
-        if (term.tabElement) {
-            term.tabElement.classList.remove('active');
-        }
-    });
-
-    // Show active terminal
-    const term = TerminalState.terminals.get(terminalId);
-    console.log('[terminal] term to activate:', term);
-    if (term) {
-        if (term.container) {
-            term.container.style.display = 'block';
-            console.log('[terminal] container display set to block');
-        }
-        if (term.tabElement) {
-            term.tabElement.classList.add('active');
-        }
-        if (term.xterm) {
-            // Defer fit one frame so the browser has computed the container size
-            requestAnimationFrame(() => {
-                term.fit();
-                term.focus();
-            });
-            console.log('[terminal] xterm fit + focused');
-        }
-    }
-
-    TerminalState.activeTerminalId = terminalId;
+function _terminalBufferText(){
+  const term=TERMINAL_UI.term;
+  if(!term||!term.buffer)return '';
+  const buffer=term.buffer.active;
+  const lines=[];
+  for(let i=0;i<buffer.length;i++){
+    const line=buffer.getLine(i);
+    if(line)lines.push(line.translateToString(true));
+  }
+  return lines.join('\n').trim();
 }
 
-// Close terminal
-async function closeTerminal(terminalId) {
-    const term = TerminalState.terminals.get(terminalId);
-    if (!term) return;
-
-    try {
-        const _api = typeof window.api === 'function' ? window.api : null;
-        if (_api) {
-            await _api(`api/terminal/${terminalId}/close`, {
-                method: 'POST'
-            });
-        } else {
-            await fetch(new URL(`api/terminal/${terminalId}/close`, getApiBase()).href, {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-    } catch (e) {
-        console.error('[terminal] Failed to close terminal:', e);
-    }
-
-    // Remove from UI
-    term.destroy();
-    TerminalState.terminals.delete(terminalId);
-
-    if (term.tabElement && term.tabElement.parentNode) {
-        term.tabElement.remove();
-    }
-
-    // Activate another terminal if this was active
-    if (TerminalState.activeTerminalId === terminalId) {
-        const remaining = Array.from(TerminalState.terminals.keys());
-        if (remaining.length > 0) {
-            activateTerminal(remaining[0]);
-        } else {
-            TerminalState.activeTerminalId = null;
-            // Create new terminal if none left
-            await createNewTerminal();
-        }
-    }
+async function copyComposerTerminalOutput(){
+  try{
+    const selection=TERMINAL_UI.term&&TERMINAL_UI.term.getSelection?TERMINAL_UI.term.getSelection():'';
+    await navigator.clipboard.writeText(selection||_terminalBufferText());
+    showToast(t('copied'));
+  }catch(e){
+    showToast(t('terminal_copy_failed')+e.message,2600,'error');
+  }
 }
 
-// Close active terminal
-function closeActiveTerminal() {
-    if (TerminalState.activeTerminalId) {
-        closeTerminal(TerminalState.activeTerminalId);
+async function submitComposerTerminalInput(ev){
+  if(ev)ev.preventDefault();
+}
+
+function _scheduleTerminalResize(){
+  clearTimeout(TERMINAL_UI.resizeTimer);
+  TERMINAL_UI.resizeTimer=setTimeout(_resizeComposerTerminal,120);
+}
+
+async function _resizeComposerTerminal(){
+  if(!TERMINAL_UI.open||TERMINAL_UI.collapsed)return;
+  const sid=TERMINAL_UI.sessionId||_terminalSessionId();
+  if(!sid)return;
+  const dims=_terminalDimensions();
+  try{
+    await api('/api/terminal/resize',{method:'POST',body:JSON.stringify({
+      session_id:sid,
+      rows:dims.rows,
+      cols:dims.cols,
+    })});
+  }catch(_){}
+}
+
+window.addEventListener('beforeunload',()=>{
+  if(TERMINAL_UI.source)try{TERMINAL_UI.source.close();}catch(_){}
+  if(TERMINAL_UI.sessionId){
+    const url=new URL('api/terminal/close',document.baseURI||location.href).href;
+    const body=JSON.stringify({session_id:TERMINAL_UI.sessionId});
+    try{
+      navigator.sendBeacon(url,new Blob([body],{type:'application/json'}));
+    }catch(_){
+      try{fetch(url,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body,keepalive:true});}catch(__){}
     }
-}
-
-// Show context menu for terminal tab
-function showTerminalContextMenu(e, terminalId) {
-    const term = TerminalState.terminals.get(terminalId);
-    if (!term) return;
-
-    // Remove existing menu
-    const existing = document.querySelector('.terminal-context-menu');
-    if (existing) existing.remove();
-
-    const menu = document.createElement('div');
-    menu.className = 'terminal-context-menu';
-    menu.style.cssText = `
-        position: fixed;
-        left: ${e.clientX}px;
-        top: ${e.clientY}px;
-        background: var(--sidebar);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        padding: 4px 0;
-        z-index: 1000;
-        min-width: 160px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    `;
-
-    menu.innerHTML = `
-        <div class="terminal-menu-item" data-action="rename">rename</div>
-        <div class="terminal-menu-item" data-action="close">close</div>
-        <div class="terminal-menu-separator"></div>
-        <div class="terminal-menu-item" data-action="clear">clear</div>
-        <div class="terminal-menu-item" data-action="new">new terminal</div>
-    `;
-
-    menu.addEventListener('click', async (ev) => {
-        const action = ev.target.dataset.action;
-        if (action === 'rename') {
-            const newName = prompt('Terminal name:', term.name);
-            if (newName && newName.trim()) {
-                await renameTerminal(terminalId, newName.trim());
-            }
-        } else if (action === 'close') {
-            await closeTerminal(terminalId);
-        } else if (action === 'clear') {
-            if (term.xterm) term.xterm.clear();
-        } else if (action === 'new') {
-            await createNewTerminal();
-        }
-        menu.remove();
-    });
-
-    document.body.appendChild(menu);
-
-    // Close menu on click outside
-    const closeMenu = (ev) => {
-        if (!menu.contains(ev.target)) {
-            menu.remove();
-            document.removeEventListener('click', closeMenu);
-        }
-    };
-    setTimeout(() => document.addEventListener('click', closeMenu), 10);
-}
-
-// Rename terminal
-async function renameTerminal(terminalId, name) {
-    try {
-        const _api = typeof window.api === 'function' ? window.api : null;
-        if (_api) {
-            await _api(`api/terminal/${terminalId}/rename`, {
-                method: 'POST',
-                body: JSON.stringify({ name })
-            });
-        } else {
-            await fetch(new URL(`api/terminal/${terminalId}/rename`, getApiBase()).href, {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
-            });
-        }
-
-        const term = TerminalState.terminals.get(terminalId);
-        if (term) {
-            term.name = name;
-            if (term.tabElement) {
-                const nameEl = term.tabElement.querySelector('.terminal-tab-name');
-                if (nameEl) nameEl.textContent = name;
-            }
-        }
-    } catch (e) {
-        console.error('[terminal] Failed to rename terminal:', e);
-    }
-}
-
-// Escape HTML helper
-function escapeHtml(s) {
-    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-// Show toast notification (fallback if ui.js not loaded)
-function showToast(msg, ms) {
-    if (typeof window.showToast === 'function' && window.showToast !== showToast) {
-        window.showToast(msg, ms);
-        return;
-    }
-
-    const el = document.createElement('div');
-    el.style.cssText = `
-        position: fixed;
-        bottom: 80px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--sidebar);
-        color: var(--text);
-        padding: 10px 20px;
-        border-radius: 6px;
-        border: 1px solid var(--border);
-        z-index: 1000;
-        font-size: 13px;
-    `;
-    el.textContent = msg;
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), ms || 2800);
-}
-
-// Initialize on panel switch
-function onTerminalPanelShow() {
-    TerminalState.panelVisible = true;
-    // Defensive: clear any stuck inline styles from old cached code
-    const bottomPanel = document.getElementById('bottomPanel');
-    const panelTerminal = document.getElementById('panelTerminal');
-    if (bottomPanel) {
-        bottomPanel.style.display = '';
-        bottomPanel.style.opacity = '';
-        bottomPanel.style.visibility = '';
-        bottomPanel.style.pointerEvents = '';
-    }
-    if (panelTerminal) {
-        panelTerminal.style.display = '';
-        panelTerminal.style.opacity = '';
-        panelTerminal.style.visibility = '';
-        panelTerminal.style.pointerEvents = '';
-    }
-    const term = TerminalState.terminals.get(TerminalState.activeTerminalId);
-    if (term) {
-        setTimeout(() => {
-            term.fit();
-            term.focus();
-        }, 100);
-    }
-}
-
-function onTerminalPanelHide() {
-    TerminalState.panelVisible = false;
-}
-
-// Expose to global
-typeof window !== 'undefined' && (window.TerminalPanel = {
-    init: initTerminalPanel,
-    create: createNewTerminal,
-    activate: activateTerminal,
-    onShow: onTerminalPanelShow,
-    onHide: onTerminalPanelHide,
-    state: TerminalState
+  }
 });
+
+window.addEventListener('resize',()=>{
+  if(!TERMINAL_UI.open)return;
+  if(TERMINAL_UI.collapsed){
+    _syncTerminalTranscriptSpace('collapsed');
+    return;
+  }
+  _resetTerminalHeightForViewport();
+});
+
+if(window.MutationObserver){
+  new MutationObserver(syncComposerTerminalTheme).observe(document.documentElement,{
+    attributes:true,
+    attributeFilter:['class','data-skin'],
+  });
+}

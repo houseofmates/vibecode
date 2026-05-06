@@ -1,349 +1,248 @@
+"""Embedded workspace terminal support for Hermes Web UI.
+
+The terminal is intentionally independent from the agent execution path.  It
+starts a shell with an explicit cwd/env per process and never mutates
+process-global os.environ, which avoids expanding the session-env race tracked
+in the agent execution layer.
 """
-Hermes Web UI -- Terminal API with PTY support.
-Provides WebSocket-like terminal sessions via SSE/POST.
-"""
-import json
-import logging
+
+from __future__ import annotations
+
+import errno
+import codecs
+import fcntl
 import os
-import pty
 import queue
 import select
-import struct
-import fcntl
-import termios
+import shutil
 import signal
+import struct
+import subprocess
+import termios
 import threading
-import time
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Optional
-
-logger = logging.getLogger(__name__)
-
-# Active terminal sessions: terminal_id -> TerminalSession
-TERMINAL_SESSIONS: Dict[str, 'TerminalSession'] = {}
-TERMINAL_LOCK = threading.Lock()
 
 
+def _set_nonblocking(fd: int) -> None:
+    flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+    fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+
+def _winsize(rows: int, cols: int) -> bytes:
+    rows = max(8, min(int(rows or 24), 80))
+    cols = max(20, min(int(cols or 80), 240))
+    return struct.pack("HHHH", rows, cols, 0, 0)
+
+
+@dataclass
 class TerminalSession:
-    """Manages a PTY-based terminal session."""
+    session_id: str
+    workspace: str
+    proc: subprocess.Popen
+    master_fd: int
+    rows: int = 24
+    cols: int = 80
+    output: queue.Queue = field(default_factory=lambda: queue.Queue(maxsize=2000))
+    closed: threading.Event = field(default_factory=threading.Event)
+    reader: threading.Thread | None = None
 
-    def __init__(self, session_id: str, cwd: str = None, shell: str = None, ssh_host: str = None):
-        self.session_id = session_id
-        self.terminal_id = f"term_{int(time.time() * 1000)}_{os.urandom(4).hex()}"
-        self.cwd = cwd or os.path.expanduser('~')
-        self.shell = shell or os.environ.get('SHELL', '/bin/bash')
-        self.ssh_host = ssh_host
-        self.name = 'terminal'
-        self.created_at = time.time()
-        self.last_activity = time.time()
+    def is_alive(self) -> bool:
+        return not self.closed.is_set() and self.proc.poll() is None
 
-        # PTY file descriptors
-        self.master_fd: Optional[int] = None
-        self.slave_fd: Optional[int] = None
-        self.pid: Optional[int] = None
-
-        # Output queue for SSE streaming — thread-safe, blocking-capable
-        self.output_queue: queue.Queue = queue.Queue(maxsize=10000)
-        self.clients: set = set()  # Connected SSE client IDs
-
-        # Terminal dimensions (default 80x24)
-        self.cols = 80
-        self.rows = 24
-
-        self._spawn_pty()
-        self._start_reader_thread()
-
-    def _spawn_pty(self):
-        """Spawn a new PTY with the shell process."""
-        self.master_fd, self.slave_fd = pty.openpty()
-
-        # Set initial window size BEFORE fork so the shell picks it up
-        # (pty.openpty() defaults to 0x0 which breaks line wrapping)
+    def put_output(self, event: str, payload: dict) -> None:
         try:
-            size = struct.pack('HHHH', self.rows, self.cols, 0, 0)
-            fcntl.ioctl(self.master_fd, termios.TIOCSWINSZ, size)
-        except (OSError, IOError):
-            pass
-
-        # Set non-blocking mode on master
-        flags = fcntl.fcntl(self.master_fd, fcntl.F_GETFL)
-        fcntl.fcntl(self.master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-
-        # Build prompt once — \033 is more portable than \e
-        _yellow = '\\[\\033[38;2;246;176;18m\\]'
-        _blue   = '\\[\\033[38;2;53;199;255m\\]'
-        _reset  = '\\[\\033[0m\\]'
-        _ps1    = f'{_yellow}\\u@\\h{_reset}:{_blue}\\w{_reset}\\$ '
-
-        # Fork and execute shell
-        self.pid = os.fork()
-        if self.pid == 0:
-            # Child process
-            os.close(self.master_fd)
-
-            # Set up slave as controlling terminal
-            os.setsid()
-            os.dup2(self.slave_fd, 0)
-            os.dup2(self.slave_fd, 1)
-            os.dup2(self.slave_fd, 2)
-
-            if self.slave_fd > 2:
-                os.close(self.slave_fd)
-
-            # Set working directory
+            self.output.put_nowait((event, payload))
+        except queue.Full:
+            # Keep the terminal responsive by dropping the oldest queued chunk.
             try:
-                os.chdir(self.cwd)
-            except OSError:
-                os.chdir(os.path.expanduser('~'))
-
-            # Set environment
-            env = os.environ.copy()
-            env['TERM'] = 'xterm-256color'
-            env['COLORTERM'] = 'truecolor'
-            env['COLUMNS'] = str(self.cols)
-            env['LINES'] = str(self.rows)
-            # Force our custom prompt on every render so .bashrc overrides don't win
-            env['PS1'] = _ps1
-            env['PROMPT_COMMAND'] = f'PS1="{_ps1}"'
-            # Prevent /etc/profile.d/vte-2.91.sh from overwriting PROMPT_COMMAND
-            env['VTE_VERSION'] = '0'
-
-            # Execute shell (or SSH if ssh_host is set)
-            if self.ssh_host:
-                shell = '/bin/bash'
-                cmd = f"ssh -t {self.ssh_host}"
-                os.execve(shell, [shell, '-c', cmd], env)
-            else:
-                shell = self.shell
-                if shell.endswith('bash') or shell.endswith('sh'):
-                    os.execve(shell, [shell, '-l'], env)
-                else:
-                    os.execve(shell, [shell], env)
-            os._exit(1)
-        else:
-            # Parent process
-            os.close(self.slave_fd)
-            self.slave_fd = None
-            logger.info(f"Spawned terminal {self.terminal_id} (pid={self.pid}) in {self.cwd}")
-
-    def _start_reader_thread(self):
-        """Start thread to read PTY output. Batches reads for efficiency."""
-        def reader():
-            while True:
-                try:
-                    if self.master_fd is None:
-                        break
-
-                    # Wait for data with 1s timeout (generous to avoid CPU spin)
-                    ready, _, _ = select.select([self.master_fd], [], [], 1.0)
-                    if not ready:
-                        # Check if process is still alive
-                        if self.pid:
-                            try:
-                                pid, status = os.waitpid(self.pid, os.WNOHANG)
-                                if pid != 0:
-                                    # Process exited
-                                    self.output_queue.put({
-                                        'type': 'exit',
-                                        'code': os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
-                                    })
-                                    break
-                            except ChildProcessError:
-                                break
-                        continue
-
-                    # Batch all available output into one queue item
-                    chunks = []
-                    while True:
-                        try:
-                            data = os.read(self.master_fd, 16384)
-                            if not data:
-                                break
-                            chunks.append(data.decode('utf-8', errors='replace'))
-                            self.last_activity = time.time()
-                        except BlockingIOError:
-                            break
-                        except (OSError, IOError):
-                            break
-
-                    if chunks:
-                        # Coalesce multiple small reads into one event
-                        self.output_queue.put({
-                            'type': 'output',
-                            'data': ''.join(chunks)
-                        })
-
-                except Exception as e:
-                    logger.error(f"Terminal reader error: {e}")
-                    break
-
-            # Cleanup
-            logger.info(f"Terminal reader thread ended for {self.terminal_id}")
-            self.close()
-
-        thread = threading.Thread(target=reader, daemon=True)
-        thread.start()
-
-    def write(self, data: str) -> bool:
-        """Write input to the PTY."""
-        if self.master_fd is None:
-            return False
-        try:
-            os.write(self.master_fd, data.encode('utf-8'))
-            self.last_activity = time.time()
-            return True
-        except (OSError, IOError) as e:
-            logger.error(f"Write error: {e}")
-            return False
-
-    def resize(self, cols: int, rows: int):
-        """Resize the terminal."""
-        if self.master_fd is None:
-            return
-        try:
-            # TIOCSWINSZ - Set window size
-            size = struct.pack('HHHH', rows, cols, 0, 0)
-            fcntl.ioctl(self.master_fd, termios.TIOCSWINSZ, size)
-            self.cols = cols
-            self.rows = rows
-            # Notify the shell process group so it re-reads LINES/COLUMNS
-            if self.pid:
-                try:
-                    pgid = os.getpgid(self.pid)
-                    os.killpg(pgid, signal.SIGWINCH)
-                except (OSError, ProcessLookupError):
-                    try:
-                        os.kill(self.pid, signal.SIGWINCH)
-                    except (OSError, ProcessLookupError):
-                        pass
-        except (OSError, IOError) as e:
-            logger.error(f"Resize error: {e}")
-
-    def close(self):
-        """Close the terminal session."""
-        if self.master_fd is not None:
-            try:
-                os.close(self.master_fd)
-            except:
+                self.output.get_nowait()
+            except queue.Empty:
                 pass
-            self.master_fd = None
-
-        if self.pid:
             try:
-                os.kill(self.pid, signal.SIGTERM)
-                # Give it a moment to terminate
-                time.sleep(0.1)
-                try:
-                    os.kill(self.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
+                self.output.put_nowait((event, payload))
+            except queue.Full:
+                pass
+
+
+_TERMINALS: dict[str, TerminalSession] = {}
+_LOCK = threading.RLock()
+
+
+def _decode_terminal_output(decoder, data: bytes) -> str:
+    """Decode PTY bytes without stripping terminal control sequences."""
+    return decoder.decode(data)
+
+
+def _shell_path() -> str:
+    shell = os.environ.get("SHELL") or ""
+    if shell and Path(shell).exists():
+        return shell
+    return shutil.which("zsh") or shutil.which("bash") or shutil.which("sh") or "/bin/sh"
+
+
+def _shell_argv(shell: str) -> list[str]:
+    name = Path(shell).name
+    if name in {"zsh", "bash", "sh"}:
+        return [shell, "-i"]
+    return [shell]
+
+
+def _reader_loop(term: TerminalSession) -> None:
+    decoder = codecs.getincrementaldecoder("utf-8")("replace")
+    try:
+        while not term.closed.is_set():
+            if term.proc.poll() is not None:
+                break
+            try:
+                ready, _, _ = select.select([term.master_fd], [], [], 0.25)
+            except (OSError, ValueError):
+                break
+            if not ready:
+                continue
+            try:
+                data = os.read(term.master_fd, 8192)
+            except OSError as exc:
+                if exc.errno in (errno.EIO, errno.EBADF):
+                    break
+                raise
+            if not data:
+                break
+            text = _decode_terminal_output(decoder, data)
+            if text:
+                term.put_output("output", {"text": text})
+    except Exception as exc:
+        term.put_output("terminal_error", {"error": str(exc)})
+    finally:
+        term.closed.set()
+        code = term.proc.poll()
+        term.put_output("terminal_closed", {"exit_code": code})
+
+
+def _set_size(term: TerminalSession, rows: int, cols: int) -> None:
+    term.rows = max(8, min(int(rows or term.rows or 24), 80))
+    term.cols = max(20, min(int(cols or term.cols or 80), 240))
+    try:
+        fcntl.ioctl(term.master_fd, termios.TIOCSWINSZ, _winsize(term.rows, term.cols))
+    except OSError:
+        pass
+    try:
+        if term.proc.poll() is None:
+            os.killpg(term.proc.pid, signal.SIGWINCH)
+    except (OSError, ProcessLookupError):
+        pass
+
+
+def start_terminal(session_id: str, workspace: Path, rows: int = 24, cols: int = 80, restart: bool = False) -> TerminalSession:
+    """Start or return the embedded terminal for a WebUI session."""
+    sid = str(session_id or "").strip()
+    if not sid:
+        raise ValueError("session_id is required")
+    cwd = str(Path(workspace).expanduser().resolve())
+    if not Path(cwd).is_dir():
+        raise ValueError("workspace is not a directory")
+
+    with _LOCK:
+        current = _TERMINALS.get(sid)
+        if current and current.is_alive() and not restart and current.workspace == cwd:
+            _set_size(current, rows, cols)
+            return current
+        if current:
+            close_terminal(sid)
+
+        master_fd, slave_fd = os.openpty()
+        # Build a safe env: allowlist common shell vars, strip API keys and secrets.
+        # The PTY shell is an interactive UI surface — do not leak server credentials.
+        _SAFE_ENV_KEYS = {
+            "PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "LC_ALL",
+            "LC_CTYPE", "LC_MESSAGES", "LANGUAGE", "TZ", "TMPDIR", "TEMP",
+            "XDG_RUNTIME_DIR", "XDG_CONFIG_HOME", "XDG_DATA_HOME",
+        }
+        env = {k: v for k, v in os.environ.items() if k in _SAFE_ENV_KEYS}
+        env.update(
+            {
+                "TERM": "xterm-256color",
+                "COLORTERM": "truecolor",
+                "COLUMNS": str(cols),
+                "LINES": str(rows),
+                "PWD": cwd,
+                "HERMES_WEBUI_TERMINAL": "1",
+            }
+        )
+        shell = _shell_path()
+        proc = subprocess.Popen(
+            _shell_argv(shell),
+            cwd=cwd,
+            env=env,
+            stdin=slave_fd,
+            stdout=slave_fd,
+            stderr=slave_fd,
+            close_fds=True,
+            start_new_session=True,
+        )
+        os.close(slave_fd)
+        _set_nonblocking(master_fd)
+
+        term = TerminalSession(
+            session_id=sid,
+            workspace=cwd,
+            proc=proc,
+            master_fd=master_fd,
+            rows=rows,
+            cols=cols,
+        )
+        _set_size(term, rows, cols)
+        term.reader = threading.Thread(target=_reader_loop, args=(term,), daemon=True)
+        term.reader.start()
+        _TERMINALS[sid] = term
+        return term
+
+
+def get_terminal(session_id: str) -> TerminalSession | None:
+    with _LOCK:
+        term = _TERMINALS.get(str(session_id or ""))
+        if term and term.is_alive():
+            return term
+        return term
+
+
+def write_terminal(session_id: str, data: str) -> None:
+    term = get_terminal(session_id)
+    if not term or not term.is_alive():
+        raise KeyError("terminal not running")
+    os.write(term.master_fd, str(data or "").encode("utf-8", errors="replace"))
+
+
+def resize_terminal(session_id: str, rows: int, cols: int) -> None:
+    term = get_terminal(session_id)
+    if not term:
+        raise KeyError("terminal not running")
+    _set_size(term, rows, cols)
+
+
+def close_terminal(session_id: str) -> bool:
+    sid = str(session_id or "")
+    with _LOCK:
+        term = _TERMINALS.pop(sid, None)
+    if not term:
+        return False
+    term.closed.set()
+    try:
+        if term.proc.poll() is None:
+            try:
+                os.killpg(term.proc.pid, signal.SIGHUP)
             except ProcessLookupError:
                 pass
-            self.pid = None
-
-        with TERMINAL_LOCK:
-            if self.terminal_id in TERMINAL_SESSIONS:
-                del TERMINAL_SESSIONS[self.terminal_id]
-
-        logger.info(f"Closed terminal {self.terminal_id}")
-
-    def get_output(self, timeout: float = None) -> Optional[dict]:
-        """Get pending output from queue. Blocks up to timeout seconds."""
+            try:
+                term.proc.wait(timeout=1.5)
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(term.proc.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+    finally:
         try:
-            return self.output_queue.get(timeout=timeout)
-        except queue.Empty:
-            return None
-
-    def add_client(self, client_id: str):
-        """Add an SSE client."""
-        self.clients.add(client_id)
-
-    def remove_client(self, client_id: str):
-        """Remove an SSE client."""
-        self.clients.discard(client_id)
-        if not self.clients:
-            # No more clients, close after timeout
-            threading.Timer(30.0, self._check_idle).start()
-
-    def _check_idle(self):
-        """Check if terminal should be closed due to inactivity."""
-        if not self.clients and time.time() - self.last_activity > 30:
-            self.close()
-
-    def rename(self, name: str):
-        """Rename the terminal."""
-        self.name = name[:32]  # Limit name length
-
-
-def create_terminal(cwd: str = None, shell: str = None, session_id: str = None, ssh_host: str = None) -> TerminalSession:
-    """Create a new terminal session."""
-    term = TerminalSession(session_id or 'anonymous', cwd, shell, ssh_host)
-    with TERMINAL_LOCK:
-        TERMINAL_SESSIONS[term.terminal_id] = term
-    return term
-
-
-def get_terminal(terminal_id: str) -> Optional[TerminalSession]:
-    """Get an existing terminal session."""
-    with TERMINAL_LOCK:
-        return TERMINAL_SESSIONS.get(terminal_id)
-
-
-def list_terminals(session_id: str = None) -> list:
-    """List all terminal sessions."""
-    with TERMINAL_LOCK:
-        terms = list(TERMINAL_SESSIONS.values())
-        if session_id:
-            terms = [t for t in terms if t.session_id == session_id]
-        return [
-            {
-                'terminal_id': t.terminal_id,
-                'name': t.name,
-                'cwd': t.cwd,
-                'created_at': t.created_at,
-                'session_id': t.session_id
-            }
-            for t in terms
-        ]
-
-
-def close_terminal(terminal_id: str) -> bool:
-    """Close a terminal session."""
-    term = get_terminal(terminal_id)
-    if term:
-        term.close()
-        return True
-    return False
-
-
-def rename_terminal(terminal_id: str, name: str) -> bool:
-    """Rename a terminal session."""
-    term = get_terminal(terminal_id)
-    if term:
-        term.rename(name)
-        return True
-    return False
-
-
-# Cleanup old terminals periodically
-def _cleanup_task():
-    """Background task to cleanup stale terminals."""
-    while True:
-        time.sleep(60)
-        try:
-            now = time.time()
-            with TERMINAL_LOCK:
-                stale = [
-                    t for t in TERMINAL_SESSIONS.values()
-                    if not t.clients and now - t.last_activity > 300  # 5 minutes
-                ]
-            for t in stale:
-                logger.info(f"Cleaning up stale terminal {t.terminal_id}")
-                t.close()
-        except Exception as e:
-            logger.error(f"Cleanup task error: {e}")
-
-
-# Start cleanup thread
-_cleanup_thread = threading.Thread(target=_cleanup_task, daemon=True)
-_cleanup_thread.start()
+            os.close(term.master_fd)
+        except OSError:
+            pass
+    return True
