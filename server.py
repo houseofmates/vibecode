@@ -8,6 +8,7 @@ import socket
 import sys
 import time
 import traceback
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 try:
@@ -27,10 +28,20 @@ from api.startup import auto_install_agent_deps, fix_credential_permissions
 from api.updates import WEBUI_VERSION
 
 
+def _warmup_session_cache():
+    """Pre-build session index at startup for instant page loads."""
+    try:
+        from api.models import _rebuild_session_index
+        _rebuild_session_index()
+        logger.info("Session index warmed up at startup.")
+    except Exception as e:
+        logger.warning(f"Session index warmup failed: {e}")
+
+
 class QuietHTTPServer(ThreadingHTTPServer):
     """Custom HTTP server that silently handles common network errors."""
     daemon_threads = True
-    request_queue_size = 64
+    request_queue_size = 128
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -53,29 +64,29 @@ class QuietHTTPServer(ThreadingHTTPServer):
         self.accept_loop_requests_total += 1
         self.accept_loop_last_request_at = time.time()
         return super()._handle_request_noblock()
-    
+
     def handle_error(self, request, client_address):
         """Override to suppress logging for common client disconnect errors."""
         exc_type, exc_value, _ = sys.exc_info()
-        
+
         # Silently ignore common connection errors caused by client disconnects
         if exc_type in (ConnectionResetError, BrokenPipeError, ConnectionAbortedError, TimeoutError):
             return
-        
+
         # Also handle socket errors that indicate client disconnect
         if issubclass(exc_type, OSError):
             # errno 54 is Connection reset by peer on macOS/BSD
             # errno 104 is Connection reset by peer on Linux
             if getattr(exc_value, 'errno', None) in (32, 54, 104, 110):  # EPIPE, ECONNRESET, ETIMEDOUT
                 return
-        
+
         # For other errors, use default logging
         super().handle_error(request, client_address)
 
 
 class Handler(BaseHTTPRequestHandler):
     timeout = 30  # seconds — kills idle/incomplete connections to prevent thread exhaustion
-    
+
     def setup(self):
         """Set socket options for each accepted connection."""
         super().setup()
@@ -119,6 +130,19 @@ class Handler(BaseHTTPRequestHandler):
         })
         print(f'[webui] {record}', flush=True)
 
+    def do_OPTIONS(self) -> None:
+        """Handle CORS preflight requests."""
+        self.send_response(204)
+        origin = self.headers.get('Origin', '')
+        if origin:
+            self.send_header('Access-Control-Allow-Origin', origin)
+        else:
+            self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Profile')
+        self.send_header('Access-Control-Allow-Credentials', 'true')
+        self.end_headers()
+
     def do_GET(self) -> None:
         self._req_t0 = time.time()
         # Per-request profile context from cookie (issue #798)
@@ -146,6 +170,12 @@ class Handler(BaseHTTPRequestHandler):
         try:
             parsed = urlparse(self.path)
             if not check_auth(self, parsed): return
+            # Pre-read POST/PATCH/DELETE body to prevent rfile.read() hang
+            try:
+                _cl = int(self.headers.get('Content-Length', 0))
+                self._post_body = self.rfile.read(_cl) if _cl else b'{}'
+            except Exception:
+                self._post_body = b'{}'
             result = route_func(self, parsed)
             if result is False:
                 return j(self, {'error': 'not found'}, status=404)
@@ -192,6 +222,40 @@ def _raise_fd_soft_limit(target: int = 4096) -> dict:
     except Exception as exc:
         return {"status": "error", "soft": soft, "hard": hard, "error": str(exc)}
     return {"status": "raised", "soft": desired, "hard": hard, "previous_soft": soft}
+
+
+def _start_cron_session_cleanup():
+    """Background thread to periodically clean up cron/_cron sessions."""
+    def cleanup_loop():
+        import time as _time
+        while True:
+            try:
+                _time.sleep(3600)  # Run every hour
+                from api.config import SESSION_DIR
+                from api.models import Session
+                cleaned = 0
+                for p in SESSION_DIR.glob("*.json"):
+                    stem = p.stem
+                    if not (stem.startswith('cron') or stem.startswith('_cron')):
+                        continue
+                    try:
+                        p.unlink(missing_ok=True)
+                        cleaned += 1
+                    except Exception:
+                        continue
+                try:
+                    from api.models import _rebuild_session_index
+                    _rebuild_session_index()
+                except Exception:
+                    pass
+                if cleaned > 0:
+                    logger.info(f"Cleaned up {cleaned} cron/_cron sessions")
+            except Exception:
+                continue
+
+    t = threading.Thread(target=cleanup_loop, daemon=True)
+    t.start()
+    logger.info("Started cron session cleanup background thread")
 
 
 def main() -> None:
@@ -270,12 +334,18 @@ def main() -> None:
     SESSION_DIR.mkdir(parents=True, exist_ok=True)
     DEFAULT_WORKSPACE.mkdir(parents=True, exist_ok=True)
 
+    # Warm up session cache for instant page loads
+    _warmup_session_cache()
+
     # Start the gateway session watcher for real-time SSE updates
     try:
         from api.gateway_watcher import start_watcher
         start_watcher()
     except Exception as e:
         print(f'[!!] WARNING: Gateway watcher failed to start: {e}', flush=True)
+
+    # Start background cron session cleanup thread
+    _start_cron_session_cleanup()
 
     httpd = QuietHTTPServer((HOST, PORT), Handler)
 

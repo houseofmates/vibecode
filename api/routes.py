@@ -1509,6 +1509,17 @@ from api.oauth import (
     start_onboarding_oauth_flow,
 )
 
+# -- Vibecode-specific modules --
+from api.swarm import (
+    list_all_swarms, list_active_swarms, get_swarm_status,
+    cancel_swarm, cancel_worker, kill_worker,
+    list_swarm_templates, save_swarm_template, load_swarm_template, delete_swarm_template,
+    set_swarm_context, get_swarm_context, clear_swarm_context,
+    SWARMS, SWARMS_LOCK, SWARM_CONTEXT,
+)
+from api._wiki_memory_handlers import _handle_wiki_memory_post
+from api.sudo_password import get_pending as get_sudo_password_pending
+
 # Approval system (optional -- graceful fallback if agent not available)
 try:
     from tools.approval import (
@@ -3361,6 +3372,80 @@ def handle_get(handler, parsed) -> bool:
             logger.exception("rollback/diff failed")
             return bad(handler, str(e), status=500)
 
+    # -- Vibecode GET routes --
+    if parsed.path == "/api/swarm/list":
+        return j(handler, {"swarms": list_all_swarms()})
+
+    if parsed.path == "/api/swarm/status":
+        _sid = parse_qs(parsed.query).get("id", [""])[0]
+        if not _sid:
+            return j(handler, {"error": "id query param required"}, status=400)
+        _status = get_swarm_status(_sid)
+        if _status is None:
+            return j(handler, {"error": "Swarm not found"}, status=404)
+        return j(handler, _status)
+
+    if parsed.path.startswith("/api/swarm/") and parsed.path.endswith("/messages"):
+        _p = parsed.path.split("/")
+        _sid = _p[3] if len(_p) >= 4 else ""
+        _after_ts = float(parse_qs(parsed.query).get("after", ["0"])[0])
+        from api.swarm import get_swarm_messages
+        return j(handler, {"messages": get_swarm_messages(_sid, after_ts=_after_ts)})
+
+    if parsed.path.startswith("/api/swarm/") and parsed.path.endswith("/context"):
+        _p = parsed.path.split("/")
+        _sid = _p[3] if len(_p) >= 4 else ""
+        _ctx = get_swarm_context(_sid)
+        return j(handler, {"context": _ctx or {}})
+
+    if parsed.path.startswith("/api/swarm/") and parsed.path.endswith("/aggregate"):
+        _p = parsed.path.split("/")
+        _sid = _p[3] if len(_p) >= 4 else ""
+        from api.swarm import aggregate_results
+        _agg = aggregate_results(_sid)
+        return j(handler, {"aggregate": _agg})
+
+    if parsed.path == "/api/swarm/templates":
+        return j(handler, {"templates": list_swarm_templates()})
+
+    if parsed.path.startswith("/api/wiki/") or parsed.path.startswith("/api/memory/") or parsed.path.startswith("/api/sp/"):
+        from api.wiki_memory_api import (
+            list_wiki_pages, get_wiki_page, search_wiki_pages, get_wiki_categories, get_wiki_tags,
+            list_memster_memories, search_memster_memories, get_memster_categories, get_memster_tags,
+        )
+        try:
+            if parsed.path == "/api/wiki/pages":
+                return j(handler, list_wiki_pages(category="all", limit=50))
+            if parsed.path.startswith("/api/wiki/pages/"):
+                slug = parsed.path.split("/")[-1]
+                return j(handler, get_wiki_page(slug))
+            if parsed.path == "/api/memory/list":
+                return j(handler, {"memories": list_memster_memories(limit=50)})
+            if parsed.path == "/api/wiki/search":
+                q = parse_qs(parsed.query).get("q", [""])[0]
+                return j(handler, search_wiki_pages(q, limit=10))
+            if parsed.path == "/api/memory/search":
+                q = parse_qs(parsed.query).get("q", [""])[0]
+                return j(handler, {"memories": search_memster_memories(q, limit=10)})
+            if parsed.path == "/api/wiki/categories":
+                return j(handler, get_wiki_categories())
+            if parsed.path == "/api/wiki/tags":
+                return j(handler, get_wiki_tags())
+            if parsed.path == "/api/memory/categories":
+                return j(handler, {"categories": get_memster_categories()})
+            if parsed.path == "/api/memory/tags":
+                return j(handler, {"tags": get_memster_tags()})
+        except Exception as e:
+            logger.warning(f"Vibecode wiki/memory route error: {e}")
+            return j(handler, {"error": str(e)}, status=500)
+
+    if parsed.path == "/api/sudo_password/pending":
+        sid = parse_qs(parsed.query).get("sid", [""])[0]
+        if not sid:
+            pending_all = get_sudo_password_pending()
+            return j(handler, {"pending": pending_all})
+        pending = get_sudo_password_pending(sid)
+        return j(handler, {"pending": pending or False})
     return False  # 404
 
 
