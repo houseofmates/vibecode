@@ -1,0 +1,42 @@
+[      46ms] [LOG] [runtime] Detection check: {__TAURI__: undefined, protocol: http:, hostname: localhost, host: localhost:8786, isCapacitorApp: false} @ http://localhost:8786/:56
+[      46ms] [LOG] [Tauri] Not detected - normal size @ http://localhost:8786/:71
+[      52ms] TypeError: Cannot set properties of undefined (setting 'showWorkerResult')
+    at http://localhost:8786/static/swarm.js?v=2:327:34
+    at http://localhost:8786/static/swarm.js?v=2:691:3
+[      53ms] [LOG] [api] Calling: /api/commands GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[      54ms] [LOG] [api] Calling: /api/skills GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[      54ms] Identifier '_origSwitchPanel' has already been declared
+[      61ms] [LOG] [boot] Sessions rendered from cache: 41 @ http://localhost:8786/static/boot.js?v=126:900
+[      62ms] [LOG] [api] Calling: /api/settings GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[      62ms] [ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE @ http://localhost:8786/api/commands:0
+[      62ms] [WARNING] [api] Network error: http://localhost:8786/api/commands Failed to fetch @ http://localhost:8786/static/workspace.js?v=8:82
+[      62ms] [WARNING] failed to fetch commands catalog: TypeError: Failed to fetch
+    at api (http://localhost:8786/static/workspace.js?v=8:80:17)
+    at fetchCommandsCatalog (http://localhost:8786/static/commands.js?v=5:30:19)
+    at http://localhost:8786/static/commands.js?v=5:75:1 @ http://localhost:8786/static/commands.js?v=5:35
+[      64ms] [LOG] [Sessions] Module loaded (unified list mode) @ http://localhost:8786/static/remote_sessions.js?v=13:402
+[      65ms] [LOG] workspace layering loaded @ http://localhost:8786/static/workspace_layer.js?v=6:8
+[      66ms] [LOG] [remote_sessions] wrapRenderSessionList checking: function false @ http://localhost:8786/static/remote_sessions.js?v=13:150
+[      66ms] [LOG] [Sessions] Wrapped renderSessionList for unified session list @ http://localhost:8786/static/remote_sessions.js?v=13:170
+[      67ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8786/:0
+[      67ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8786/:0
+[      69ms] [LOG] [api] Response: {default_model: @nvidia:deepseek-ai/deepseek-v4-pro, default_workspace: /home/house/workspace, onboarding_completed: true, send_key: enter, show_token_usage: false} @ http://localhost:8786/static/workspace.js?v=8:100
+[      70ms] [LOG] [api] Calling: /api/profile/active GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[      84ms] [LOG] [api] Response: {name: default, path: /home/house/.hermes} @ http://localhost:8786/static/workspace.js?v=8:100
+[      84ms] [LOG] [syncModelChip] called @ http://localhost:8786/static/ui.js?v=6:173
+[      84ms] [LOG] [syncModelChip] sel: @nvidia:deepseek-ai/deepseek-v4-pro @ http://localhost:8786/static/ui.js?v=6:179
+[      85ms] ReferenceError: loadWorkspaceList is not defined
+    at http://localhost:8786/static/boot.js?v=126:790:3
+[     149ms] [LOG] [resize-fix] initializing sidebar resize @ http://localhost:8786/:1174
+[     150ms] [LOG] [resize-fix] initializing rightpanel resize @ http://localhost:8786/:1216
+[     549ms] [LOG] [resize-fix] initializing sidebar resize @ http://localhost:8786/:1174
+[     549ms] [LOG] [resize-fix] initializing rightpanel resize @ http://localhost:8786/:1216
+[     730ms] [LOG] [api] Response: {skills: Array(197)} @ http://localhost:8786/static/workspace.js?v=8:100
+[  300054ms] [LOG] [api] Calling: /api/commands GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[  300054ms] [LOG] [api] Calling: /api/skills GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[  300056ms] [ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE @ http://localhost:8786/api/commands:0
+[  300056ms] [WARNING] [api] Network error: http://localhost:8786/api/commands Failed to fetch @ http://localhost:8786/static/workspace.js?v=8:82
+[  300056ms] [WARNING] failed to fetch commands catalog: TypeError: Failed to fetch
+    at api (http://localhost:8786/static/workspace.js?v=8:80:17)
+    at fetchCommandsCatalog (http://localhost:8786/static/commands.js?v=5:30:19) @ http://localhost:8786/static/commands.js?v=5:35
+[  300712ms] [LOG] [api] Response: {skills: Array(197)} @ http://localhost:8786/static/workspace.js?v=8:100

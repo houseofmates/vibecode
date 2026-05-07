@@ -1,0 +1,36 @@
+[     119ms] TypeError: Cannot set properties of null (setting 'onclick')
+    at http://127.0.0.1:8787/static/boot.js?v=120:407:29
+[     119ms] [LOG] [Sessions] Module loaded (wrapping disabled) @ http://127.0.0.1:8787/static/remote_sessions.js?v=5:248
+[     119ms] [LOG] workspace layering loaded @ http://127.0.0.1:8787/static/workspace_layer.js?v=5:289
+[     161ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:8787/:0
+[     161ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:8787/:0
+[     161ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:8787/:0
+[     205ms] [LOG] [resize-fix] initializing sidebar resize @ http://127.0.0.1:8787/:660
+[     205ms] [LOG] [resize-fix] initializing rightpanel resize @ http://127.0.0.1:8787/:702
+[     603ms] [LOG] [resize-fix] initializing sidebar resize @ http://127.0.0.1:8787/:660
+[     603ms] [LOG] [resize-fix] initializing rightpanel resize @ http://127.0.0.1:8787/:702
+[   30116ms] [LOG] [api] Calling: /api/crons/recent?since=1777048224.496 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[   30123ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:8787/api/crons/recent?since=1777048224.496:0
+[   30124ms] [LOG] [api] Error response: 500 {
+  "error": "Internal server error"
+} @ http://127.0.0.1:8787/static/workspace.js?v=6:8
+[   60109ms] [LOG] [api] Calling: /api/crons/recent?since=1777048224.496 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[   60111ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:8787/api/crons/recent?since=1777048224.496:0
+[   60112ms] [LOG] [api] Error response: 500 {
+  "error": "Internal server error"
+} @ http://127.0.0.1:8787/static/workspace.js?v=6:8
+[   90109ms] [LOG] [api] Calling: /api/crons/recent?since=1777048224.496 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[   90111ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:8787/api/crons/recent?since=1777048224.496:0
+[   90111ms] [LOG] [api] Error response: 500 {
+  "error": "Internal server error"
+} @ http://127.0.0.1:8787/static/workspace.js?v=6:8
+[  120109ms] [LOG] [api] Calling: /api/crons/recent?since=1777048224.496 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  120111ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:8787/api/crons/recent?since=1777048224.496:0
+[  120111ms] [LOG] [api] Error response: 500 {
+  "error": "Internal server error"
+} @ http://127.0.0.1:8787/static/workspace.js?v=6:8
+[  150109ms] [LOG] [api] Calling: /api/crons/recent?since=1777048224.496 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  150111ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:8787/api/crons/recent?since=1777048224.496:0
+[  150111ms] [LOG] [api] Error response: 500 {
+  "error": "Internal server error"
+} @ http://127.0.0.1:8787/static/workspace.js?v=6:8

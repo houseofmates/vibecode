@@ -1,0 +1,225 @@
+[     396ms] [LOG] [api] Calling: /api/settings GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[     397ms] [LOG] [Sessions] Module loaded (wrapping disabled) @ http://127.0.0.1:8787/static/remote_sessions.js?v=5:248
+[     401ms] [LOG] workspace layering loaded @ http://127.0.0.1:8787/static/workspace_layer.js?v=5:289
+[     409ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:8787/:0
+[     409ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:8787/:0
+[     409ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:8787/:0
+[     412ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[     418ms] [LOG] [api] Calling: /api/profile/active GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[     422ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[     423ms] [LOG] [syncModelChip] called @ http://127.0.0.1:8787/static/ui.js?v=5:163
+[     423ms] [LOG] [syncModelChip] sel: moonshotai/kimi-k2.5 @ http://127.0.0.1:8787/static/ui.js?v=5:169
+[     423ms] [LOG] [api] Calling: /api/workspaces GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[     429ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[     430ms] [LOG] [api] Calling: /api/onboarding/status GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[     495ms] [LOG] [resize-fix] initializing sidebar resize @ http://127.0.0.1:8787/:660
+[     495ms] [LOG] [resize-fix] initializing rightpanel resize @ http://127.0.0.1:8787/:702
+[     865ms] [LOG] [resize-fix] initializing sidebar resize @ http://127.0.0.1:8787/:660
+[     865ms] [LOG] [resize-fix] initializing rightpanel resize @ http://127.0.0.1:8787/:702
+[    1848ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[    1850ms] [LOG] [api] Calling: /api/session?session_id=2d446b3dfd91 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[    1853ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[    1854ms] [LOG] [syncModelChip] called @ http://127.0.0.1:8787/static/ui.js?v=5:163
+[    1854ms] [LOG] [syncModelChip] sel: moonshotai/kimi-k2.5 @ http://127.0.0.1:8787/static/ui.js?v=5:169
+[    1854ms] [LOG] [syncModelChip] called @ http://127.0.0.1:8787/static/ui.js?v=5:163
+[    1854ms] [LOG] [syncModelChip] sel: moonshotai/kimi-k2.5 @ http://127.0.0.1:8787/static/ui.js?v=5:169
+[    1856ms] [LOG] [api] Calling: /api/list?session_id=2d446b3dfd91&path=. GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[    1857ms] [LOG] [api] Calling: /api/sessions GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[    1857ms] [LOG] [api] Calling: /api/projects GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[    1860ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[    1919ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[    1929ms] [LOG] [api] Calling: /api/git-info?session_id=2d446b3dfd91 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[    1930ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[    1940ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[    2019ms] [LOG] [api] Calling: /api/sessions GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[    2021ms] [LOG] [api] Calling: /api/projects GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[    2023ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[    2081ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[   20780ms] [LOG] [api] Calling: /api/crons GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[   20792ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[   20793ms] [LOG] [api] Calling: /api/crons/output?job_id=896501dfea0e&limit=1 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[   20795ms] [LOG] [api] Calling: /api/crons/output?job_id=0bcee5ae6bf3&limit=1 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[   20795ms] [LOG] [api] Calling: /api/crons/output?job_id=f69111c22d8c&limit=1 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[   20796ms] [LOG] [api] Calling: /api/crons/output?job_id=556ca10694c1&limit=1 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[   20799ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[   20799ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[   20800ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[   20801ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[   27613ms] [LOG] [api] Calling: /api/wiki/pages GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[   27625ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[   30390ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[   30392ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[   60402ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[   60458ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[   90393ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[   90406ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  120400ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  120478ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  150405ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  150543ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  180405ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  180509ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  210410ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  210529ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  240398ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  240449ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  270406ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  270487ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  300402ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  300513ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  330404ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  330489ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  360406ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  360508ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  390405ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  390499ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  398203ms] [LOG] [api] Calling: /api/sessions GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  398220ms] [LOG] [api] Calling: /api/projects GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  398242ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  398533ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  420397ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  420455ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  450390ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  450396ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  480407ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  480499ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  510390ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  510394ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  540407ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  540525ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  570405ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  570504ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  600401ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  600490ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  630411ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  630567ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  660403ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  660500ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  690401ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  690481ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  720393ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  720431ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  750408ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  750516ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  780400ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  780465ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  810419ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  810488ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  832703ms] [LOG] [api] Calling: /api/sessions GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  832719ms] [LOG] [api] Calling: /api/projects GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  832735ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  832815ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  840390ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  840403ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  870392ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  870416ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  900390ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  900393ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  930401ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  930473ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  960403ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  960516ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[  990401ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[  990486ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1020401ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1020474ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1050390ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1050400ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1080394ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1080424ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1110391ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1110402ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1140401ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1140480ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1163218ms] [LOG] [api] Calling: /api/sessions GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1163247ms] [LOG] [api] Calling: /api/projects GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1163280ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1164712ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1170403ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1170513ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1200401ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1200470ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1230397ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1230435ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1260402ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1260505ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1290394ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1290441ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1320408ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1320549ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1350408ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1350542ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1380408ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1380543ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1410401ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1410479ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1440394ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1440517ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1470409ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1470516ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1500390ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1500397ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1530400ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1530480ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1551756ms] [LOG] [api] Calling: /api/sessions GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1551798ms] [LOG] [api] Calling: /api/projects GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1551846ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1551883ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1560412ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1560580ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1590409ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1590490ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1620407ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1620559ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1650397ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1650445ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1680392ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1680396ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1710397ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1710401ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1740390ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1740417ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1770390ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1770393ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1800390ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1800392ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1830391ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1830437ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1860406ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1860557ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1886781ms] [LOG] [api] Calling: /api/sessions GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1886823ms] [LOG] [api] Calling: /api/projects GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1886869ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1886923ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1890397ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1890451ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1920403ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1920480ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1950413ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1950598ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 1980404ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 1980504ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 2010401ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 2010468ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 2040407ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 2040500ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 2070406ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 2070521ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 2100404ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 2100582ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 2141785ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 2234775ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 2238518ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 2239059ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 2250625ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 2252080ms] [LOG] [api] Calling: /api/sessions GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 2253407ms] [LOG] [api] Calling: /api/projects GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 2256192ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 2272938ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 2285826ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 2295744ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 2296592ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 2310404ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 2310486ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16
+[ 2340440ms] [LOG] [api] Calling: /api/crons/recent?since=1777050437.903 GET @ http://127.0.0.1:8787/static/workspace.js?v=6:4
+[ 2340605ms] [LOG] [api] Response: Promise @ http://127.0.0.1:8787/static/workspace.js?v=6:16

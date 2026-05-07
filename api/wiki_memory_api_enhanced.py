@@ -167,36 +167,39 @@ def get_memster_memory_by_id(mem_id):
         return None
 
 def create_memster_memory(content, category='observation', tier='L2', tags=None):
- """Create a new memory."""
- content_escaped = content.replace("'", "''")
- cat_escaped = (category or 'observation').replace("'", "''")
- tier_escaped = (tier or 'L2').replace("'", "''")
- 
- # Calculate importance based on content
- calculated_importance = calculate_importance(content, category)
- 
- sql = f"INSERT INTO memories (content, category, tier, importance, t_recorded, t_event) VALUES ('{content_escaped}', '{cat_escaped}', '{tier_escaped}', {calculated_importance}, datetime('now'), datetime('now'))"
- cmd = f"sqlite3 '{MEMSTER_DB}' '{sql}'"
- result = ssh_command_raw(MEMSTER_HOST, MEMSTER_USER, cmd)
- 
- if result.get('error'):
- return {'error': result['error']}
- 
- # Get the ID of the inserted row
- id_sql = "SELECT last_insert_rowid()"
- id_cmd = f"sqlite3 '{MEMSTER_DB}' '{id_sql}'"
- id_result = ssh_json_command(MEMSTER_HOST, MEMSTER_USER, id_cmd)
- 
- try:
- mem_id = int(id_result.get('output', '0').strip() or '0')
- except:
- mem_id = None
- 
- # Tags aren't supported in memster - add to content as text if needed
- if mem_id and tags:
- pass # Tags stored inline in content or skipped
- 
- return {'id': mem_id, 'created': True}
+    """Create a new memory."""
+    content_escaped = content.replace("'", "''")
+    cat_escaped = (category or 'observation').replace("'", "''")
+    tier_escaped = (tier or 'L2').replace("'", "''")
+    
+    # Calculate importance based on content
+    calculated_importance = calculate_importance(content, category)
+    
+    sql = f"INSERT INTO memories (content, category, tier, importance, t_recorded, t_event) VALUES ('{content_escaped}', '{cat_escaped}', '{tier_escaped}', {calculated_importance}, datetime('now'), datetime('now'))"
+    cmd = f"sqlite3 '{MEMSTER_DB}' '{sql}'"
+    result = ssh_command_raw(MEMSTER_HOST, MEMSTER_USER, cmd)
+    
+    if result.get('error'):
+        return {'error': result['error']}
+    
+    # Get the ID of the inserted row
+    id_sql = "SELECT last_insert_rowid()"
+    id_cmd = f"sqlite3 '{MEMSTER_DB}' '{id_sql}'"
+    id_result = ssh_json_command(MEMSTER_HOST, MEMSTER_USER, id_cmd)
+    
+    try:
+        mem_id = int(id_result.get('output', '0').strip() or '0')
+    except:
+        mem_id = None
+    
+    # Tags aren't supported in memster - add to content as text if needed
+    if mem_id and tags:
+        pass  # Tags stored inline in content or skipped
+    
+    if mem_id:
+        return {'success': True, 'id': mem_id}
+    return {'success': True, 'id': None}
+
 
 def update_memster_memory(mem_id, content=None, category=None, tier=None, tags=None):
     """Update an existing memory."""

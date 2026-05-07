@@ -1,0 +1,268 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - button "chat" [ref=e5] [cursor=pointer]:
+        - img [ref=e6]
+      - button "tasks" [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+      - button "skills" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+      - button "memory" [active] [ref=e14] [cursor=pointer]:
+        - img [ref=e15]
+        - text: memory
+      - button "spaces" [ref=e25] [cursor=pointer]:
+        - img [ref=e26]
+      - button "profiles" [ref=e28] [cursor=pointer]:
+        - img [ref=e29]
+      - button "todos" [ref=e32] [cursor=pointer]:
+        - img [ref=e33]
+    - generic [ref=e973]:
+      - generic [ref=e974]:
+        - generic [ref=e975]:
+          - button "wiki" [ref=e976] [cursor=pointer]
+          - button "memories" [ref=e977] [cursor=pointer]
+        - button "Refresh" [ref=e979] [cursor=pointer]:
+          - img [ref=e980]
+      - generic [ref=e982]:
+        - textbox "search wiki..." [ref=e983]
+        - combobox [ref=e984] [cursor=pointer]:
+          - option "all" [selected]
+      - generic [ref=e985]:
+        - generic [ref=e986] [cursor=pointer]:
+          - generic [ref=e987]: infrastructure
+          - generic [ref=e988]: Machines
+          - generic [ref=e990]: 49 words
+        - generic [ref=e991] [cursor=pointer]:
+          - generic [ref=e992]: projects
+          - generic [ref=e993]: Vibecode
+          - generic [ref=e995]: 18 words
+        - generic [ref=e996] [cursor=pointer]:
+          - generic [ref=e997]: projects
+          - generic [ref=e998]: Music App
+          - generic [ref=e1000]: 25 words
+        - generic [ref=e1001] [cursor=pointer]:
+          - generic [ref=e1002]: projects
+          - generic [ref=e1003]: Chestray
+          - generic [ref=e1005]: 12 words
+        - generic [ref=e1006] [cursor=pointer]:
+          - generic [ref=e1007]: projects
+          - generic [ref=e1008]: PKM
+          - generic [ref=e1010]: 20 words
+        - generic [ref=e1011] [cursor=pointer]:
+          - generic [ref=e1012]: projects
+          - generic [ref=e1013]: Memster
+          - generic [ref=e1015]: 19 words
+        - generic [ref=e1016] [cursor=pointer]:
+          - generic [ref=e1017]: preferences
+          - generic [ref=e1018]: Communication Preferences
+          - generic [ref=e1020]: 22 words
+        - generic [ref=e1021] [cursor=pointer]:
+          - generic [ref=e1022]: preferences
+          - generic [ref=e1023]: UI Preferences
+          - generic [ref=e1025]: 13 words
+        - generic [ref=e1026] [cursor=pointer]:
+          - generic [ref=e1027]: preferences
+          - generic [ref=e1028]: Workflow Preferences
+          - generic [ref=e1030]: 15 words
+        - generic [ref=e1031] [cursor=pointer]:
+          - generic [ref=e1032]: people
+          - generic [ref=e1033]: John Holmes
+          - generic [ref=e1035]: 21 words
+        - generic [ref=e1036] [cursor=pointer]:
+          - generic [ref=e1037]: people
+          - generic [ref=e1038]: house
+          - generic [ref=e1040]: 289 words
+        - generic [ref=e1041] [cursor=pointer]:
+          - generic [ref=e1042]: apps
+          - generic [ref=e1043]: Simply Plural
+          - generic [ref=e1045]: 10 words
+        - generic [ref=e1046] [cursor=pointer]:
+          - generic [ref=e1047]: apps
+          - generic [ref=e1048]: Hermes
+          - generic [ref=e1050]: 11 words
+        - generic [ref=e1051] [cursor=pointer]:
+          - generic [ref=e1052]: apps
+          - generic [ref=e1053]: Wiki
+          - generic [ref=e1055]: 10 words
+        - generic [ref=e1056] [cursor=pointer]:
+          - generic [ref=e1057]: people
+          - generic [ref=e1058]: Alastor
+          - generic [ref=e1060]: 237 words
+        - generic [ref=e1061] [cursor=pointer]:
+          - generic [ref=e1062]: people
+          - generic [ref=e1063]: adam
+          - generic [ref=e1065]: 169 words
+        - generic [ref=e1066] [cursor=pointer]:
+          - generic [ref=e1067]: people
+          - generic [ref=e1068]: angel
+          - generic [ref=e1070]: 238 words
+        - generic [ref=e1071] [cursor=pointer]:
+          - generic [ref=e1072]: people
+          - generic [ref=e1073]: arthur
+          - generic [ref=e1075]: 294 words
+        - generic [ref=e1076] [cursor=pointer]:
+          - generic [ref=e1077]: people
+          - generic [ref=e1078]: blitz
+          - generic [ref=e1080]: 330 words
+        - generic [ref=e1081] [cursor=pointer]:
+          - generic [ref=e1082]: people
+          - generic [ref=e1083]: bojack
+          - generic [ref=e1085]: 180 words
+        - generic [ref=e1086] [cursor=pointer]:
+          - generic [ref=e1087]: people
+          - generic [ref=e1088]: C
+          - generic [ref=e1090]: 201 words
+        - generic [ref=e1091] [cursor=pointer]:
+          - generic [ref=e1092]: people
+          - generic [ref=e1093]: cody
+          - generic [ref=e1095]: 171 words
+        - generic [ref=e1096] [cursor=pointer]:
+          - generic [ref=e1097]: people
+          - generic [ref=e1098]: Deer
+          - generic [ref=e1100]: 218 words
+        - generic [ref=e1101] [cursor=pointer]:
+          - generic [ref=e1102]: people
+          - generic [ref=e1103]: husk
+          - generic [ref=e1105]: 257 words
+        - generic [ref=e1106] [cursor=pointer]:
+          - generic [ref=e1107]: people
+          - generic [ref=e1108]: jack
+          - generic [ref=e1110]: 160 words
+        - generic [ref=e1111] [cursor=pointer]:
+          - generic [ref=e1112]: people
+          - generic [ref=e1113]: jacob
+          - generic [ref=e1115]: 201 words
+        - generic [ref=e1116] [cursor=pointer]:
+          - generic [ref=e1117]: people
+          - generic [ref=e1118]: jade/lillian
+          - generic [ref=e1120]: 196 words
+        - generic [ref=e1121] [cursor=pointer]:
+          - generic [ref=e1122]: people
+          - generic [ref=e1123]: jesse
+          - generic [ref=e1125]: 174 words
+        - generic [ref=e1126] [cursor=pointer]:
+          - generic [ref=e1127]: people
+          - generic [ref=e1128]: john h.
+          - generic [ref=e1130]: 13 words
+        - generic [ref=e1131] [cursor=pointer]:
+          - generic [ref=e1132]: people
+          - generic [ref=e1133]: L
+          - generic [ref=e1135]: 163 words
+        - generic [ref=e1136] [cursor=pointer]:
+          - generic [ref=e1137]: people
+          - generic [ref=e1138]: lucifer
+          - generic [ref=e1140]: 196 words
+        - generic [ref=e1141] [cursor=pointer]:
+          - generic [ref=e1142]: people
+          - generic [ref=e1143]: Mike
+          - generic [ref=e1145]: 150 words
+        - generic [ref=e1146] [cursor=pointer]:
+          - generic [ref=e1147]: people
+          - generic [ref=e1148]: odysseus
+          - generic [ref=e1150]: 201 words
+        - generic [ref=e1151] [cursor=pointer]:
+          - generic [ref=e1152]: people
+          - generic [ref=e1153]: parker callaghan
+          - generic [ref=e1155]: 242 words
+        - generic [ref=e1156] [cursor=pointer]:
+          - generic [ref=e1157]: people
+          - generic [ref=e1158]: penelope
+          - generic [ref=e1160]: 207 words
+        - generic [ref=e1161] [cursor=pointer]:
+          - generic [ref=e1162]: people
+          - generic [ref=e1163]: rick
+          - generic [ref=e1165]: 158 words
+        - generic [ref=e1166] [cursor=pointer]:
+          - generic [ref=e1167]: people
+          - generic [ref=e1168]: S
+          - generic [ref=e1170]: 215 words
+        - generic [ref=e1171] [cursor=pointer]:
+          - generic [ref=e1172]: people
+          - generic [ref=e1173]: saul
+          - generic [ref=e1175]: 244 words
+        - generic [ref=e1176] [cursor=pointer]:
+          - generic [ref=e1177]: people
+          - generic [ref=e1178]: sean
+          - generic [ref=e1180]: 135 words
+        - generic [ref=e1181] [cursor=pointer]:
+          - generic [ref=e1182]: people
+          - generic [ref=e1183]: stolas
+          - generic [ref=e1185]: 159 words
+        - generic [ref=e1186] [cursor=pointer]:
+          - generic [ref=e1187]: people
+          - generic [ref=e1188]: vin
+          - generic [ref=e1190]: 190 words
+        - generic [ref=e1191] [cursor=pointer]:
+          - generic [ref=e1192]: people
+          - generic [ref=e1193]: vox
+          - generic [ref=e1195]: 243 words
+        - generic [ref=e1196] [cursor=pointer]:
+          - generic [ref=e1197]: people
+          - generic [ref=e1198]: walt
+          - generic [ref=e1200]: 170 words
+        - generic [ref=e1201] [cursor=pointer]:
+          - generic [ref=e1202]: notes
+          - generic [ref=e1203]: Memory Architecture
+          - generic [ref=e1205]: 161 words
+        - generic [ref=e1206] [cursor=pointer]:
+          - generic [ref=e1207]: apps
+          - generic [ref=e1208]: Memory & Knowledge System
+          - generic [ref=e1210]: 197 words
+        - generic [ref=e1211] [cursor=pointer]:
+          - generic [ref=e1212]: people
+          - generic [ref=e1213]: Robert
+          - generic [ref=e1215]: 33 words
+        - generic [ref=e1216] [cursor=pointer]:
+          - generic [ref=e1217]: apps
+          - generic [ref=e1218]: Flow Image Generation Integration
+          - generic [ref=e1220]: 258 words
+        - generic [ref=e1221] [cursor=pointer]:
+          - generic [ref=e1222]: system
+          - generic [ref=e1223]: Background Check - April 20, 2026
+          - generic [ref=e1225]: 224 words
+        - generic [ref=e1226] [cursor=pointer]:
+          - generic [ref=e1227]: notes
+          - generic [ref=e1228]: Research Findings - April 2026
+          - generic [ref=e1230]: 275 words
+    - button "hermes webui preferences, conversation tools, api keys, and system controls." [ref=e49] [cursor=pointer]:
+      - img [ref=e51]
+      - generic [ref=e52]:
+        - generic [ref=e53]: hermes webui
+        - generic [ref=e54]: preferences, conversation tools, api keys, and system controls.
+      - img [ref=e56]
+  - main [ref=e59]:
+    - generic [ref=e60]:
+      - generic [ref=e61]:
+        - text: Untitled
+        - generic [ref=e62]: 0 messages
+      - button "files" [pressed] [ref=e64] [cursor=pointer]:
+        - img [ref=e65]
+        - generic [ref=e67]: files
+    - generic [ref=e69]:
+      - img "Hermes" [ref=e71]
+      - heading "what can i help with?" [level=2] [ref=e72]
+      - paragraph [ref=e73]: ask anything, run commands, explore files, or manage your scheduled tasks.
+    - generic [ref=e76]:
+      - textbox "Message hermes…" [ref=e78]
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - button "attach files" [ref=e81] [cursor=pointer]:
+            - img [ref=e82]
+          - button "voice input" [ref=e84] [cursor=pointer]:
+            - img [ref=e85]
+          - button "default" [ref=e90] [cursor=pointer]:
+            - img [ref=e92]
+            - generic [ref=e95]: default
+            - img [ref=e97]
+          - button "house" [ref=e951] [cursor=pointer]:
+            - img [ref=e102]
+            - generic [ref=e104]: house
+            - img [ref=e106]
+          - generic [ref=e108]:
+            - button "kimi" [ref=e109] [cursor=pointer]:
+              - img [ref=e111]
+              - generic [ref=e114]: kimi
+              - img [ref=e116]
+            - combobox
+        - button "send message" [disabled] [ref=e119]:
+          - img [ref=e120]

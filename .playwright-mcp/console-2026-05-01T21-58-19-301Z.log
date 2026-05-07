@@ -1,0 +1,126 @@
+[      81ms] [LOG] [runtime] Detection check: {__TAURI__: undefined, protocol: http:, hostname: 192.168.4.233, host: 192.168.4.233:8786, isCapacitorApp: false} @ http://192.168.4.233:8786/:56
+[      82ms] [LOG] [Tauri] Not detected - normal size @ http://192.168.4.233:8786/:71
+[      92ms] [LOG] [api] Calling: /api/commands GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[      93ms] [LOG] [api] Calling: /api/skills GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[      98ms] [LOG] [api] Calling: /api/settings GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[      99ms] [LOG] [Sessions] Module loaded (unified list mode) @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:402
+[      99ms] [LOG] workspace layering loaded @ http://192.168.4.233:8786/static/workspace_layer.js?v=6:8
+[     102ms] [LOG] [remote_sessions] wrapRenderSessionList checking: function false @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:150
+[     102ms] [LOG] [Sessions] Wrapped renderSessionList for unified session list @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:170
+[     113ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.4.233:8786/:0
+[     113ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.4.233:8786/:0
+[     116ms] [LOG] [api] Response: {commands: Array(61), sub: Object} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[     116ms] [LOG] [api] Response: {default_model: @nvidia:deepseek-ai/deepseek-v4-pro, default_workspace: /home/house/workspace, onboarding_completed: true, send_key: enter, show_token_usage: false} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[     118ms] [LOG] [api] Calling: /api/updates/check GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[     118ms] [LOG] [api] Calling: /api/profile/active GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[     139ms] [LOG] [api] Response: {name: default, path: /home/house/.hermes} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[     140ms] [LOG] [syncModelChip] called @ http://192.168.4.233:8786/static/ui.js?v=6:173
+[     140ms] [LOG] [syncModelChip] sel: @nvidia:deepseek-ai/deepseek-v4-pro @ http://192.168.4.233:8786/static/ui.js?v=6:179
+[     141ms] [LOG] [api] Calling: /api/workspaces GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[     183ms] [LOG] [api] Response: {workspaces: Array(1), last: /home/house/memster-ui} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[     184ms] [LOG] [api] Calling: /api/remote_paths GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[     184ms] [LOG] [api] Calling: /api/onboarding/status GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[     188ms] [LOG] [resize-fix] initializing sidebar resize @ http://192.168.4.233:8786/:1173
+[     188ms] [LOG] [resize-fix] initializing rightpanel resize @ http://192.168.4.233:8786/:1215
+[     195ms] [LOG] [api] Response: {paths: Object} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[     195ms] [LOG] [api] Calling: /api/remote_paths POST base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[     208ms] [LOG] [api] Response: {ok: true, paths: Object} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[     588ms] [LOG] [resize-fix] initializing sidebar resize @ http://192.168.4.233:8786/:1173
+[     588ms] [LOG] [resize-fix] initializing rightpanel resize @ http://192.168.4.233:8786/:1215
+[     954ms] [LOG] [api] Response: {skills: Array(197)} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[     988ms] [LOG] [api] Response: {completed: true, settings: Object, system: Object, setup: Object, workspaces: Object} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[     989ms] [LOG] [remote_sessions] renderSessionList called @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:154
+[     989ms] [LOG] [Sessions] Fetching from /api/remote/sessions @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:110
+[     990ms] [LOG] [api] Calling: /api/sessions GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[     990ms] [LOG] [api] Calling: /api/projects GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[     991ms] [LOG] [WS] === START === /home/house ubuntu home ubuntu @ http://192.168.4.233:8786/static/panels.js?v=127:1443
+[     991ms] [LOG] [WS] S.session before: null @ http://192.168.4.233:8786/static/panels.js?v=127:1444
+[     991ms] [LOG] [WS] No session - creating new one for: /home/house @ http://192.168.4.233:8786/static/panels.js?v=127:1461
+[     991ms] [LOG] [WS] Creating session with model: @nvidia:deepseek-ai/deepseek-v4-pro workspace: /home/house machineId: ubuntu @ http://192.168.4.233:8786/static/panels.js?v=127:1466
+[     991ms] [LOG] [WS] getMachines available?: true @ http://192.168.4.233:8786/static/panels.js?v=127:1467
+[     991ms] [LOG] [WS] Machines: [Object, Object] @ http://192.168.4.233:8786/static/panels.js?v=127:1468
+[     991ms] [LOG] [WS] Request body: {"model":"@nvidia:deepseek-ai/deepseek-v4-pro","workspace":"/home/house","machine_id":"ubuntu","machine_hostname":"192.168.4.250"} @ http://192.168.4.233:8786/static/panels.js?v=127:1474
+[     991ms] [LOG] [api] Calling: /api/session/new POST base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[     995ms] [LOG] [Sessions] Fetch URL: /api/remote/sessions isTauri: false @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:114
+[     996ms] [LOG] [Sessions] Loaded 199 remote sessions from 192.168.4.250:/home/house/.hermes/state.db @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:125
+[     997ms] [LOG] [remote_sessions] Fetched remote: 199 @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:158
+[     997ms] [LOG] [Sessions] Merged 199 remote sessions into unified list (total: 199 ) @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:209
+[     997ms] [LOG] [remote_sessions] Calling renderSessionListFromCache @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:215
+[    1003ms] [LOG] [api] Response: {sessions: Array(41), cli_count: 0} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[    1003ms] [LOG] [api] Response: {projects: Array(0)} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[    1003ms] [LOG] [sessions] TOTAL: 41 (local + remote should be ~193) @ http://192.168.4.233:8786/static/sessions.js?v=14:402
+[    1029ms] [LOG] [remote_sessions] After original, window._allSessions: 41 @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:165
+[    1029ms] [LOG] [Sessions] Merged 199 remote sessions into unified list (total: 240 ) @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:209
+[    1029ms] [LOG] [remote_sessions] Calling renderSessionListFromCache @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:215
+[    1057ms] [LOG] [api] Response: {session: Object} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[    1057ms] [LOG] [WS] Session API response: {"session":{"session_id":"1c531d392c58","title":"Untitled","workspace":"/home/house","model":"@nvidia:deepseek-ai/deepseek-v4-pro","message_count":0,"created_at":1777672700.2951448,"updated_at":1777672700.295151,"pinned":false,"archived":false,"project_id":null,"profile":"default","input_tokens":0,"output_tokens":0,"estimated_cost":null,"personality":null,"machine_id":null,"machine_hostname":null,"messages":[]}} @ http://192.168.4.233:8786/static/panels.js?v=127:1476
+[    1057ms] [LOG] [WS] S.session set to: {session_id: 1c531d392c58, title: Untitled, workspace: /home/house, model: @nvidia:deepseek-ai/deepseek-v4-pro, message_count: 0} @ http://192.168.4.233:8786/static/panels.js?v=127:1480
+[    1057ms] [LOG] [WS] S.session.machine_id: null @ http://192.168.4.233:8786/static/panels.js?v=127:1481
+[    1057ms] [LOG] [WS] S.session.machine_hostname: null @ http://192.168.4.233:8786/static/panels.js?v=127:1482
+[    1058ms] [LOG] [WS] Saved session_id to localStorage @ http://192.168.4.233:8786/static/panels.js?v=127:1487
+[    1059ms] [LOG] [syncModelChip] called @ http://192.168.4.233:8786/static/ui.js?v=6:173
+[    1059ms] [LOG] [syncModelChip] sel: @nvidia:deepseek-ai/deepseek-v4-pro @ http://192.168.4.233:8786/static/ui.js?v=6:179
+[    1059ms] [LOG] [syncModelChip] called @ http://192.168.4.233:8786/static/ui.js?v=6:173
+[    1059ms] [LOG] [syncModelChip] sel: @nvidia:deepseek-ai/deepseek-v4-pro @ http://192.168.4.233:8786/static/ui.js?v=6:179
+[    1060ms] [LOG] [loadDir] Starting for path: . session: 1c531d392c58 machine: null @ http://192.168.4.233:8786/static/workspace.js?v=8:135
+[    1060ms] [LOG] [loadDir] Calling API: /api/list?session_id=1c531d392c58&path=. @ http://192.168.4.233:8786/static/workspace.js?v=8:158
+[    1060ms] [LOG] [api] Calling: /api/list?session_id=1c531d392c58&path=. GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[    1068ms] [LOG] [api] Response: {entries: Array(200), path: .} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[    1068ms] [LOG] [loadDir] API response: {entries: Array(200), path: .} @ http://192.168.4.233:8786/static/workspace.js?v=8:160
+[    1078ms] [LOG] [api] Calling: /api/git-info?session_id=1c531d392c58 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[    1078ms] [LOG] [remote_sessions] renderSessionList called @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:154
+[    1078ms] [LOG] [Sessions] Using cached remote sessions: 199 @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:88
+[    1078ms] [LOG] [api] Calling: /api/sessions GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[    1078ms] [LOG] [api] Calling: /api/projects GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[    1079ms] [LOG] [remote_sessions] Fetched remote: 199 @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:158
+[    1079ms] [LOG] [Sessions] Merged 0 remote sessions into unified list (total: 240 ) @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:209
+[    1080ms] [LOG] [api] Response: {git: null} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[    1082ms] [LOG] [api] Response: {projects: Array(0)} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[    1082ms] [LOG] [api] Response: {sessions: Array(41), cli_count: 0} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[    1085ms] [LOG] [remote_sessions] After original, window._allSessions: 41 @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:165
+[    1085ms] [LOG] [Sessions] Merged 199 remote sessions into unified list (total: 240 ) @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:209
+[    1085ms] [LOG] [remote_sessions] Calling renderSessionListFromCache @ http://192.168.4.233:8786/static/remote_sessions.js?v=13:215
+[    2914ms] [LOG] [api] Response: {webui: Object, agent: Object, checked_at: 1777672702.2142086} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[    2915ms] [LOG] [api] Calling: /api/updates/apply POST base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[    6596ms] [LOG] [api] Response: {ok: true, message: agent updated successfully, target: agent} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[    6596ms] [LOG] [vibecode] Auto-applied update for: agent @ http://192.168.4.233:8786/static/boot.js?v=126:768
+[   30094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[   30096ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[   60094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[   60096ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[   90094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[   90096ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[  120094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[  120100ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[  150094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[  150100ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[  180094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[  180096ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[  210094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[  210096ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[  240094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[  240096ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[  270094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[  270096ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[  300093ms] [LOG] [api] Calling: /api/commands GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[  300094ms] [LOG] [api] Calling: /api/skills GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[  300094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[  300097ms] [LOG] [api] Response: {commands: Array(61), sub: Object} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[  300102ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[  300789ms] [LOG] [api] Response: {skills: Array(197)} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[  330094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[  330096ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[  360094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[  360096ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[  390094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[  390096ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[  420094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[  420096ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[  450094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[  450096ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[  480094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[  480096ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[  510094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[  510096ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100
+[  540094ms] [LOG] [api] Calling: /api/crons/recent?since=1777672699.394 GET base: http://192.168.4.233:8786/ isTauri: false @ http://192.168.4.233:8786/static/workspace.js?v=8:76
+[  540096ms] [LOG] [api] Response: {completions: Array(0), since: 1777672699.394} @ http://192.168.4.233:8786/static/workspace.js?v=8:100

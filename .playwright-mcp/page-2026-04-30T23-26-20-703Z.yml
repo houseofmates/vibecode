@@ -1,0 +1,47 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - button "chats" [ref=e5] [cursor=pointer]:
+        - img [ref=e6]
+      - button "tasks" [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+      - button "skills" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+      - button "memory" [ref=e15] [cursor=pointer]:
+        - img [ref=e16]
+      - button "spaces" [ref=e19] [cursor=pointer]:
+        - img [ref=e20]
+      - button "todos" [ref=e22] [cursor=pointer]:
+        - img [ref=e23]
+  - main [ref=e28]:
+    - generic [ref=e29]:
+      - generic "click to edit" [ref=e31]: ♡ hermes ♡
+      - generic [ref=e32]:
+        - button "show workspace panel" [ref=e33] [cursor=pointer]:
+          - img [ref=e34]
+        - button "open terminal" [ref=e36]:
+          - img [ref=e37]
+    - generic [ref=e40]:
+      - img "Hermes" [ref=e42]
+      - heading "what can i help with?" [level=2] [ref=e43]
+      - paragraph [ref=e44]: ask anything, run commands, explore files, or manage your scheduled tasks.
+    - generic [ref=e47]:
+      - textbox "Message ♡ hermes ♡…" [ref=e49]
+      - generic [ref=e50]:
+        - generic [ref=e51]:
+          - button "attach files" [ref=e52] [cursor=pointer]:
+            - img [ref=e53]
+          - button "voice input" [ref=e55] [cursor=pointer]:
+            - img [ref=e56]
+          - button "no workspace" [ref=e60] [cursor=pointer]:
+            - img [ref=e62]
+            - generic [ref=e64]: no workspace
+            - img [ref=e66]
+          - generic [ref=e68]:
+            - button "deepseek" [ref=e69] [cursor=pointer]:
+              - img [ref=e71]
+              - generic [ref=e74]: deepseek
+              - img [ref=e76]
+            - combobox
+        - button "send message" [ref=e79] [cursor=pointer]:
+          - img [ref=e80]

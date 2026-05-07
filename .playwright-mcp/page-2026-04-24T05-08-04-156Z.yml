@@ -1,0 +1,762 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - button "chat" [ref=e5] [cursor=pointer]:
+        - img [ref=e6]
+      - button "tasks" [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+      - button "skills" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+      - button "memory" [ref=e14] [cursor=pointer]:
+        - img [ref=e15]
+      - button "spaces" [ref=e25] [cursor=pointer]:
+        - img [ref=e26]
+      - button "profiles" [ref=e28] [cursor=pointer]:
+        - img [ref=e29]
+      - button "todos" [ref=e32] [cursor=pointer]:
+        - img [ref=e33]
+    - generic [ref=e36]:
+      - generic [ref=e37]:
+        - button "new conversation Cmd+K" [ref=e38] [cursor=pointer]:
+          - img [ref=e39]
+          - generic [ref=e40]: new conversation
+          - generic [ref=e41]: Cmd+K
+        - button "Delete all cron sessions" [ref=e42] [cursor=pointer]:
+          - img [ref=e43]
+      - textbox "filter conversations..." [ref=e46]
+      - generic [ref=e47]:
+        - generic [ref=e122] [cursor=pointer]: can you go into /home/house/imagine and ...
+        - generic [ref=e123] [cursor=pointer]: can you go into /home/house/imagine and ...
+        - generic [ref=e124] [cursor=pointer]: can you go into /home/house/imagine and ...
+        - generic [ref=e125] [cursor=pointer]: can you go into /home/house/imagine and ...
+        - generic [ref=e126] [cursor=pointer]: can you go into /home/house/imagine and ...
+        - generic [ref=e127] [cursor=pointer]: can you go into /home/house/imagine and ...
+        - generic [ref=e128] [cursor=pointer]: continue
+        - generic [ref=e129] [cursor=pointer]: can you go into /home/house/imagine and ...
+        - generic [ref=e130] [cursor=pointer]: can you go into /home/house/imagine and ...
+        - generic [ref=e131] [cursor=pointer]: can you go into /home/house/imagine and ...
+        - generic [ref=e132] [cursor=pointer]: can you pls set it up to make it so it d...
+        - generic [ref=e133] [cursor=pointer]: can you pls set it up to make it so it d...
+        - generic [ref=e134] [cursor=pointer]: can you go into /home/house/imagine and ...
+        - generic [ref=e135] [cursor=pointer]: can you pls set it up to make it so it d...
+        - generic [ref=e136] [cursor=pointer]: go to /home/house/imagine and fix the fa...
+        - generic [ref=e137] [cursor=pointer]: go to /home/house/imagine and fix the fa...
+        - generic [ref=e138] [cursor=pointer]: go to /home/house/imagine and fix the fa...
+        - generic [ref=e139] [cursor=pointer]: "[Note: model was just switched from kimi..."
+        - generic [ref=e140] [cursor=pointer]: all the mcp servers when i run hermes ss...
+        - generic [ref=e141] [cursor=pointer]: "[SYSTEM: MCP servers have been reloaded...."
+        - generic [ref=e142] [cursor=pointer]: "[SYSTEM: MCP servers have been reloaded...."
+        - generic [ref=e143] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e144] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e145] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e146] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e147] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e148] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e149] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e150] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e151] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e152] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e153] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e154] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e155] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e156] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e157] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e158] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e159] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e160] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e161] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e162] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e163] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e164] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e165] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e166] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e167] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e168] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e169] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e170] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e171] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e172] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e173] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e174] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e175] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e176] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e177] [cursor=pointer]: "[SYSTEM: MCP servers have been reloaded...."
+        - generic [ref=e178] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e179] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e180] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e181] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e182] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e183] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e184] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e185] [cursor=pointer]: "[SYSTEM: MCP servers have been reloaded...."
+        - generic [ref=e186] [cursor=pointer]: "[SYSTEM: MCP servers have been reloaded...."
+        - generic [ref=e187] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e188] [cursor=pointer]: "[SYSTEM: MCP servers have been reloaded...."
+        - generic [ref=e189] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e190] [cursor=pointer]: "[SYSTEM: MCP servers have been reloaded...."
+        - generic [ref=e191] [cursor=pointer]: "[SYSTEM: MCP servers have been reloaded...."
+        - generic [ref=e192] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e193] [cursor=pointer]: "[SYSTEM: MCP servers have been reloaded...."
+        - generic [ref=e194] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e195] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e196] [cursor=pointer]: "[SYSTEM: MCP servers have been reloaded...."
+        - generic [ref=e197] [cursor=pointer]: "[SYSTEM: MCP servers have been reloaded...."
+        - generic [ref=e198] [cursor=pointer]: hiii hermes, every time i run hermes ssh...
+        - generic [ref=e199] [cursor=pointer]: run hostname -I and tell me if its a suc...
+        - generic [ref=e200] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e201] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e202] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e203] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e204] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e205] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e206] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e207] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e208] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e209] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e210] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e211] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e212] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e213] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e214] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e215] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e216] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e217] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e218] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e219] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e220] [cursor=pointer]: in regards to /home/house/llms, trying t...
+        - generic [ref=e221] [cursor=pointer]: in regards to /home/house/llms, trying t...
+    - button "hermes webui preferences, conversation tools, api keys, and system controls." [ref=e49] [cursor=pointer]:
+      - img [ref=e51]
+      - generic [ref=e52]:
+        - generic [ref=e53]: hermes webui
+        - generic [ref=e54]: preferences, conversation tools, api keys, and system controls.
+      - img [ref=e56]
+  - main [ref=e59]:
+    - generic [ref=e60]:
+      - generic [ref=e61]:
+        - text: untitled
+        - generic [ref=e62]: 0 messages
+      - button "files" [active] [pressed] [ref=e64] [cursor=pointer]:
+        - img [ref=e65]
+        - generic [ref=e67]: files
+    - generic [ref=e69]:
+      - img "Hermes" [ref=e71]
+      - heading "what can i help with?" [level=2] [ref=e72]
+      - paragraph [ref=e73]: ask anything, run commands, explore files, or manage your scheduled tasks.
+    - generic [ref=e76]:
+      - textbox "Message hermes…" [ref=e78]
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - button "attach files" [ref=e81] [cursor=pointer]:
+            - img [ref=e82]
+          - button "voice input" [ref=e84] [cursor=pointer]:
+            - img [ref=e85]
+          - button "default" [ref=e90] [cursor=pointer]:
+            - img [ref=e92]
+            - generic [ref=e95]: default
+            - img [ref=e97]
+          - button "home" [ref=e222] [cursor=pointer]:
+            - img [ref=e102]
+            - generic [ref=e104]: home
+            - img [ref=e106]
+          - generic [ref=e108]:
+            - button "kimi" [ref=e223] [cursor=pointer]:
+              - img [ref=e111]
+              - generic [ref=e114]: kimi
+              - img [ref=e116]
+            - combobox
+        - button "send message" [disabled] [ref=e119]:
+          - img [ref=e120]
+  - complementary [ref=e230]:
+    - generic [ref=e232]:
+      - generic [ref=e233]: home
+      - generic [ref=e234]:
+        - button "new file" [ref=e235] [cursor=pointer]:
+          - img [ref=e236]
+        - button "new folder" [ref=e237] [cursor=pointer]:
+          - img [ref=e238]
+        - button "refresh" [ref=e240] [cursor=pointer]:
+          - img [ref=e241]
+    - generic [ref=e245]:
+      - generic [ref=e246] [cursor=pointer]:
+        - img [ref=e248]
+        - generic "double-click to rename" [ref=e250]: .agents
+      - generic [ref=e251] [cursor=pointer]:
+        - img [ref=e253]
+        - generic "double-click to rename" [ref=e255]: ai
+      - generic [ref=e256] [cursor=pointer]:
+        - img [ref=e258]
+        - generic "double-click to rename" [ref=e260]: .amp
+      - generic [ref=e261] [cursor=pointer]:
+        - img [ref=e263]
+        - generic "double-click to rename" [ref=e265]: .android
+      - generic [ref=e266] [cursor=pointer]:
+        - img [ref=e268]
+        - generic "double-click to rename" [ref=e270]: Android
+      - generic [ref=e271] [cursor=pointer]:
+        - img [ref=e273]
+        - generic "double-click to rename" [ref=e275]: .ansible
+      - generic [ref=e276] [cursor=pointer]:
+        - img [ref=e278]
+        - generic "double-click to rename" [ref=e280]: .antigravity
+      - generic [ref=e281] [cursor=pointer]:
+        - img [ref=e283]
+        - generic "double-click to rename" [ref=e285]: antivirus
+      - generic [ref=e286] [cursor=pointer]:
+        - img [ref=e288]
+        - generic "double-click to rename" [ref=e290]: apply_fix.py
+      - generic [ref=e291] [cursor=pointer]:
+        - img [ref=e293]
+        - generic "double-click to rename" [ref=e295]: apps
+      - generic [ref=e296] [cursor=pointer]:
+        - img [ref=e298]
+        - generic "double-click to rename" [ref=e300]: .aws
+      - generic [ref=e301] [cursor=pointer]:
+        - img [ref=e303]
+        - generic "double-click to rename" [ref=e305]: .bash_history
+      - generic [ref=e306] [cursor=pointer]:
+        - img [ref=e308]
+        - generic "double-click to rename" [ref=e310]: .bash_history-02160.tmp
+      - generic [ref=e311] [cursor=pointer]:
+        - img [ref=e313]
+        - generic "double-click to rename" [ref=e315]: .bash_history-02317.tmp
+      - generic [ref=e316] [cursor=pointer]:
+        - img [ref=e318]
+        - generic "double-click to rename" [ref=e320]: .bash_history-09814.tmp
+      - generic [ref=e321] [cursor=pointer]:
+        - img [ref=e323]
+        - generic "double-click to rename" [ref=e325]: .bash_history-22346.tmp
+      - generic [ref=e326] [cursor=pointer]:
+        - img [ref=e328]
+        - generic "double-click to rename" [ref=e330]: .bash_history-30952.tmp
+      - generic [ref=e331] [cursor=pointer]:
+        - img [ref=e333]
+        - generic "double-click to rename" [ref=e335]: .bash_history-55107.tmp
+      - generic [ref=e336] [cursor=pointer]:
+        - img [ref=e338]
+        - generic "double-click to rename" [ref=e340]: .bash_history-56595.tmp
+      - generic [ref=e341] [cursor=pointer]:
+        - img [ref=e343]
+        - generic "double-click to rename" [ref=e345]: .bash_history-59615.tmp
+      - generic [ref=e346] [cursor=pointer]:
+        - img [ref=e348]
+        - generic "double-click to rename" [ref=e350]: .bash_history-64129.tmp
+      - generic [ref=e351] [cursor=pointer]:
+        - img [ref=e353]
+        - generic "double-click to rename" [ref=e355]: .bash_history-69598.tmp
+      - generic [ref=e356] [cursor=pointer]:
+        - img [ref=e358]
+        - generic "double-click to rename" [ref=e360]: .bash_history-70010.tmp
+      - generic [ref=e361] [cursor=pointer]:
+        - img [ref=e363]
+        - generic "double-click to rename" [ref=e365]: .bash_history-70667.tmp
+      - generic [ref=e366] [cursor=pointer]:
+        - img [ref=e368]
+        - generic "double-click to rename" [ref=e370]: .bash_history-72581.tmp
+      - generic [ref=e371] [cursor=pointer]:
+        - img [ref=e373]
+        - generic "double-click to rename" [ref=e375]: .bash_history-74785.tmp
+      - generic [ref=e376] [cursor=pointer]:
+        - img [ref=e378]
+        - generic "double-click to rename" [ref=e380]: .bash_history-89498.tmp
+      - generic [ref=e381] [cursor=pointer]:
+        - img [ref=e383]
+        - generic "double-click to rename" [ref=e385]: .bash_history-98279.tmp
+      - generic [ref=e386] [cursor=pointer]:
+        - img [ref=e388]
+        - generic "double-click to rename" [ref=e390]: .bash_logout
+      - generic [ref=e391] [cursor=pointer]:
+        - img [ref=e393]
+        - generic "double-click to rename" [ref=e395]: .bashrc
+      - generic [ref=e396] [cursor=pointer]:
+        - img [ref=e398]
+        - generic "double-click to rename" [ref=e400]: .bashrc.bak
+      - generic [ref=e401] [cursor=pointer]:
+        - img [ref=e403]
+        - generic "double-click to rename" [ref=e405]: .bashrc.bak.1776204380
+      - generic [ref=e406] [cursor=pointer]:
+        - img [ref=e408]
+        - generic "double-click to rename" [ref=e410]: .bashrcsource
+      - generic [ref=e411] [cursor=pointer]:
+        - img [ref=e413]
+        - generic "double-click to rename" [ref=e415]: bin
+      - generic [ref=e416] [cursor=pointer]:
+        - img [ref=e418]
+        - generic "double-click to rename" [ref=e420]: .bito
+      - generic [ref=e421] [cursor=pointer]:
+        - img [ref=e423]
+        - generic "double-click to rename" [ref=e425]: .bitowingman
+      - generic [ref=e426] [cursor=pointer]:
+        - img [ref=e428]
+        - generic "double-click to rename" [ref=e430]: .browser_cdp
+      - generic [ref=e431] [cursor=pointer]:
+        - img [ref=e433]
+        - generic "double-click to rename" [ref=e435]: .browser-use
+      - generic [ref=e436] [cursor=pointer]:
+        - img [ref=e438]
+        - generic "double-click to rename" [ref=e440]: .browser-use-env
+      - generic [ref=e441] [cursor=pointer]:
+        - img [ref=e443]
+        - generic "double-click to rename" [ref=e445]: .cache
+      - generic [ref=e446] [cursor=pointer]:
+        - img [ref=e448]
+        - generic "double-click to rename" [ref=e450]: CascadeProjects
+      - generic [ref=e451] [cursor=pointer]:
+        - img [ref=e453]
+        - generic "double-click to rename" [ref=e455]: .cert
+      - generic [ref=e456] [cursor=pointer]:
+        - img [ref=e458]
+        - generic "double-click to rename" [ref=e460]: chestray
+      - generic [ref=e461] [cursor=pointer]:
+        - img [ref=e463]
+        - generic "double-click to rename" [ref=e465]: .clamav
+      - generic [ref=e466] [cursor=pointer]:
+        - img [ref=e468]
+        - generic "double-click to rename" [ref=e470]: clamav
+      - generic [ref=e471] [cursor=pointer]:
+        - img [ref=e473]
+        - generic "double-click to rename" [ref=e475]: clamav-automation.rules
+      - generic [ref=e476] [cursor=pointer]:
+        - img [ref=e478]
+        - generic "double-click to rename" [ref=e480]: .clamav-cron-status
+      - generic [ref=e481] [cursor=pointer]:
+        - img [ref=e483]
+        - generic "double-click to rename" [ref=e485]: .claude
+      - generic [ref=e486] [cursor=pointer]:
+        - img [ref=e488]
+        - generic "double-click to rename" [ref=e491]: .claude.json
+      - generic [ref=e492] [cursor=pointer]:
+        - img [ref=e494]
+        - generic "double-click to rename" [ref=e496]: .claude.lock
+      - generic [ref=e497] [cursor=pointer]:
+        - img [ref=e499]
+        - generic "double-click to rename" [ref=e501]: .cline
+      - generic [ref=e502] [cursor=pointer]:
+        - img [ref=e504]
+        - generic "double-click to rename" [ref=e506]: clp
+      - generic [ref=e507] [cursor=pointer]:
+        - img [ref=e509]
+        - generic "double-click to rename" [ref=e511]: clp-technical-analysis.md
+      - generic [ref=e512] [cursor=pointer]:
+        - img [ref=e514]
+        - generic "double-click to rename" [ref=e516]: .codeium
+      - generic [ref=e517] [cursor=pointer]:
+        - img [ref=e519]
+        - generic "double-click to rename" [ref=e521]: .codex
+      - generic [ref=e522] [cursor=pointer]:
+        - img [ref=e524]
+        - generic "double-click to rename" [ref=e526]: .config
+      - generic [ref=e527] [cursor=pointer]:
+        - img [ref=e529]
+        - generic "double-click to rename" [ref=e531]: .continue
+      - generic [ref=e532] [cursor=pointer]:
+        - img [ref=e534]
+        - generic "double-click to rename" [ref=e536]: .copilot
+      - generic [ref=e537] [cursor=pointer]:
+        - img [ref=e539]
+        - generic "double-click to rename" [ref=e541]: .dart-tool
+      - generic [ref=e542] [cursor=pointer]:
+        - img [ref=e544]
+        - generic "double-click to rename" [ref=e546]: Desktop
+      - generic [ref=e547] [cursor=pointer]:
+        - img [ref=e549]
+        - generic "double-click to rename" [ref=e551]: dev
+      - generic [ref=e552] [cursor=pointer]:
+        - img [ref=e554]
+        - generic "double-click to rename" [ref=e556]: discord-ping-responder
+      - generic [ref=e557] [cursor=pointer]:
+        - img [ref=e559]
+        - generic "double-click to rename" [ref=e561]: discord_run.log
+      - generic [ref=e562] [cursor=pointer]:
+        - img [ref=e564]
+        - generic "double-click to rename" [ref=e566]: .dmrc
+      - generic [ref=e567] [cursor=pointer]:
+        - img [ref=e569]
+        - generic "double-click to rename" [ref=e571]: Documents
+      - generic [ref=e572] [cursor=pointer]:
+        - img [ref=e574]
+        - generic "double-click to rename" [ref=e576]: .dotnet
+      - generic [ref=e577] [cursor=pointer]:
+        - img [ref=e579]
+        - generic "double-click to rename" [ref=e581]: Downloads
+      - generic [ref=e582] [cursor=pointer]:
+        - img [ref=e584]
+        - generic "double-click to rename" [ref=e586]: .DriverUI.pid
+      - generic [ref=e587] [cursor=pointer]:
+        - img [ref=e589]
+        - generic "double-click to rename" [ref=e591]: Eden
+      - generic [ref=e592] [cursor=pointer]:
+        - img [ref=e594]
+        - generic "double-click to rename" [ref=e596]: .equilotl
+      - generic [ref=e597] [cursor=pointer]:
+        - img [ref=e599]
+        - generic "double-click to rename" [ref=e601]: .factory
+      - generic [ref=e602] [cursor=pointer]:
+        - img [ref=e604]
+        - generic "double-click to rename" [ref=e606]: fix_home_screen.py
+      - generic [ref=e607] [cursor=pointer]:
+        - img [ref=e609]
+        - generic "double-click to rename" [ref=e611]: fix_tools.py
+      - generic [ref=e612] [cursor=pointer]:
+        - img [ref=e614]
+        - generic "double-click to rename" [ref=e616]: .floorp
+      - generic [ref=e617] [cursor=pointer]:
+        - img [ref=e619]
+        - generic "double-click to rename" [ref=e621]: Floorp
+      - generic [ref=e622] [cursor=pointer]:
+        - img [ref=e624]
+        - generic "double-click to rename" [ref=e626]: .flutter
+      - generic [ref=e627] [cursor=pointer]:
+        - img [ref=e629]
+        - generic "double-click to rename" [ref=e631]: flutterm
+      - generic [ref=e632] [cursor=pointer]:
+        - img [ref=e634]
+        - generic "double-click to rename" [ref=e636]: freshclam.conf
+      - generic [ref=e637] [cursor=pointer]:
+        - img [ref=e639]
+        - generic "double-click to rename" [ref=e641]: freshclam-cron-report.log
+      - generic [ref=e642] [cursor=pointer]:
+        - img [ref=e644]
+        - generic "double-click to rename" [ref=e646]: .freshclam.log
+      - generic [ref=e647] [cursor=pointer]:
+        - img [ref=e649]
+        - generic "double-click to rename" [ref=e651]: freshclam-status-report.txt
+      - generic [ref=e652] [cursor=pointer]:
+        - img [ref=e654]
+        - generic "double-click to rename" [ref=e656]: .gemini
+      - generic [ref=e657] [cursor=pointer]:
+        - img [ref=e659]
+        - generic "double-click to rename" [ref=e661]: .ghcp-appmod
+      - generic [ref=e662] [cursor=pointer]:
+        - img [ref=e664]
+        - generic "double-click to rename" [ref=e666]: .git
+      - generic [ref=e667] [cursor=pointer]:
+        - img [ref=e669]
+        - generic "double-click to rename" [ref=e671]: .gitconfig
+      - generic [ref=e672] [cursor=pointer]:
+        - img [ref=e674]
+        - generic "double-click to rename" [ref=e676]: .git-credentials
+      - generic [ref=e677] [cursor=pointer]:
+        - img [ref=e679]
+        - generic "double-click to rename" [ref=e681]: .gnupg
+      - generic [ref=e682] [cursor=pointer]:
+        - img [ref=e684]
+        - generic "double-click to rename" [ref=e686]: .gphoto
+      - generic [ref=e687] [cursor=pointer]:
+        - img [ref=e689]
+        - generic "double-click to rename" [ref=e691]: .gradle
+      - generic [ref=e692] [cursor=pointer]:
+        - img [ref=e694]
+        - generic "double-click to rename" [ref=e696]: .hermes
+      - generic [ref=e697] [cursor=pointer]:
+        - img [ref=e699]
+        - generic "double-click to rename" [ref=e701]: hermes-browser.sh
+      - generic [ref=e702] [cursor=pointer]:
+        - img [ref=e704]
+        - generic "double-click to rename" [ref=e706]: hermes-discord-bot
+      - generic [ref=e707] [cursor=pointer]:
+        - img [ref=e709]
+        - generic "double-click to rename" [ref=e711]: .hermes-discord-bot.log
+      - generic [ref=e712] [cursor=pointer]:
+        - img [ref=e714]
+        - generic "double-click to rename" [ref=e716]: .hermes-discord-dream.log
+      - generic [ref=e717] [cursor=pointer]:
+        - img [ref=e719]
+        - generic "double-click to rename" [ref=e721]: hermes_emotion
+      - generic [ref=e722] [cursor=pointer]:
+        - img [ref=e724]
+        - generic "double-click to rename" [ref=e726]: hermes-inline-click-implementation.md
+      - generic [ref=e727] [cursor=pointer]:
+        - img [ref=e729]
+        - generic "double-click to rename" [ref=e731]: .hermes-sync.log
+      - generic [ref=e732] [cursor=pointer]:
+        - img [ref=e734]
+        - generic "double-click to rename" [ref=e736]: .hermes-sync.sh
+      - generic [ref=e737] [cursor=pointer]:
+        - img [ref=e739]
+        - generic "double-click to rename" [ref=e741]: .hermes-venv
+      - generic [ref=e742] [cursor=pointer]:
+        - img [ref=e744]
+        - generic "double-click to rename" [ref=e746]: .hermes_wrapper.sh
+      - generic [ref=e747] [cursor=pointer]:
+        - img [ref=e749]
+        - generic "double-click to rename" [ref=e751]: home_screen_remote.dart
+      - generic [ref=e752] [cursor=pointer]:
+        - img [ref=e754]
+        - generic "double-click to rename" [ref=e756]: .HuionCore.pid
+      - generic [ref=e757] [cursor=pointer]:
+        - img [ref=e759]
+        - generic "double-click to rename" [ref=e761]: .huion.log
+      - generic [ref=e762] [cursor=pointer]:
+        - img [ref=e764]
+        - generic "double-click to rename" [ref=e766]: .idea
+      - generic [ref=e767] [cursor=pointer]:
+        - img [ref=e769]
+        - generic "double-click to rename" [ref=e771]: IMPLEMENTATION_SUMMARY.md
+      - generic [ref=e772] [cursor=pointer]:
+        - img [ref=e774]
+        - generic "double-click to rename" [ref=e776]: .java
+      - generic [ref=e777] [cursor=pointer]:
+        - img [ref=e779]
+        - generic "double-click to rename" [ref=e781]: .junie
+      - generic [ref=e782] [cursor=pointer]:
+        - img [ref=e784]
+        - generic "double-click to rename" [ref=e786]: .kilocode
+      - generic [ref=e787] [cursor=pointer]:
+        - img [ref=e789]
+        - generic "double-click to rename" [ref=e791]: .kimi
+      - generic [ref=e792] [cursor=pointer]:
+        - img [ref=e794]
+        - generic "double-click to rename" [ref=e796]: .ledstrip-venv
+      - generic [ref=e797] [cursor=pointer]:
+        - img [ref=e799]
+        - generic "double-click to rename" [ref=e801]: .lesshst
+      - generic [ref=e802] [cursor=pointer]:
+        - img [ref=e804]
+        - generic "double-click to rename" [ref=e806]: llms
+      - generic [ref=e807] [cursor=pointer]:
+        - img [ref=e809]
+        - generic "double-click to rename" [ref=e811]: llm-venv
+      - generic [ref=e812] [cursor=pointer]:
+        - img [ref=e814]
+        - generic "double-click to rename" [ref=e816]: .local
+      - generic [ref=e817] [cursor=pointer]:
+        - img [ref=e819]
+        - generic "double-click to rename" [ref=e821]: logs
+      - generic [ref=e822] [cursor=pointer]:
+        - img [ref=e824]
+        - generic "double-click to rename" [ref=e826]: .mcp-auth
+      - generic [ref=e827] [cursor=pointer]:
+        - img [ref=e829]
+        - generic "double-click to rename" [ref=e831]: .memster
+      - generic [ref=e832] [cursor=pointer]:
+        - img [ref=e834]
+        - generic "double-click to rename" [ref=e836]: memster
+      - generic [ref=e837] [cursor=pointer]:
+        - img [ref=e839]
+        - generic "double-click to rename" [ref=e841]: memster-backups
+      - generic [ref=e842] [cursor=pointer]:
+        - img [ref=e844]
+        - generic "double-click to rename" [ref=e846]: memster.db
+      - generic [ref=e847] [cursor=pointer]:
+        - img [ref=e849]
+        - generic "double-click to rename" [ref=e851]: .minecraft
+      - generic [ref=e852] [cursor=pointer]:
+        - img [ref=e854]
+        - generic "double-click to rename" [ref=e856]: .mms
+      - generic [ref=e857] [cursor=pointer]:
+        - img [ref=e859]
+        - generic "double-click to rename" [ref=e861]: .mozilla
+      - generic [ref=e862] [cursor=pointer]:
+        - img [ref=e864]
+        - generic "double-click to rename" [ref=e866]: Music
+      - generic [ref=e867] [cursor=pointer]:
+        - img [ref=e869]
+        - generic "double-click to rename" [ref=e871]: nocobase_token_raw.txt
+      - generic [ref=e872] [cursor=pointer]:
+        - img [ref=e874]
+        - generic "double-click to rename" [ref=e876]: .npm
+      - generic [ref=e877] [cursor=pointer]:
+        - img [ref=e879]
+        - generic "double-click to rename" [ref=e881]: .npm-global
+      - generic [ref=e882] [cursor=pointer]:
+        - img [ref=e884]
+        - generic "double-click to rename" [ref=e886]: .npmrc
+      - generic [ref=e887] [cursor=pointer]:
+        - img [ref=e889]
+        - generic "double-click to rename" [ref=e891]: .nv
+      - generic [ref=e892] [cursor=pointer]:
+        - img [ref=e894]
+        - generic "double-click to rename" [ref=e896]: .nvidia-settings-rc
+      - generic [ref=e897] [cursor=pointer]:
+        - img [ref=e899]
+        - generic "double-click to rename" [ref=e901]: .ollama
+      - generic [ref=e902] [cursor=pointer]:
+        - img [ref=e904]
+        - generic "double-click to rename" [ref=e906]: .opencode
+      - generic [ref=e907] [cursor=pointer]:
+        - img [ref=e909]
+        - generic "double-click to rename" [ref=e911]: os
+      - generic [ref=e912] [cursor=pointer]:
+        - img [ref=e914]
+        - generic "double-click to rename" [ref=e917]: package.json
+      - generic [ref=e918] [cursor=pointer]:
+        - img [ref=e920]
+        - generic "double-click to rename" [ref=e923]: package-lock.json
+      - generic [ref=e924] [cursor=pointer]:
+        - img [ref=e926]
+        - generic "double-click to rename" [ref=e928]: .persepolis_cleaner.py
+      - generic [ref=e929] [cursor=pointer]:
+        - img [ref=e931]
+        - generic "double-click to rename" [ref=e933]: Pictures
+      - generic [ref=e934] [cursor=pointer]:
+        - img [ref=e936]
+        - generic "double-click to rename" [ref=e938]: .pki
+      - generic [ref=e939] [cursor=pointer]:
+        - img [ref=e941]
+        - generic "double-click to rename" [ref=e943]: .profile
+      - generic [ref=e944] [cursor=pointer]:
+        - img [ref=e946]
+        - generic "double-click to rename" [ref=e948]: .profile.bak
+      - generic [ref=e949] [cursor=pointer]:
+        - img [ref=e951]
+        - generic "double-click to rename" [ref=e953]: .pub-cache
+      - generic [ref=e954] [cursor=pointer]:
+        - img [ref=e956]
+        - generic "double-click to rename" [ref=e958]: Public
+      - generic [ref=e959] [cursor=pointer]:
+        - img [ref=e961]
+        - generic "double-click to rename" [ref=e963]: .python_history
+      - generic [ref=e964] [cursor=pointer]:
+        - img [ref=e966]
+        - generic "double-click to rename" [ref=e968]: QUICK_REFERENCE.md
+      - generic [ref=e969] [cursor=pointer]:
+        - img [ref=e971]
+        - generic "double-click to rename" [ref=e973]: .qwen
+      - generic [ref=e974] [cursor=pointer]:
+        - img [ref=e976]
+        - generic "double-click to rename" [ref=e978]: requests
+      - generic [ref=e979] [cursor=pointer]:
+        - img [ref=e981]
+        - generic "double-click to rename" [ref=e983]: scripts
+      - generic [ref=e984] [cursor=pointer]:
+        - img [ref=e986]
+        - generic "double-click to rename" [ref=e988]: .selected_editor
+      - generic [ref=e989] [cursor=pointer]:
+        - img [ref=e991]
+        - generic "double-click to rename" [ref=e993]: .sentry-native
+      - generic [ref=e994] [cursor=pointer]:
+        - img [ref=e996]
+        - generic "double-click to rename" [ref=e998]: setup_enhanced_system.sh
+      - generic [ref=e999] [cursor=pointer]:
+        - img [ref=e1001]
+        - generic "double-click to rename" [ref=e1003]: .skiko
+      - generic [ref=e1004] [cursor=pointer]:
+        - img [ref=e1006]
+        - generic "double-click to rename" [ref=e1008]: .snap
+      - generic [ref=e1009] [cursor=pointer]:
+        - img [ref=e1011]
+        - generic "double-click to rename" [ref=e1013]: snap
+      - generic [ref=e1014] [cursor=pointer]:
+        - img [ref=e1016]
+        - generic "double-click to rename" [ref=e1018]: SOUL.md
+      - generic [ref=e1019] [cursor=pointer]:
+        - img [ref=e1021]
+        - generic "double-click to rename" [ref=e1023]: .ssh
+      - generic [ref=e1024] [cursor=pointer]:
+        - img [ref=e1026]
+        - generic "double-click to rename" [ref=e1028]: sshfs
+      - generic [ref=e1029] [cursor=pointer]:
+        - img [ref=e1031]
+        - generic "double-click to rename" [ref=e1033]: ssl
+      - generic [ref=e1034] [cursor=pointer]:
+        - img [ref=e1036]
+        - generic "double-click to rename" [ref=e1038]: state
+      - generic [ref=e1039] [cursor=pointer]:
+        - img [ref=e1041]
+        - generic "double-click to rename" [ref=e1043]: .steam
+      - generic [ref=e1044] [cursor=pointer]:
+        - img [ref=e1046]
+        - generic "double-click to rename" [ref=e1048]: /home/house/.steam/sdk32/steam
+      - generic [ref=e1049] [cursor=pointer]:
+        - img [ref=e1051]
+        - generic "double-click to rename" [ref=e1053]: /home/house/.steam/steam.pid
+      - generic [ref=e1054] [cursor=pointer]:
+        - img [ref=e1056]
+        - generic "double-click to rename" [ref=e1058]: subprocess
+      - generic [ref=e1059] [cursor=pointer]:
+        - img [ref=e1061]
+        - generic "double-click to rename" [ref=e1063]: .sudo_as_admin_successful
+      - generic [ref=e1064] [cursor=pointer]:
+        - img [ref=e1066]
+        - generic "double-click to rename" [ref=e1068]: .supermaven
+      - generic [ref=e1069] [cursor=pointer]:
+        - img [ref=e1071]
+        - generic "double-click to rename" [ref=e1073]: .switch
+      - generic [ref=e1074] [cursor=pointer]:
+        - img [ref=e1076]
+        - generic "double-click to rename" [ref=e1078]: sys
+      - generic [ref=e1079] [cursor=pointer]:
+        - img [ref=e1081]
+        - generic "double-click to rename" [ref=e1083]: SYSTEM_IMPROVEMENTS_SUMMARY.md
+      - generic [ref=e1084] [cursor=pointer]:
+        - img [ref=e1086]
+        - generic "double-click to rename" [ref=e1088]: tempfile
+      - generic [ref=e1089] [cursor=pointer]:
+        - img [ref=e1091]
+        - generic "double-click to rename" [ref=e1093]: Templates
+      - generic [ref=e1094] [cursor=pointer]:
+        - img [ref=e1096]
+        - generic "double-click to rename" [ref=e1098]: .termisol
+      - generic [ref=e1099] [cursor=pointer]:
+        - img [ref=e1101]
+        - generic "double-click to rename" [ref=e1103]: time
+      - generic [ref=e1104] [cursor=pointer]:
+        - img [ref=e1106]
+        - generic "double-click to rename" [ref=e1108]: tmp
+      - generic [ref=e1109] [cursor=pointer]:
+        - img [ref=e1111]
+        - generic "double-click to rename" [ref=e1113]: .transcriber-xbindkeysrc
+      - generic [ref=e1114] [cursor=pointer]:
+        - img [ref=e1116]
+        - generic "double-click to rename" [ref=e1118]: .unison
+      - generic [ref=e1119] [cursor=pointer]:
+        - img [ref=e1121]
+        - generic "double-click to rename" [ref=e1123]: .var
+      - generic [ref=e1124] [cursor=pointer]:
+        - img [ref=e1126]
+        - generic "double-click to rename" [ref=e1128]: vibecode
+      - generic [ref=e1129] [cursor=pointer]:
+        - img [ref=e1131]
+        - generic "double-click to rename" [ref=e1133]: Videos
+      - generic [ref=e1134] [cursor=pointer]:
+        - img [ref=e1136]
+        - generic "double-click to rename" [ref=e1138]: .vscode
+      - generic [ref=e1139] [cursor=pointer]:
+        - img [ref=e1141]
+        - generic "double-click to rename" [ref=e1143]: .vscode-insiders
+      - generic [ref=e1144] [cursor=pointer]:
+        - img [ref=e1146]
+        - generic "double-click to rename" [ref=e1148]: .vscode-oss
+      - generic [ref=e1149] [cursor=pointer]:
+        - img [ref=e1151]
+        - generic "double-click to rename" [ref=e1153]: .wget-hsts
+      - generic [ref=e1154] [cursor=pointer]:
+        - img [ref=e1156]
+        - generic "double-click to rename" [ref=e1158]: whisper-flask.py
+      - generic [ref=e1159] [cursor=pointer]:
+        - img [ref=e1161]
+        - generic "double-click to rename" [ref=e1163]: whisper-server.py
+      - generic [ref=e1164] [cursor=pointer]:
+        - img [ref=e1166]
+        - generic "double-click to rename" [ref=e1168]: .windsurf
+      - generic [ref=e1169] [cursor=pointer]:
+        - img [ref=e1171]
+        - generic "double-click to rename" [ref=e1173]: .Xauthority
+      - generic [ref=e1174] [cursor=pointer]:
+        - img [ref=e1176]
+        - generic "double-click to rename" [ref=e1178]: .xbindkeysrc
+      - generic [ref=e1179] [cursor=pointer]:
+        - img [ref=e1181]
+        - generic "double-click to rename" [ref=e1183]: .xdman
+      - generic [ref=e1184] [cursor=pointer]:
+        - img [ref=e1186]
+        - generic "double-click to rename" [ref=e1188]: .xdm-app-data
+      - generic [ref=e1189] [cursor=pointer]:
+        - img [ref=e1191]
+        - generic "double-click to rename" [ref=e1193]: .xdm-global-lock
+      - generic [ref=e1194] [cursor=pointer]:
+        - img [ref=e1196]
+        - generic "double-click to rename" [ref=e1198]: .xdp-rainbow_trippy-proj.llc-5rN1wi
+      - generic [ref=e1199] [cursor=pointer]:
+        - img [ref=e1201]
+        - generic "double-click to rename" [ref=e1203]: xpadneo
+      - generic [ref=e1204] [cursor=pointer]:
+        - img [ref=e1206]
+        - generic "double-click to rename" [ref=e1208]: .Xresources
+      - generic [ref=e1209] [cursor=pointer]:
+        - img [ref=e1211]
+        - generic "double-click to rename" [ref=e1213]: .xsession-errors
+      - generic [ref=e1214] [cursor=pointer]:
+        - img [ref=e1216]
+        - generic "double-click to rename" [ref=e1218]: .xsession-errors.old

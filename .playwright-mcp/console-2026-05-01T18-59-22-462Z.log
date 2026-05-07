@@ -1,0 +1,4 @@
+[      42ms] [LOG] [runtime] Detection check: {__TAURI__: undefined, protocol: http:, hostname: localhost, host: localhost:8786, isCapacitorApp: false} @ http://localhost:8786/:56
+[      42ms] [LOG] [Tauri] Not detected - normal size @ http://localhost:8786/:71
+[   15896ms] ReferenceError: switchPanel is not defined
+    at HTMLButtonElement.onclick (http://localhost:8786/:429:147)

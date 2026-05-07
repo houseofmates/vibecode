@@ -1,0 +1,89 @@
+[      32ms] [LOG] [runtime] Detection check: {__TAURI__: undefined, protocol: http:, hostname: localhost, host: localhost:8786, isCapacitorApp: false} @ http://localhost:8786/:56
+[      32ms] [LOG] [Tauri] Not detected - normal size @ http://localhost:8786/:71
+[      37ms] [LOG] [api] Calling: /api/commands GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[      37ms] [LOG] [api] Calling: /api/skills GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[      39ms] [ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE @ http://localhost:8786/api/commands:0
+[      39ms] [WARNING] [api] Network error: http://localhost:8786/api/commands Failed to fetch @ http://localhost:8786/static/workspace.js?v=8:82
+[      39ms] [WARNING] failed to fetch commands catalog: TypeError: Failed to fetch
+    at api (http://localhost:8786/static/workspace.js?v=8:80:17)
+    at fetchCommandsCatalog (http://localhost:8786/static/commands.js?v=5:30:19)
+    at http://localhost:8786/static/commands.js?v=5:75:1 @ http://localhost:8786/static/commands.js?v=5:35
+[      45ms] [LOG] [boot] Sessions rendered from cache: 41 @ http://localhost:8786/static/boot.js?v=126:900
+[      45ms] [LOG] [api] Calling: /api/settings GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[      47ms] [LOG] [Sessions] Module loaded (unified list mode) @ http://localhost:8786/static/remote_sessions.js?v=13:402
+[      48ms] [LOG] workspace layering loaded @ http://localhost:8786/static/workspace_layer.js?v=6:8
+[      49ms] TypeError: Cannot read properties of null (reading 'addEventListener')
+    at HTMLDocument.init (http://localhost:8786/static/swarm.js?v=2:25:21)
+[      49ms] [LOG] [remote_sessions] wrapRenderSessionList checking: function false @ http://localhost:8786/static/remote_sessions.js?v=13:150
+[      49ms] [LOG] [Sessions] Wrapped renderSessionList for unified session list @ http://localhost:8786/static/remote_sessions.js?v=13:170
+[      50ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8786/:0
+[      50ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8786/:0
+[      52ms] [LOG] [api] Response: {default_model: @nvidia:deepseek-ai/deepseek-v4-pro, default_workspace: /home/house/workspace, onboarding_completed: true, send_key: enter, show_token_usage: false} @ http://localhost:8786/static/workspace.js?v=8:100
+[      52ms] [LOG] [api] Calling: /api/profile/active GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[      59ms] [LOG] [api] Response: {name: default, path: /home/house/.hermes} @ http://localhost:8786/static/workspace.js?v=8:100
+[      59ms] [LOG] [syncModelChip] called @ http://localhost:8786/static/ui.js?v=6:173
+[      59ms] [LOG] [syncModelChip] sel: @nvidia:deepseek-ai/deepseek-v4-pro @ http://localhost:8786/static/ui.js?v=6:179
+[      59ms] [LOG] [api] Calling: /api/workspaces GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[      92ms] [LOG] [api] Response: {workspaces: Array(1), last: /home/house} @ http://localhost:8786/static/workspace.js?v=8:100
+[      92ms] [LOG] [api] Calling: /api/remote_paths GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[      93ms] [LOG] [api] Calling: /api/onboarding/status GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[     110ms] [ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE @ http://localhost:8786/api/remote_paths:0
+[     110ms] [WARNING] [api] Network error: http://localhost:8786/api/remote_paths Failed to fetch @ http://localhost:8786/static/workspace.js?v=8:82
+[     110ms] [WARNING] [remote_paths] Failed to sync from server: TypeError: Failed to fetch
+    at api (http://localhost:8786/static/workspace.js?v=8:80:17)
+    at _syncRemotePathsFromServer (http://localhost:8786/static/panels.js?v=127:1003:22)
+    at _seedRemotePathsIfEmpty (http://localhost:8786/static/panels.js?v=127:1031:3)
+    at http://localhost:8786/static/boot.js?v=126:792:51 @ http://localhost:8786/static/panels.js?v=127:1024
+[     134ms] [LOG] [resize-fix] initializing sidebar resize @ http://localhost:8786/:1174
+[     134ms] [LOG] [resize-fix] initializing rightpanel resize @ http://localhost:8786/:1216
+[     534ms] [LOG] [resize-fix] initializing sidebar resize @ http://localhost:8786/:1174
+[     534ms] [LOG] [resize-fix] initializing rightpanel resize @ http://localhost:8786/:1216
+[     790ms] [LOG] [api] Response: {skills: Array(197)} @ http://localhost:8786/static/workspace.js?v=8:100
+[     866ms] [LOG] [api] Response: {completed: true, settings: Object, system: Object, setup: Object, workspaces: Object} @ http://localhost:8786/static/workspace.js?v=8:100
+[     866ms] [LOG] [remote_sessions] renderSessionList called @ http://localhost:8786/static/remote_sessions.js?v=13:154
+[     866ms] [LOG] [Sessions] Fetching from /api/remote/sessions @ http://localhost:8786/static/remote_sessions.js?v=13:110
+[     868ms] [LOG] [api] Calling: /api/sessions GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[     868ms] [LOG] [api] Calling: /api/projects GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[     869ms] [LOG] [api] Calling: /api/session?session_id=b6da74b0c38b GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[     874ms] [LOG] [api] Response: {projects: Array(0)} @ http://localhost:8786/static/workspace.js?v=8:100
+[     874ms] [LOG] [api] Response: {session: Object} @ http://localhost:8786/static/workspace.js?v=8:100
+[     875ms] [LOG] [syncModelChip] called @ http://localhost:8786/static/ui.js?v=6:173
+[     875ms] [LOG] [syncModelChip] sel: @nvidia:deepseek-ai/deepseek-v4-pro @ http://localhost:8786/static/ui.js?v=6:179
+[     875ms] [LOG] [syncModelChip] called @ http://localhost:8786/static/ui.js?v=6:173
+[     875ms] [LOG] [syncModelChip] sel: @nvidia:deepseek-ai/deepseek-v4-pro @ http://localhost:8786/static/ui.js?v=6:179
+[     876ms] [LOG] [loadDir] Starting for path: . session: b6da74b0c38b machine: 192.168.4.250 @ http://localhost:8786/static/workspace.js?v=8:135
+[     881ms] [LOG] [loadDir] Calling API: /api/list?session_id=b6da74b0c38b&path=. @ http://localhost:8786/static/workspace.js?v=8:158
+[     881ms] [LOG] [api] Calling: /api/list?session_id=b6da74b0c38b&path=. GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[     883ms] [LOG] [boot] ABOUT TO CALL renderSessionList @ http://localhost:8786/static/boot.js?v=126:816
+[     883ms] [LOG] [remote_sessions] renderSessionList called @ http://localhost:8786/static/remote_sessions.js?v=13:154
+[     883ms] [LOG] [Sessions] Fetch in progress, waiting... @ http://localhost:8786/static/remote_sessions.js?v=13:94
+[     883ms] [LOG] [api] Calling: /api/sessions GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[     883ms] [LOG] [api] Calling: /api/projects GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[     883ms] [LOG] [api] Response: {sessions: Array(41), cli_count: 0} @ http://localhost:8786/static/workspace.js?v=8:100
+[     883ms] [LOG] [sessions] TOTAL: 41 (local + remote should be ~193) @ http://localhost:8786/static/sessions.js?v=14:402
+[     887ms] [LOG] [remote_sessions] After original, window._allSessions: 41 @ http://localhost:8786/static/remote_sessions.js?v=13:165
+[     887ms] [LOG] [Sessions] No remote sessions to merge @ http://localhost:8786/static/remote_sessions.js?v=13:185
+[     892ms] [LOG] [api] Response: {sessions: Array(41), cli_count: 0} @ http://localhost:8786/static/workspace.js?v=8:100
+[     892ms] [LOG] [api] Response: {projects: Array(0)} @ http://localhost:8786/static/workspace.js?v=8:100
+[     893ms] [LOG] [remote_sessions] After original, window._allSessions: 41 @ http://localhost:8786/static/remote_sessions.js?v=13:165
+[     894ms] [LOG] [Sessions] No remote sessions to merge @ http://localhost:8786/static/remote_sessions.js?v=13:185
+[     894ms] [LOG] [boot] renderSessionList DONE @ http://localhost:8786/static/boot.js?v=126:818
+[     894ms] [LOG] [api] Response: {entries: Array(200), path: .} @ http://localhost:8786/static/workspace.js?v=8:100
+[     894ms] [LOG] [loadDir] API response: {entries: Array(200), path: .} @ http://localhost:8786/static/workspace.js?v=8:160
+[     899ms] [LOG] [api] Calling: /api/git-info?session_id=b6da74b0c38b GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[     904ms] [LOG] [api] Response: {git: null} @ http://localhost:8786/static/workspace.js?v=8:100
+[    1151ms] [LOG] [Sessions] Fetch URL: /api/remote/sessions isTauri: false @ http://localhost:8786/static/remote_sessions.js?v=13:114
+[    1152ms] [LOG] [Sessions] Loaded 199 remote sessions from 192.168.4.250:/home/house/.hermes/state.db @ http://localhost:8786/static/remote_sessions.js?v=13:125
+[    1152ms] [LOG] [remote_sessions] Fetched remote: 199 @ http://localhost:8786/static/remote_sessions.js?v=13:158
+[    1152ms] [LOG] [Sessions] Merged 199 remote sessions into unified list (total: 240 ) @ http://localhost:8786/static/remote_sessions.js?v=13:209
+[    1152ms] [LOG] [remote_sessions] Calling renderSessionListFromCache @ http://localhost:8786/static/remote_sessions.js?v=13:215
+[    1157ms] [LOG] [remote_sessions] Fetched remote: 199 @ http://localhost:8786/static/remote_sessions.js?v=13:158
+[    1157ms] [LOG] [Sessions] Merged 0 remote sessions into unified list (total: 240 ) @ http://localhost:8786/static/remote_sessions.js?v=13:209
+[   30039ms] [LOG] [api] Calling: /api/crons/recent?since=1777663338.354 GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[   30041ms] [LOG] [api] Response: {completions: Array(0), since: 1777663338.354} @ http://localhost:8786/static/workspace.js?v=8:100
+[   60039ms] [LOG] [api] Calling: /api/crons/recent?since=1777663338.354 GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[   60041ms] [LOG] [api] Response: {completions: Array(0), since: 1777663338.354} @ http://localhost:8786/static/workspace.js?v=8:100
+[   90039ms] [LOG] [api] Calling: /api/crons/recent?since=1777663338.354 GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[   90041ms] [LOG] [api] Response: {completions: Array(0), since: 1777663338.354} @ http://localhost:8786/static/workspace.js?v=8:100
+[  120039ms] [LOG] [api] Calling: /api/crons/recent?since=1777663338.354 GET base: http://localhost:8786/ isTauri: false @ http://localhost:8786/static/workspace.js?v=8:76
+[  120041ms] [LOG] [api] Response: {completions: Array(0), since: 1777663338.354} @ http://localhost:8786/static/workspace.js?v=8:100

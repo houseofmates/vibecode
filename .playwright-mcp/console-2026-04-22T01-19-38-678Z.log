@@ -1,0 +1,11 @@
+[      27ms] TypeError: Cannot set properties of null (setting 'onclick')
+    at http://localhost:8787/static/boot.js?v=1:466:29
+[      21ms] [LOG] [Sessions] Module loaded (wrapping disabled) @ http://localhost:8787/static/remote_sessions.js?v=5:248
+[      21ms] [LOG] workspace layering loaded @ http://localhost:8787/static/workspace_layer.js?v=5:282
+[      29ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8787/:0
+[      29ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8787/:0
+[      29ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8787/:0
+[     117ms] [LOG] [resize-fix] initializing sidebar resize @ http://localhost:8787/:645
+[     117ms] [LOG] [resize-fix] initializing rightpanel resize @ http://localhost:8787/:687
+[     517ms] [LOG] [resize-fix] initializing sidebar resize @ http://localhost:8787/:645
+[     517ms] [LOG] [resize-fix] initializing rightpanel resize @ http://localhost:8787/:687

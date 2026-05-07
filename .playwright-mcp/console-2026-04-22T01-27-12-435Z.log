@@ -1,0 +1,13 @@
+[      65ms] [LOG] [Sessions] Module loaded (wrapping disabled) @ http://localhost:8787/static/remote_sessions.js?v=5:248
+[      65ms] [LOG] workspace layering loaded @ http://localhost:8787/static/workspace_layer.js?v=5:282
+[      68ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8787/?nocache=1:0
+[      68ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8787/?nocache=1:0
+[      68ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8787/?nocache=1:0
+[     118ms] [LOG] [resize-fix] initializing sidebar resize @ http://localhost:8787/?nocache=1:645
+[     118ms] [LOG] [resize-fix] initializing rightpanel resize @ http://localhost:8787/?nocache=1:687
+[     174ms] [LOG] [syncModelChip] called @ http://localhost:8787/static/ui.js?v=5:163
+[     174ms] [LOG] [syncModelChip] sel: moonshotai/kimi-k2.5 @ http://localhost:8787/static/ui.js?v=5:169
+[     517ms] [LOG] [resize-fix] initializing sidebar resize @ http://localhost:8787/?nocache=1:645
+[     517ms] [LOG] [resize-fix] initializing rightpanel resize @ http://localhost:8787/?nocache=1:687
+[    1053ms] ReferenceError: loadOnboardingWizard is not defined
+    at http://localhost:8787/static/boot.js?v=2:743:3

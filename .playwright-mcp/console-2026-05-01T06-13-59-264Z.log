@@ -1,0 +1,504 @@
+[      82ms] [LOG] [runtime] Detection check: {__TAURI__: undefined, protocol: http:, hostname: 127.0.0.1, host: 127.0.0.1:8786, isCapacitorApp: false} @ http://127.0.0.1:8786/:53
+[      82ms] [LOG] [Tauri] Not detected - normal size @ http://127.0.0.1:8786/:68
+[      92ms] [LOG] [api] Calling: /api/commands GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[      92ms] [LOG] [api] Calling: /api/skills GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[      99ms] [LOG] [api] Calling: /api/settings GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[     100ms] [LOG] [Sessions] Module loaded (unified list mode) @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:402
+[     100ms] [LOG] workspace layering loaded @ http://127.0.0.1:8786/static/workspace_layer.js?v=6:8
+[     102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[     102ms] [LOG] [api] Calling: /api/swarm/templates GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[     103ms] [LOG] [remote_sessions] wrapRenderSessionList checking: function false @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:150
+[     103ms] [LOG] [Sessions] Wrapped renderSessionList for unified session list @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:170
+[     128ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:8786/:0
+[     128ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:8786/:0
+[     130ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8786/api/swarm/templates:0
+[     132ms] [LOG] [api] Response: {default_model: @nvidia:deepseek-ai/deepseek-v4-pro, default_workspace: /home/house/workspace, onboarding_completed: true, send_key: enter, show_token_usage: false} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[     134ms] [LOG] [api] Calling: /api/updates/check GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[     134ms] [LOG] [api] Calling: /api/profile/active GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[     134ms] [LOG] [api] Error response: 404 {
+  "error": "not found"
+} @ http://127.0.0.1:8786/static/workspace.js?v=8:87
+[     135ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[     138ms] [LOG] [api] Response: {name: default, path: /home/house/.hermes} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[     138ms] [LOG] [syncModelChip] called @ http://127.0.0.1:8786/static/ui.js?v=6:173
+[     138ms] [LOG] [syncModelChip] sel: @nvidia:deepseek-ai/deepseek-v4-pro @ http://127.0.0.1:8786/static/ui.js?v=6:179
+[     139ms] [LOG] [api] Calling: /api/workspaces GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[     155ms] [LOG] [api] Response: {workspaces: Array(1), last: /home/house} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[     155ms] [LOG] [api] Calling: /api/remote_paths GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[     156ms] [LOG] [api] Calling: /api/onboarding/status GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[     237ms] [LOG] [resize-fix] initializing sidebar resize @ http://127.0.0.1:8786/:1146
+[     237ms] [LOG] [resize-fix] initializing rightpanel resize @ http://127.0.0.1:8786/:1188
+[     237ms] [LOG] [api] Response: {paths: Object} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[     238ms] [LOG] [api] Calling: /api/remote_paths POST base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[     255ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:8786/api/remote_paths:0
+[     255ms] [LOG] [api] Error response: 500 {
+  "error": "Internal server error"
+} @ http://127.0.0.1:8786/static/workspace.js?v=8:87
+[     255ms] [WARNING] [remote_paths] Failed to push merged paths to server: Error: Internal server error
+    at api (http://127.0.0.1:8786/static/workspace.js?v=8:96:42)
+    at async _syncRemotePathsFromServer (http://127.0.0.1:8786/static/panels.js?v=127:1020:7) @ http://127.0.0.1:8786/static/panels.js?v=127:1021
+[     588ms] [LOG] [resize-fix] initializing sidebar resize @ http://127.0.0.1:8786/:1146
+[     588ms] [LOG] [resize-fix] initializing rightpanel resize @ http://127.0.0.1:8786/:1188
+[     644ms] [LOG] [api] Response: {commands: Array(60), sub: Object} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[    1103ms] [LOG] [api] Response: {completed: true, settings: Object, system: Object, setup: Object, workspaces: Object} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[    1103ms] [LOG] [remote_sessions] renderSessionList called @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:154
+[    1104ms] [LOG] [Sessions] Fetching from /api/remote/sessions @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:110
+[    1104ms] [LOG] [api] Calling: /api/sessions GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[    1105ms] [LOG] [api] Calling: /api/projects GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[    1105ms] [LOG] [WS] === START === /home/house ubuntu home ubuntu @ http://127.0.0.1:8786/static/panels.js?v=127:1443
+[    1105ms] [LOG] [WS] S.session before: null @ http://127.0.0.1:8786/static/panels.js?v=127:1444
+[    1106ms] [LOG] [WS] No session - creating new one for: /home/house @ http://127.0.0.1:8786/static/panels.js?v=127:1461
+[    1106ms] [LOG] [WS] Creating session with model: @nvidia:deepseek-ai/deepseek-v4-pro workspace: /home/house machineId: ubuntu @ http://127.0.0.1:8786/static/panels.js?v=127:1466
+[    1106ms] [LOG] [WS] getMachines available?: true @ http://127.0.0.1:8786/static/panels.js?v=127:1467
+[    1106ms] [LOG] [WS] Machines: [Object, Object] @ http://127.0.0.1:8786/static/panels.js?v=127:1468
+[    1106ms] [LOG] [WS] Request body: {"model":"@nvidia:deepseek-ai/deepseek-v4-pro","workspace":"/home/house","machine_id":"ubuntu","machine_hostname":"192.168.4.250"} @ http://127.0.0.1:8786/static/panels.js?v=127:1474
+[    1106ms] [LOG] [api] Calling: /api/session/new POST base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[    1111ms] [LOG] [api] Response: {projects: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[    1127ms] [LOG] [api] Response: {session: Object} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[    1127ms] [LOG] [WS] Session API response: {"session":{"session_id":"7252fe45294c","title":"Untitled","workspace":"/home/house","model":"@nvidia:deepseek-ai/deepseek-v4-pro","message_count":0,"created_at":1777616040.3755653,"updated_at":1777616040.3755748,"pinned":false,"archived":false,"project_id":null,"profile":"default","input_tokens":0,"output_tokens":0,"estimated_cost":null,"personality":null,"machine_id":"ubuntu","machine_hostname":"192.168.4.250","messages":[]}} @ http://127.0.0.1:8786/static/panels.js?v=127:1476
+[    1127ms] [LOG] [WS] S.session set to: {session_id: 7252fe45294c, title: Untitled, workspace: /home/house, model: @nvidia:deepseek-ai/deepseek-v4-pro, message_count: 0} @ http://127.0.0.1:8786/static/panels.js?v=127:1480
+[    1127ms] [LOG] [WS] S.session.machine_id: ubuntu @ http://127.0.0.1:8786/static/panels.js?v=127:1481
+[    1127ms] [LOG] [WS] S.session.machine_hostname: 192.168.4.250 @ http://127.0.0.1:8786/static/panels.js?v=127:1482
+[    1127ms] [LOG] [WS] Saved session_id to localStorage @ http://127.0.0.1:8786/static/panels.js?v=127:1487
+[    1129ms] [LOG] [syncModelChip] called @ http://127.0.0.1:8786/static/ui.js?v=6:173
+[    1129ms] [LOG] [syncModelChip] sel: @nvidia:deepseek-ai/deepseek-v4-pro @ http://127.0.0.1:8786/static/ui.js?v=6:179
+[    1129ms] [LOG] [syncModelChip] called @ http://127.0.0.1:8786/static/ui.js?v=6:173
+[    1129ms] [LOG] [syncModelChip] sel: @nvidia:deepseek-ai/deepseek-v4-pro @ http://127.0.0.1:8786/static/ui.js?v=6:179
+[    1130ms] [LOG] [loadDir] Starting for path: . session: 7252fe45294c machine: 192.168.4.250 @ http://127.0.0.1:8786/static/workspace.js?v=8:135
+[    1130ms] [LOG] [loadDir] Calling API: /api/list?session_id=7252fe45294c&path=. @ http://127.0.0.1:8786/static/workspace.js?v=8:158
+[    1130ms] [LOG] [api] Calling: /api/list?session_id=7252fe45294c&path=. GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[    1146ms] [LOG] [api] Response: {skills: Array(197)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[    1199ms] [LOG] [api] Response: {sessions: Array(28), cli_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[    1200ms] [LOG] [sessions] TOTAL: 28 (local + remote should be ~193) @ http://127.0.0.1:8786/static/sessions.js?v=14:403
+[    1202ms] [LOG] [remote_sessions] After original, window._allSessions: 28 @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:165
+[    1202ms] [LOG] [Sessions] No remote sessions to merge @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:185
+[    1465ms] [LOG] [api] Response: {webui: Object, agent: Object, checked_at: 1777616040.7277286} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[    2863ms] [LOG] [api] Response: {entries: Array(214), path: .} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[    2863ms] [LOG] [loadDir] API response: {entries: Array(214), path: .} @ http://127.0.0.1:8786/static/workspace.js?v=8:160
+[    2870ms] [LOG] [api] Calling: /api/git-info?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[    2871ms] [LOG] [remote_sessions] renderSessionList called @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:154
+[    2871ms] [LOG] [Sessions] Fetch in progress, waiting... @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:94
+[    2871ms] [LOG] [api] Calling: /api/sessions GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[    2871ms] [LOG] [api] Calling: /api/projects GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[    2873ms] [LOG] [api] Response: {git: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[    2874ms] [LOG] [api] Response: {projects: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[    2874ms] [LOG] [api] Response: {sessions: Array(28), cli_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[    2877ms] [LOG] [remote_sessions] After original, window._allSessions: 28 @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:165
+[    2877ms] [LOG] [Sessions] No remote sessions to merge @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:185
+[    2914ms] [LOG] [Sessions] Fetch URL: /api/remote/sessions isTauri: false @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:114
+[    2915ms] [LOG] [Sessions] Loaded 199 remote sessions from 192.168.4.250:/home/house/.hermes/state.db @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:125
+[    2915ms] [LOG] [remote_sessions] Fetched remote: 199 @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:158
+[    2915ms] [LOG] [Sessions] Merged 199 remote sessions into unified list (total: 227 ) @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:209
+[    2915ms] [LOG] [remote_sessions] Calling renderSessionListFromCache @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:215
+[    2922ms] [LOG] [remote_sessions] Fetched remote: 199 @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:158
+[    2922ms] [LOG] [Sessions] Merged 0 remote sessions into unified list (total: 227 ) @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:209
+[    3102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[    3104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[    6102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[    6104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[    9102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[    9104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   12102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   12104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   15102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   15104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   18102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   18104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   20276ms] [LOG] [SharedSSE] connected @ http://127.0.0.1:8786/static/messages.js?v=6:165
+[   20295ms] [LOG] [syncModelChip] called @ http://127.0.0.1:8786/static/ui.js?v=6:173
+[   20295ms] [LOG] [syncModelChip] sel: @nvidia:deepseek-ai/deepseek-v4-pro @ http://127.0.0.1:8786/static/ui.js?v=6:179
+[   20295ms] [LOG] [syncModelChip] called @ http://127.0.0.1:8786/static/ui.js?v=6:173
+[   20295ms] [LOG] [syncModelChip] sel: @nvidia:deepseek-ai/deepseek-v4-pro @ http://127.0.0.1:8786/static/ui.js?v=6:179
+[   20295ms] [LOG] [api] Calling: /api/session/rename POST base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   20295ms] [LOG] [remote_sessions] renderSessionList called @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:154
+[   20296ms] [LOG] [Sessions] Using cached remote sessions: 199 @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:88
+[   20296ms] [LOG] [api] Calling: /api/sessions GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   20296ms] [LOG] [api] Calling: /api/projects GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   20296ms] [LOG] [api] Calling: /api/chat/start POST base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   20296ms] [LOG] [remote_sessions] Fetched remote: 199 @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:158
+[   20296ms] [LOG] [Sessions] Merged 0 remote sessions into unified list (total: 227 ) @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:209
+[   20304ms] [LOG] [api] Response: {projects: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   20304ms] [LOG] [api] Response: {sessions: Array(28), cli_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   20307ms] [LOG] [remote_sessions] After original, window._allSessions: 28 @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:165
+[   20307ms] [LOG] [Sessions] Merged 199 remote sessions into unified list (total: 227 ) @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:209
+[   20307ms] [LOG] [remote_sessions] Calling renderSessionListFromCache @ http://127.0.0.1:8786/static/remote_sessions.js?v=13:215
+[   20315ms] [LOG] [api] Response: {ok: true, session: Object} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   20337ms] [LOG] [api] Response: {stream_id: 43aec4cece2d4781918f26d7be6c0483, session_id: 7252fe45294c} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   21102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   21105ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   21794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   21795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   21795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   21798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   21799ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   21799ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   23294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   23295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   23295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   23297ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   23298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   23298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   24102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   24104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   24794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   24795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   24795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   24798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   24798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   24798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   26294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   26295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   26295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   26298ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   26298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   26298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   27102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   27104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   27794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   27795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   27795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   27797ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   27798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   27798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   29294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   29295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   29295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   29302ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   29303ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   29304ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   30093ms] [LOG] [api] Calling: /api/crons/recent?since=1777616039.357 GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   30096ms] [LOG] [api] Response: {completions: Array(0), since: 1777616039.357} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   30102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   30103ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   30794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   30795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   30795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   30798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   30798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   30798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   32294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   32295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   32295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   32298ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   32298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   32299ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   33102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   33104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   33794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   33795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   33795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   33798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   33798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   33798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   35295ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   35295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   35295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   35297ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   35298ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   35298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   36102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   36104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   36794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   36795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   36795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   36798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   36798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   36798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   38294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   38295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   38295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   38298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   38299ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   38299ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   39102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   39104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   39794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   39795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   39795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   39798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   39798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   39798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   41294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   41295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   41295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   41297ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   41298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   41298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   42102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   42104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   42794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   42795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   42795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   42797ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   42798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   42798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   44294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   44295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   44295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   44297ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   44298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   44298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   45102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   45104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   45794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   45795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   45795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   45797ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   45797ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   45798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   47294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   47295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   47295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   47298ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   47298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   47298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   48102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   48104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   48794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   48795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   48795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   48797ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   48798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   48798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   50294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   50295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   50295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   50298ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   50298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   50298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   51102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   51104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   51794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   51795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   51795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   51797ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   51798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   51798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   53294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   53295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   53295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   53297ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   53297ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   53298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   54102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   54104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   54794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   54795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   54795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   54798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   54798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   54798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   56294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   56295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   56295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   56298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   56298ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   56298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   57102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   57104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   57794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   57795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   57795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   57798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   57798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   57798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   59294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   59295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   59295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   59297ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   59298ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   59298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   60093ms] [LOG] [api] Calling: /api/crons/recent?since=1777616039.357 GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   60096ms] [LOG] [api] Response: {completions: Array(0), since: 1777616039.357} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   60102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   60104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   60794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   60795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   60795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   60798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   60798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   60798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   62294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   62295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   62295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   62298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   62298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   62298ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   63102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   63104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   63794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   63795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   63795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   63797ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   63798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   63798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   65294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   65295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   65295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   65298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   65298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   65298ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   66102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   66104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   66794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   66795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   66795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   66797ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   66797ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   66798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   68294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   68295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   68295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   68298ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   68298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   68298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   69102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   69104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   69794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   69795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   69795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   69797ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   69798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   69798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   71294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   71295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   71295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   71298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   71298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   71299ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   72102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   72104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   72794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   72795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   72795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   72797ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   72797ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   72798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   74294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   74295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   74295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   74297ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   74298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   74298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   75102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   75104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   75794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   75795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   75795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   75797ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   75797ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   75798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   77294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   77295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   77295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   77298ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   77298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   77298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   78102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   78104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   78794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   78795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   78795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   78798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   78798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   78798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   80294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   80295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   80295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   80297ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   80298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   80298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   81102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   81104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   81794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   81795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   81795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   81797ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   81798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   81798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   83294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   83295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   83295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   83298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   83298ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   83298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   84102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   84104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   84794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   84795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   84795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   84798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   84798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   84798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   86294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   86295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   86295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   86297ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   86298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   86298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   87102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   87104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   87794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   87795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   87795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   87797ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   87798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   87798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   89294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   89295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   89295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   89297ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   89298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   89298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   90093ms] [LOG] [api] Calling: /api/crons/recent?since=1777616039.357 GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   90096ms] [LOG] [api] Response: {completions: Array(0), since: 1777616039.357} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   90102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   90104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   90794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   90795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   90795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   90798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   90798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   90798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   92294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   92295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   92295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   92298ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   92298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   92298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   93102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   93104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   93794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   93795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   93795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   93798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   93798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   93798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   95294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   95295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   95295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   95298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   95298ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   95298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   96102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   96104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   96794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   96795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   96795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   96798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   96798ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   96798ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   98294ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   98295ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   98295ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   98298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   98298ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   98298ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   99102ms] [LOG] [api] Calling: /api/swarm/list GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   99104ms] [LOG] [api] Response: {swarms: Array(0)} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   99794ms] [LOG] [api] Calling: /api/approval/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   99795ms] [LOG] [api] Calling: /api/clarify/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   99795ms] [LOG] [api] Calling: /api/sudo_password/pending?session_id=7252fe45294c GET base: http://127.0.0.1:8786/ isTauri: false @ http://127.0.0.1:8786/static/workspace.js?v=8:76
+[   99797ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   99797ms] [LOG] [api] Response: {pending: null, pending_count: 0} @ http://127.0.0.1:8786/static/workspace.js?v=8:100
+[   99805ms] [LOG] [api] Response: {pending: null} @ http://127.0.0.1:8786/static/workspace.js?v=8:100

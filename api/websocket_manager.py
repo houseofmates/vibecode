@@ -394,7 +394,7 @@ class WebSocketManager:
                 logger.error(f"Heartbeat monitor error: {e}")
                 await asyncio.sleep(5)
     
-    def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> Dict[str, Any]:
         """Get WebSocket manager statistics."""
         async with self.lock:
             return {
