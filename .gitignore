@@ -50,3 +50,24 @@ docs/*
 graphify-out/
 .graphify_cached.json
 .graphify_uncached.txt
+
+# Build artifacts and dependencies
+node_modules/
+releases/
+dist/
+build/
+*.apk
+*.idsig
+*.keystore
+
+# IDE and editor cruft
+.idea/
+.vscode/
+.playwright-mcp/
+playwright-mcp/
+
+# Runtime logs and state
+*.log
+*.pid
+stats-*
+memory.json
