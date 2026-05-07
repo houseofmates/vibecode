@@ -1791,7 +1791,7 @@ body{background:#1a1a2e;color:#e8e8f0;font-family:-apple-system,BlinkMacSystemFo
   height:100vh;display:flex;align-items:center;justify-content:center}
 .card{background:#16213e;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:36px 32px;
   width:320px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.3)}
-.logo{width:48px;height:48px;border-radius:12px;background:linear-gradient(145deg,#e8a030,#e94560);
+.logo{width:48px;height:48px;border-radius:12px;background:#f6b012;
   display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#fff;
   margin:0 auto 12px;box-shadow:0 2px 12px rgba(233,69,96,.3)}
 h1{font-size:18px;font-weight:600;margin-bottom:4px}
