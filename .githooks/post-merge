@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# post-merge git hook for vibecode
+# Runs re-apply-vibecode-customizations.sh after every git pull/merge to ensure
+# all customizations survived the merge.
+set -euo pipefail
+
+echo "[post-merge] Verifying vibecode customizations..."
+bash re-apply-vibecode-customizations.sh || {
+    echo "[post-merge] WARNING: Some vibecode customizations are missing!"
+    echo "[post-merge] Check log above for details. Fix before pushing."
+}
