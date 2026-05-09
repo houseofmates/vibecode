@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/house/vibecode
-ExecStart=/home/house/vibecode/tools/auto_push.sh
+WorkingDirectory=%h/vibecode
+ExecStart=%h/vibecode/tools/auto_push.sh
 Restart=always
 RestartSec=10
 StandardOutput=journal

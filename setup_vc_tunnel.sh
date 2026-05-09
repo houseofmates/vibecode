@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Setup reverse tunnel from vc.houseofmates.space to local machine
-# This will allow the APK to connect through vc.houseofmates.space to your local server
+# Setup reverse tunnel from a remote host to local machine
+# This allows a remote client or APK to reach the local server through SSH reverse tunneling
 
 echo "=== Setting up ${VIBECODE_REMOTE_HOST:-remote} Reverse Tunnel ==="
 echo

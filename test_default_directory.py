@@ -6,7 +6,9 @@ import os
 import sys
 
 # Add the api directory to the path
-sys.path.insert(0, '/home/house/vibecode')
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, repo_root)
+home_dir = os.path.expanduser('~')
 
 from api.termisol_adapter import TermisolSession
 
@@ -15,32 +17,34 @@ def test_default_directory():
     print("=" * 50)
     
     # Test what happens when we're in vibecode but want default
-    print("\n📍 Test: User in vibecode but wants default /home/house")
+    print(f"\n📍 Test: User in vibecode but wants default {home_dir}")
     
     # Simulate being in vibecode directory
     original_cwd = os.getcwd()
-    os.chdir('/home/house/vibecode')
+    os.chdir(repo_root)
     
     try:
         # Create session without explicit CWD (should default to /home/house)
         session = TermisolSession("test_default")
         print(f"Current directory: {os.getcwd()}")
         print(f"Detected directory: {session.cwd}")
-        print(f"Expected (per user request): /home/house")
+        print(f"Expected (per user request): {home_dir}")
         
-        if session.cwd == '/home/house':
-            print("✅ PASS: Default directory correctly set to /home/house")
+        if session.cwd == home_dir:
+            print(f"✅ PASS: Default directory correctly set to {home_dir}")
         else:
-            print("❌ FAIL: Should default to /home/house when no workspace selected")
+            print("❌ FAIL: Should default to the user home directory when no workspace selected")
             
     finally:
         os.chdir(original_cwd)
     
     # Test with explicit CWD
     print("\n📍 Test: Explicit CWD should be respected")
+    explicit_cwd = os.path.join(repo_root, 'termisol')
+    os.makedirs(explicit_cwd, exist_ok=True)
     try:
-        session_explicit = TermisolSession("test_explicit", cwd="/home/house/termisol")
-        print(f"Explicit CWD: /home/house/termisol")
+        session_explicit = TermisolSession("test_explicit", cwd=explicit_cwd)
+        print(f"Explicit CWD: {explicit_cwd}")
         print(f"Detected directory: {session_explicit.cwd}")
         
         if session_explicit.cwd == '/home/house/termisol':

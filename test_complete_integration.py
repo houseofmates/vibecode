@@ -6,7 +6,9 @@ import os
 import sys
 
 # Add the api directory to the path
-sys.path.insert(0, '/home/house/vibecode')
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, repo_root)
+home_dir = os.path.expanduser('~')
 
 from api.termisol_adapter import TermisolSession
 
@@ -15,24 +17,24 @@ def test_complete_integration():
     print("=" * 60)
     
     # Test 1: Default directory behavior
-    print("\n✅ Test 1: Default directory (/home/house)")
+    print(f"\n✅ Test 1: Default directory ({home_dir})")
     session1 = TermisolSession("test1")
     print(f"   Default directory: {session1.cwd}")
-    assert session1.cwd == '/home/house', f"Expected /home/house, got {session1.cwd}"
+    assert session1.cwd == home_dir, f"Expected {home_dir}, got {session1.cwd}"
     
     # Test 2: Explicit directory
     print("\n✅ Test 2: Explicit directory specification")
-    session2 = TermisolSession("test2", cwd="/home/house/vibecode")
+    session2 = TermisolSession("test2", cwd=repo_root)
     print(f"   Explicit directory: {session2.cwd}")
-    assert session2.cwd == '/home/house/vibecode', f"Expected /home/house/vibecode, got {session2.cwd}"
+    assert session2.cwd == repo_root, f"Expected {repo_root}, got {session2.cwd}"
     
     # Test 3: Different workspaces
     print("\n✅ Test 3: Different workspace directories")
     workspaces = [
-        "/home/house/vibecode",
-        "/home/house/termisol", 
-        "/home/house/workspace",
-        "/home/house"
+        repo_root,
+        os.path.join(repo_root, 'termisol'),
+        os.path.join(repo_root, 'workspace'),
+        home_dir
     ]
     
     for workspace in workspaces:
@@ -72,7 +74,7 @@ def test_complete_integration():
     from api.termisol_adapter import create_termisol_session, get_termisol_session, list_termisol_sessions
     
     # Create session
-    new_session = create_termisol_session("/home/house", {'ai_assistance': True}, "test_session")
+    new_session = create_termisol_session(home_dir, {'ai_assistance': True}, "test_session")
     print(f"   Created session: {new_session.terminal_id}")
     
     # Get session

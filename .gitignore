@@ -17,8 +17,10 @@ __pycache__/
 tmp/
 appimage-build/apt/pkgcache.bin
 appimage-build/apt/srcpkgcache.bin
+appimage-build/apt/lists/
 
 # Build outputs
+dist/
 releases/*.appimage
 releases/*.apk
 releases/*.keystore

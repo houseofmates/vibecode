@@ -6,14 +6,15 @@ import os
 import sys
 
 # Add the current directory to the path to import our modules
-sys.path.insert(0, '/home/house/vibecode')
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, repo_root)
 
 def test_drag_drop_behavior():
     print("🧪 Testing Drag-and-Drop Paste Behavior")
     print("=" * 50)
     
     # Test that the JavaScript changes are in place
-    js_file = '/home/house/vibecode/static/termisol_terminal.js'
+    js_file = os.path.join(repo_root, 'static', 'termisol_terminal.js')
     
     if os.path.exists(js_file):
         with open(js_file, 'r') as f:
