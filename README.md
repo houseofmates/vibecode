@@ -1,180 +1,121 @@
 # vibecode
 
-Browser-based coding interface with AI agent integration.
+vibecode is a local web workspace for coding, terminal sessions, and ai-enabled development flows.
+it is designed to run on your machine and keep your code accessible through a browser while preserving local project structure and git history.
 
-## Quick Start
+## what vibecode does
 
-```bash
-# Install
-pip install -e .
+- provides a browser-based interface for code, terminal, file browsing, and assistant workflows
+- supports local ai assistance for shell commands, code editing, and project automation
+- includes a persistent systemd watcher that syncs repo changes to the github `main` branch after they settle for 10 seconds
+- uses env-based configuration so secrets and local settings stay out of the repo
+- supports packaging for linux appimage and android apk
+- works with local or remote code directories and remote access tunnels
 
-# Run
-vibecode
-# or
-python server.py
-```
+## features
 
-Open http://$HERMES_WEBUI_HOST:8786 in your browser.
+- browser terminal and file explorer
+- drag-and-drop file/folder support
+- automatic code-change persistence into git `main`
+- secure access via password, tls, and ssh forwarding
+- local-first architecture with remote sync options
+- packaged desktop and android build support
+- simple setup with `.env.example`
 
-## Configuration
+## quick start
 
-Copy `.env.example` to `.env` and customize:
+copy the example env and set your preferred values:
 
 ```bash
 cp .env.example .env
-# Edit .env with your settings
+# edit .env for your environment
 ```
 
-### Key Options
+install the project dependencies and run the server:
 
-| Variable | Default | Description |
+```bash
+pip install -e .
+python server.py
+```
+
+open the interface in your browser at:
+
+```bash
+http://$HERMES_WEBUI_HOST:8786
+```
+
+## enable the auto-sync watcher
+
+vibecode includes a persistent watcher service that keeps code changes synced to `main`.
+if the repository is configured with a github remote, the watcher will commit stable changes and merge them into the remote `main` branch.
+
+enable it with:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now /home/$USER/vibecode/tools/auto_push.service
+```
+
+to check status:
+
+```bash
+systemctl --user status auto_push.service
+```
+
+## configuration
+
+copy `.env.example` to `.env` and customize the values.
+
+### key options
+
+| variable | default | description |
 |----------|---------|-------------|
-| `HERMES_WEBUI_HOST` | `127.0.0.1` | Bind address |
-| `HERMES_WEBUI_PORT` | `8786` | Port |
-| `HERMES_WEBUI_PASSWORD` | (none) | Set for security |
-| `HERMES_WEBUI_AGENT_DIR` | auto | Path to hermes-agent |
-| `HERMES_WEBUI_DEFAULT_WORKSPACE` | `~/workspace` | Default workspace |
-| `HERMES_DOMAIN` | (none) | Domain for web interface |
-| `UBUNTU_IP` | `127.0.0.1` | IP address of Ubuntu machine |
-| `POPOS_IP` | `127.0.0.1` | IP address of Pop!_OS machine |
-| `DEFAULT_HOME` | `~` | Default home directory path |
-| `MEMSTER_USER` | (current user) | SSH username for remote machines |
+| `HERMES_WEBUI_HOST` | `127.0.0.1` | bind address |
+| `HERMES_WEBUI_PORT` | `8786` | port |
+| `HERMES_WEBUI_PASSWORD` | (none) | set a password for web access |
+| `HERMES_WEBUI_AGENT_DIR` | `auto` | path to hermes-agent |
+| `HERMES_WEBUI_DEFAULT_WORKSPACE` | `~/workspace` | default workspace |
+| `HERMES_DOMAIN` | (none) | optional domain for web ui |
+| `UBUNTU_IP` | `127.0.0.1` | optional ubuntu host ip |
+| `POPOS_IP` | `127.0.0.1` | optional popos host ip |
+| `DEFAULT_HOME` | `~` | default home directory |
 
-## Development
-
-```bash
-make install   # Install in editable mode
-make run       # Run the server
-make dev       # Run with auto-reload
-make test      # Run tests
-make clean     # Clean artifacts
-```
-
-## Packaging
-
-Build standalone applications for distribution:
-
-### Linux AppImage
+## development
 
 ```bash
-make appimage    # Build releases/vibecode.appimage
+make install
+make run
+make dev
+make test
+make clean
 ```
 
-**Requirements:** `pip install appimage-builder`
+## packaging
 
-**Additional build dependency:** install `appimagetool` so the packaging script can rebuild the AppImage with a GTK backend compatibility fix.
-
-**Install:**
-```bash
-# Run directly (no installation needed)
-./releases/vibecode.appimage
-
-# Or install for GNOME integration
-mkdir -p ~/Applications
-cp releases/vibecode.appimage ~/Applications/
-```
-
-**Features:**
-- Portable Python runtime (no system Python needed)
-- Runs from local or remote codebase
-- Code changes reflected on app restart
-- Runs at http://$HERMES_WEBUI_HOST:8786
-
-**Remote Codebase Options:**
-
-**Option 1: Mount via SSHFS**
-```bash
-# Install sshfs
-sudo apt install sshfs
-
-# Mount remote directory
-mkdir -p ~/vibecode-remote
-sshfs $USER@$HERMES_WEBUI_HOST:/home/$USER/vibecode ~/vibecode-remote
-
-# Run AppImage
-export VIBECODE_HOME=~/vibecode-remote
-./releases/vibecode.appimage
-```
-
-**Option 2: Git Repository**
-```bash
-# Run AppImage with git repo URL
-export VIBECODE_GIT=https://github.com/yourusername/vibecode.git
-./releases/vibecode.appimage
-
-# On subsequent runs, it will auto-pull latest changes
-```
-
-### Android APK
+### linux appimage
 
 ```bash
-make apk         # Build releases/vibecode.apk
+make appimage
 ```
 
-**Requirements:**
-- Node.js: `sudo apt install nodejs npm`
-- Java JDK: `sudo apt install default-jdk`
-- Android SDK (for `zipalign`): `sudo apt install android-sdk`
-
-**Install:**
-```bash
-adb install releases/vibecode.apk
-```
-
-**Note:** The APK connects to `http://$HERMES_WEBUI_HOST:8786`. Ensure your server is running and accessible from your phone on the same network.
-
-### Build All
+### android apk
 
 ```bash
-make all         # Build both AppImage and APK
+make apk
 ```
 
-## Auto-Updates
+## branch and git sync
 
-The AppImage supports automatic delta updates:
+vibecode is built to sync changes into the `main` branch.
+if the repository still has a local `master` branch, the watcher will rename it to `main` and keep the repository on `main`.
+
+if git user config is not set, configure it before enabling the watcher:
 
 ```bash
-make update      # Check for and install updates
+git config --global user.name "your name"
+git config --global user.email "you@example.com"
 ```
 
-**How it works:**
-- Uses GitHub Releases + zsync for delta updates
-- Only downloads changed parts (faster than full download)
-- Update metadata embedded in the AppImage
+## license
 
-**Setup for publishers:**
-1. Build: `make appimage`
-2. Upload `releases/vibecode.appimage` to GitHub Releases
-3. Also upload the `.zsync` file for delta updates
-
-## TLS/HTTPS
-
-Set certificate paths:
-
-```bash
-export HERMES_WEBUI_TLS_CERT=/path/to/cert.pem
-export HERMES_WEBUI_TLS_KEY=/path/to/key.pem
-```
-
-## Remote Access
-
-SSH tunnel for secure remote access:
-
-```bash
-ssh -N -L 8786:$HERMES_WEBUI_HOST:8786 $USER@your-server
-```
-
-Then open http://localhost:8786
-
-## Build Reference
-
-| Command | Output | Description |
-|---------|--------|-------------|
-| `make appimage` | `releases/vibecode.appimage` | Linux desktop app |
-| `make apk` | `releases/vibecode.apk` | Android mobile app |
-| `make all` | Both above | Complete build |
-| `make update` | - | Check for updates |
-
-## License
-
-MIT
+mit
