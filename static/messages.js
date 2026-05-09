@@ -1,6 +1,7 @@
 async function send(){
+  console.log('[send] Starting send...');
   const text=expandEmojiShortcodes($('msg').value).trim();
-  if(!text&&!S.pendingFiles.length)return;
+  if(!text&&!S.pendingFiles.length){console.log('[send] Nothing to send');return;}
   // Slash command intercept -- local commands handled without agent round-trip
   if(text.startsWith('/')&&!S.pendingFiles.length&&executeCommand(text)){
     $('msg').value='';autoResize();hideCmdDropdown();return;
@@ -75,12 +76,14 @@ async function send(){
   // Start the agent via POST, get a stream_id back
   let streamId;
   try{
+    console.log('[send] Calling /api/chat/start...');
     const startData=await api('/api/chat/start',{method:'POST',body:JSON.stringify({
       session_id:activeSid,message:msgText,
       model:S.session.model||$('modelSelect').value,workspace:S.session.workspace,
       attachments:uploaded.length?uploaded:undefined
     })});
     streamId=startData.stream_id;
+    console.log('[send] Got stream_id:', streamId);
     S.activeStreamId = streamId;
     markInflight(activeSid, streamId);
     if(typeof saveInflightState==='function'){
@@ -116,7 +119,7 @@ async function send(){
     stopClarifyPolling();
     stopSudoPasswordPolling();
     // Only hide approval card if it belongs to the session that just finished
-    if(!_approvalSessionId || _approvalSessionId===activeSid) hideApprovalCard(true);removeThinking();
+    if(!_approvalSessionId || _approvalSessionId===activeSid) hideApprovalCard(true);removeThinking();removeLiveThinkingCard();
     if(!_clarifySessionId || _clarifySessionId===activeSid) hideClarifyCard(true);
     S.messages.push({role:'assistant',content:`**Error:** ${errMsg}`});
     renderMessages();setBusy(false);setComposerStatus(`Error: ${errMsg}`);updateSendBtn();
@@ -124,7 +127,9 @@ async function send(){
   }
 
   // Open SSE stream and render tokens live
+  console.log('[send] Attaching live stream, direct fallback:', directStreamFallback);
   attachLiveStream(activeSid, streamId, uploaded, {direct: directStreamFallback});
+  console.log('[send] Live stream attached');
 
 }
 
@@ -185,10 +190,13 @@ const SharedSSE = (function(){
         try{
           const d = JSON.parse(e.data);
           const sid = d.stream_id;
+          console.log('[SharedSSE] event:', et, 'stream_id:', sid, 'registered:', streams.has(sid));
           if(!sid) return;
           const stream = streams.get(sid);
           if(stream && stream.handlers[et]){
             stream.handlers[et](e);
+          } else if(!stream) {
+            console.warn('[SharedSSE] no stream registered for', sid);
           }
         }catch(err){
           console.error('[SharedSSE] dispatch error:', err);
@@ -322,6 +330,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
   // ───────────────────────────────────────────────────────────────────────────
   let assistantRow=null;
   let assistantBody=null;
+  let _liveThinkingCard=null;
   // Thinking tag patterns for streaming display
   const _thinkPairs=[
     {open:'<think>',close:'</think>'},
@@ -630,6 +639,23 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       }
     }
   }
+  function ensureLiveThinkingCard(text){
+    if(!assistantRow||!assistantRow.parentNode) return;
+    if(!_liveThinkingCard||!_liveThinkingCard.isConnected){
+      _liveThinkingCard=document.createElement('div');
+      _liveThinkingCard.className='msg-row thinking-card-row';
+      _liveThinkingCard.dataset.liveThinking='1';
+      assistantRow.parentNode.insertBefore(_liveThinkingCard,assistantRow);
+    }
+    const _icon=(typeof li==='function')?li('lightbulb',14):'💡';
+    const _chevron=(typeof li==='function')?li('chevron-right',12):'▶';
+    const _label=(typeof t==='function')?t('thinking'):'Thinking';
+    _liveThinkingCard.innerHTML='<div class="thinking-card"><div class="thinking-card-header" onclick="this.parentElement.classList.toggle(\'open\')"><span class="thinking-card-icon">'+_icon+'</span><span class="thinking-card-label">'+_label+'</span><span class="thinking-card-toggle">'+_chevron+'</span></div><div class="thinking-card-body"><pre>'+esc(text)+'</pre></div></div>';
+  }
+  function removeLiveThinkingCard(){
+    if(_liveThinkingCard){if(_liveThinkingCard.isConnected)_liveThinkingCard.remove();_liveThinkingCard=null;}
+  }
+
   function _scheduleRender(){
     if(_renderPending) return;
     _renderPending=true;
@@ -641,11 +667,6 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       if(assistantBody){
         if(parsed.displayText){
           assistantBody.innerHTML=renderMd(parsed.displayText);
-        }else if(parsed.thinkingText){
-          // Model is sending reasoning but no visible content tokens (common with
-          // DeepSeek / reasoning models). Show the reasoning trace in the bubble
-          // so the stream doesn't appear to freeze.
-          assistantBody.innerHTML='<span style="opacity:.75;font-style:italic;">'+esc(parsed.thinkingText)+'</span>';
         }else if(assistantText.trim()){
           // Tokens are arriving but being stripped (tool calls, thinking tags, etc.).
           // Show a subtle working indicator so the stream doesn't appear frozen.
@@ -657,6 +678,12 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
           assistantBody.innerHTML='';
         }
       }
+      // Render reasoning in a live clickable thinking card instead of inline
+      if(parsed.thinkingText){
+        ensureLiveThinkingCard(parsed.thinkingText);
+      }else{
+        removeLiveThinkingCard();
+      }
       scrollIfPinned();
     });
   }
@@ -667,6 +694,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       if(_terminalStateReached) return;
       if(!S.session||S.session.session_id!==activeSid) return;
       const d=JSON.parse(e.data);
+      if(d.text) console.log('[SSE] token:', d.text.slice(0,80));
       assistantText+=d.text;
       syncInflightAssistantMessage();
       if(!S.session||S.session.session_id!==activeSid) return;
@@ -682,6 +710,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       if(_terminalStateReached) return;
       const d=JSON.parse(e.data);
       const text=d.text||'';
+      if(text) console.log('[SSE] reasoning:', text.slice(0,80));
       // Check if this is a tool call preview (from inline tool extraction)
       if(text.startsWith('[Tool Call Preview]')){
         // Extract the tool call content
@@ -733,6 +762,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
     }
 
     handlers['tool']=e=>{
+      console.log('[SSE] tool event', e.data?.slice(0,200));
       const d=JSON.parse(e.data);
       if(d.name==='clarify') return;
       const tc={name:d.name, preview:d.preview||'', args:d.args||{}, snippet:'', done:false, tid:d.tid||`live-${Date.now()}-${Math.random().toString(36).slice(2,8)}`};
@@ -747,7 +777,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       persistInflightState();
 
       if(!S.session||S.session.session_id!==activeSid) return;
-      removeThinking();
+      removeThinking();removeLiveThinkingCard();
       const oldRow=$('toolRunningRow');if(oldRow)oldRow.remove();
       appendLiveToolCard(tc);
       scrollIfPinned();
@@ -867,6 +897,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
     };
 
     handlers['done']=e=>{
+      console.log('[SSE] received DONE event', e.data?.slice(0,200));
       _terminalStateReached=true;
       const d=JSON.parse(e.data);
       let finalAssistantText='';
@@ -874,6 +905,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       clearInflight();clearInflightState(activeSid);
       stopApprovalPolling();
       stopClarifyPolling();
+      stopSudoPasswordPolling();
       if(!_approvalSessionId || _approvalSessionId===activeSid) hideApprovalCard(true);
       if(!_clarifySessionId || _clarifySessionId===activeSid) hideClarifyCard(true);
       if(!_sudoPasswordVisible) hideSudoPasswordCard(true);
@@ -909,8 +941,10 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
         _inlineToolPreviews=[]; // Clear inline tool previews
         const _inlineContainer=$('inlineToolPreviews');if(_inlineContainer)_inlineContainer.remove();
         // No-reply guard (#373): if agent returned nothing, show inline error
-        if(!S.messages.some(m=>m.role==='assistant'&&String(m.content||'').trim())&&!finalAssistantText){removeThinking();S.messages.push({role:'assistant',content:'**No response received.** Check your API key and model selection.'});}
-        else{removeThinking();} // Remove live thinking before rendering message with its thinking card
+        const _asstMsgs=S.messages.filter(m=>m.role==='assistant');
+        console.log('[done] assistant messages:', _asstMsgs.length, 'finalAssistantText:', JSON.stringify(finalAssistantText), 'content samples:', _asstMsgs.slice(-2).map(m=>JSON.stringify(m.content).slice(0,100)));
+        if(!S.messages.some(m=>m.role==='assistant'&&String(m.content||'').trim())&&!finalAssistantText.trim()){removeThinking();removeLiveThinkingCard();S.messages.push({role:'assistant',content:'**No response received.** Check your API key and model selection.'});}
+        else{removeThinking();removeLiveThinkingCard();} // Remove live thinking before rendering message with its thinking card
         syncTopbar();renderMessages();loadDir('.');
       }
       renderSessionList();setBusy(false);setStatus('');
@@ -926,6 +960,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
     };
 
     handlers['stream_end']=e=>{
+      console.log('[SSE] stream_end event');
       _terminalStateReached=true;
       try{
         const d=JSON.parse(e.data||'{}');
@@ -946,6 +981,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
     };
 
     handlers['apperror']=e=>{
+      console.log('[SSE] apperror event', e.data?.slice(0,200));
       _terminalStateReached=true;
       // Application-level error sent explicitly by the server (rate limit, crash, etc.)
       // This is distinct from the SSE network 'error' event below.
@@ -956,7 +992,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       if(!_sudoPasswordVisible) hideSudoPasswordCard(true);
       if(S.session&&S.session.session_id===activeSid){
         S.activeStreamId=null;const _cbe=$('btnCancel');if(_cbe)_cbe.style.display='none';
-        clearLiveToolCards();reasoningText='';assistantText='';_inlineToolPreviews=[];removeThinking();
+        clearLiveToolCards();reasoningText='';assistantText='';_inlineToolPreviews=[];removeThinking();removeLiveThinkingCard();
         const _inlineContainer=$('inlineToolPreviews');if(_inlineContainer)_inlineContainer.remove();
         try{
           const d=JSON.parse(e.data);
@@ -999,7 +1035,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       if(!_sudoPasswordVisible) hideSudoPasswordCard(true);
       if(S.session&&S.session.session_id===activeSid){
         S.activeStreamId=null;const _cbc=$('btnCancel');if(_cbc)_cbc.style.display='none';
-        clearLiveToolCards();reasoningText='';assistantText='';removeThinking();
+        clearLiveToolCards();reasoningText='';assistantText='';removeThinking();removeLiveThinkingCard();
         S.messages.push({role:'assistant',content:'*Task cancelled.*'});renderMessages();
         setBusy(false);setComposerStatus('');updateSendBtn();
       }
@@ -1055,7 +1091,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       if(!_clarifySessionId||_clarifySessionId===activeSid) hideClarifyCard(true);
       if(S.session&&S.session.session_id===activeSid){
         S.activeStreamId=null;const _cbe=$('btnCancel');if(_cbe)_cbe.style.display='none';
-        clearLiveToolCards();reasoningText='';assistantText='';removeThinking();
+        clearLiveToolCards();reasoningText='';assistantText='';removeThinking();removeLiveThinkingCard();
         S.session=session;S.messages=session.messages||[];
         syncTopbar();renderMessages();
         setBusy(false);setComposerStatus('');updateSendBtn();
@@ -1075,7 +1111,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
     if(!_sudoPasswordVisible) hideSudoPasswordCard(true);
     if(S.session&&S.session.session_id===activeSid){
       S.activeStreamId=null;const _cbe=$('btnCancel');if(_cbe)_cbe.style.display='none';
-      clearLiveToolCards();reasoningText='';assistantText='';removeThinking();
+      clearLiveToolCards();reasoningText='';assistantText='';removeThinking();removeLiveThinkingCard();
       S.messages.push({role:'assistant',content:'**Error:** Connection lost'});renderMessages();
       setBusy(false);setComposerStatus('');updateSendBtn();
     }else{
@@ -1106,7 +1142,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
             S.activeStreamId=null;
             const _cbe=$('btnCancel');if(_cbe)_cbe.style.display='none';
             clearLiveToolCards();
-            reasoningText='';assistantText='';removeThinking();
+            reasoningText='';assistantText='';removeThinking();removeLiveThinkingCard();
             S.busy=false;
             setComposerStatus('');
             updateSendBtn();

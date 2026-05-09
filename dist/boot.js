@@ -821,7 +821,7 @@ function applyBotName(){
     catch(e){ try { localStorage.removeItem('hermes-webui-session'); } catch (e2) {} }
   }
   // no saved session - create one with default ubuntu machine workspace
-  const defaultWorkspace='/home/house';
+  const defaultWorkspace=window.DEFAULT_HOME || '~';
   const defaultMachine='ubuntu';
   try{
     await switchToWorkspace(defaultWorkspace,'ubuntu home',defaultMachine);

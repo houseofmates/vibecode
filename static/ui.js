@@ -1361,8 +1361,28 @@ async function checkInflightOnBoot(sid) {
       } else {
         clearInflight();  // completed normally, no banner needed
       }
+      // Defensive: if the stream is no longer active, ensure busy state is cleared
+      // so the user can send new messages immediately.
+      if (S.session && S.session.session_id === inflightSid && S.busy) {
+        S.busy = false;
+        S.activeStreamId = null;
+        updateSendBtn();
+        const cancelBtn = $('btnCancel');
+        if (cancelBtn) cancelBtn.style.display = 'none';
+        removeThinking();
+      }
     }
-  } catch(e) { clearInflight(); }
+  } catch(e) {
+    clearInflight();
+    if (S.session && S.session.session_id === sid && S.busy) {
+      S.busy = false;
+      S.activeStreamId = null;
+      updateSendBtn();
+      const cancelBtn = $('btnCancel');
+      if (cancelBtn) cancelBtn.style.display = 'none';
+      removeThinking();
+    }
+  }
 }
 
 // ── Topbar title edit + right-click context menu ─────────────────────────────
@@ -1923,9 +1943,9 @@ async function loadSession(sessionId){
 // Create a new session
 async function newSession(focus=true){
   const model=$('modelSelect')?.value||'openai/gpt-4o';
-  // Use current session's workspace if available, otherwise default to ubuntu /home/house
+  // Use current session's workspace if available, otherwise default to home
   const currentWs=S.session?.workspace;
-  const defaultWs=currentWs||'/home/house';
+  const defaultWs=currentWs||window.DEFAULT_HOME || '~';
   const body={model,workspace:defaultWs};
   const data=await api('/api/session/new',{method:'POST',body:JSON.stringify(body)});
   S.session=data.session||data;

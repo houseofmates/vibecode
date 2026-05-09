@@ -4,8 +4,8 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/house/vibecode
-ExecStart=/usr/bin/python3 /home/house/vibecode/server.py
+WorkingDirectory=%h/vibecode
+ExecStart=/usr/bin/python3 %h/vibecode/server.py
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal

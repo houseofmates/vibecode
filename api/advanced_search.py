@@ -497,15 +497,30 @@ class AdvancedSearchEngine:
             return
         
         # Index common file types
-        file_extensions = ['.py', '.js', '.md', '.txt', '.json', '.yaml', '.yml']
+        file_extensions = ['.py', '.js', '.md', '.txt', '.json', '.yaml', '.yml', '.html', '.css', '.dart', '.rs', '.go', '.java']
         
+        indexed_count = 0
         for file_path in self.workspace_dir.rglob('*'):
             if file_path.is_file() and file_path.suffix in file_extensions:
                 try:
-                    if file_path.stat().st_size > 1024 * 1024:  # Skip files > 1MB
+                    # Skip very large files
+                    if file_path.stat().st_size > 5 * 1024 * 1024:  # Skip files > 5MB
+                        logger.debug(f"Skipping large file: {file_path}")
+                        continue
+                    
+                    # Skip hidden files and directories
+                    if any(part.startswith('.') for part in file_path.parts):
+                        continue
+                    
+                    # Skip common build/cache directories
+                    skip_dirs = ['node_modules', '__pycache__', '.git', 'build', 'dist', 'target']
+                    if any(skip_dir in file_path.parts for skip_dir in skip_dirs):
                         continue
                     
                     content = file_path.read_text(encoding='utf-8', errors='ignore')
+                    
+                    # Extract language-specific metadata
+                    language = self._detect_language(file_path.suffix)
                     
                     self.index.add_document(
                         doc_id=f"file_{hashlib.md5(str(file_path).encode()).hexdigest()}",
@@ -516,12 +531,40 @@ class AdvancedSearchEngine:
                             'file_path': str(file_path),
                             'file_size': file_path.stat().st_size,
                             'file_extension': file_path.suffix,
-                            'relative_path': str(file_path.relative_to(self.workspace_dir))
-                        }
+                            'relative_path': str(file_path.relative_to(self.workspace_dir)),
+                            'language': language,
+                            'last_modified': file_path.stat().st_mtime
+                        },
+                        created_at=file_path.stat().st_ctime,
+                        updated_at=file_path.stat().st_mtime
                     )
+                    
+                    indexed_count += 1
                     
                 except Exception as e:
                     logger.error(f"Error indexing file {file_path}: {e}")
+        
+        logger.info(f"Indexed {indexed_count} workspace files")
+    
+    def _detect_language(self, file_extension: str) -> str:
+        """Detect programming language from file extension."""
+        language_map = {
+            '.py': 'python',
+            '.js': 'javascript',
+            '.ts': 'typescript',
+            '.dart': 'dart',
+            '.rs': 'rust',
+            '.go': 'go',
+            '.java': 'java',
+            '.html': 'html',
+            '.css': 'css',
+            '.md': 'markdown',
+            '.json': 'json',
+            '.yaml': 'yaml',
+            '.yml': 'yaml',
+            '.txt': 'text'
+        }
+        return language_map.get(file_extension.lower(), 'unknown')
     
     def _extract_title_from_markdown(self, content: str) -> Optional[str]:
         """Extract title from markdown content."""

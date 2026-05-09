@@ -8,7 +8,8 @@ fuser -k 8786/tcp 2>/dev/null
 sleep 2
 
 # Test server import
-cd /home/house/vibecode
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)"
+cd "$SCRIPT_DIR"
 python3 -c "import server; print('Import OK')" || exit 1
 
 # Start server in background

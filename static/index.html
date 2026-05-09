@@ -13,6 +13,18 @@
 <script>(function(){var t=localStorage.getItem('hermes-theme');if(t==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';}if(t&&t!=='dark')document.documentElement.dataset.theme=t;})()</script>
 <script>(function(){var isMobile=/android|iphone|ipad|ipod/i.test(navigator.userAgent);var isCapacitor=!!(window.Capacitor||window.__capacitor||location.protocol==='capacitor:');if(isCapacitor){document.documentElement.classList.add('capacitor');document.documentElement.classList.add('apk-force-mobile');document.documentElement.setAttribute('data-capacitor','true');if(document.body)document.body.classList.add('capacitor');}if(isMobile){document.documentElement.classList.add('mobile-device');}})()</script>
 <script>(function(){var isCapacitor=document.documentElement.classList.contains('capacitor')||document.documentElement.hasAttribute('data-capacitor')||window.Capacitor||window.__capacitor||location.protocol==='capacitor:';if(isCapacitor){document.documentElement.classList.add('apk-force-mobile');}})()</script>
+<script>
+window.DEFAULT_HOME = {{DEFAULT_HOME}};
+window.UBUNTU_IP = {{UBUNTU_IP}};
+window.POPOS_IP = {{POPOS_IP}};
+window.MEMSTER_HOST = {{MEMSTER_HOST}};
+window.MEMSTER_HOST_LEGACY = {{MEMSTER_HOST_LEGACY}};
+window.MEMSTER_USER = {{MEMSTER_USER}};
+window.SSH_HOST = {{SSH_HOST}};
+window.SSH_KEY_PATH = {{SSH_KEY_PATH}};
+window.HERMES_DOMAIN = {{HERMES_DOMAIN}};
+window.CONFIG_PATH = {{CONFIG_PATH}};
+</script>
 <link rel="stylesheet" href="/static/style.css?v=7">
 <link rel="stylesheet" href="/static/custom.css?v=8">
 <link rel="stylesheet" href="/static/custom_workspace.css?v=5">
@@ -51,10 +63,10 @@ function _detectTauri(){
   );
 }
 let isTauri = _detectTauri();
-if(isCapacitorApp) window.HERMES_API_BASE = 'https://vc.houseofmates.space/';
+if(isCapacitorApp && window.HERMES_DOMAIN) window.HERMES_API_BASE = `https://vc.${window.HERMES_DOMAIN}/`;
 if(isTauri) window.HERMES_API_BASE = 'http://localhost:8786/';
 let apkActivePanel = null;
-console.log('[runtime] Detection check:', {__TAURI__: window.__TAURI__, protocol: location.protocol, hostname: location.hostname, host: location.host, isCapacitorApp, isTauri});
+console.log('[runtime] Detection check:', {__TAURI__: window.__TAURI__, protocol: location.protocol, hostname: location.hostname, host: location.host, isCapacitorApp, isTauri, HERMES_API_BASE: window.HERMES_API_BASE});
 
 // Deferred detection: Tauri may inject __TAURI__ after inline scripts run
 if(!window.HERMES_API_BASE){
@@ -787,7 +799,7 @@ if(isCapacitorApp){
                 <option value="minimaxai/minimax-m2.7">minimax</option>
               </optgroup>
               <optgroup label="kilo/kilocode">
-                <option value="nvidia/nemotron-3-super-120b-a12b:free">nemotron</option>
+                <option value="@kilocode:nvidia/nemotron-3-super-120b-a12b:free">nemotron</option>
               </optgroup>
             </select>
             </div>
@@ -1131,7 +1143,7 @@ if(isCapacitorApp){
             <div class="settings-section-head">
               <div>
                 <div class="settings-section-title">config editor</div>
-                <div class="settings-section-meta">edit hermes configuration directly. connects to 192.168.4.250.</div>
+                <div class="settings-section-meta">edit hermes configuration directly. connects to ${window.MEMSTER_HOST || window.UBUNTU_IP || '127.0.0.1'}.</div>
               </div>
             </div>
             <div class="config-editor-container">
@@ -1151,7 +1163,7 @@ if(isCapacitorApp){
               </div>
               <div class="config-editor-help">
                 <div style="font-size:11px;color:var(--muted);margin-top:8px;">
-                  • edits config.yaml on 192.168.4.250 at /home/house/.hermes/ • restart hermes after changes
+                  • edits config.yaml on ${window.MEMSTER_HOST || window.UBUNTU_IP || '127.0.0.1'} at ${window.DEFAULT_HOME || '~'}/.hermes/ • restart hermes after changes
                 </div>
               </div>
             </div>
@@ -1286,7 +1298,7 @@ if(isCapacitorApp){
 <script src="/static/ui.js?v=7"></script>
 <script src="/static/workspace.js?v=8"></script>
 <script src="/static/commands.js?v=5"></script>
-<script src="/static/messages.js?v=7"></script>
+<script src="/static/messages.js?v=10"></script>
 <script src="/static/panels.js?v=127"></script>
 <script src="/static/swarm.js?v=2"></script>
 <script src="/static/onboarding.js?v=1"></script>

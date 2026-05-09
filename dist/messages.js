@@ -909,7 +909,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
         _inlineToolPreviews=[]; // Clear inline tool previews
         const _inlineContainer=$('inlineToolPreviews');if(_inlineContainer)_inlineContainer.remove();
         // No-reply guard (#373): if agent returned nothing, show inline error
-        if(!S.messages.some(m=>m.role==='assistant'&&String(m.content||'').trim())&&!finalAssistantText){removeThinking();S.messages.push({role:'assistant',content:'**No response received.** Check your API key and model selection.'});}
+        if(!S.messages.some(m=>m.role==='assistant'&&String(m.content||'').trim())&&!finalAssistantText.trim()){removeThinking();S.messages.push({role:'assistant',content:'**No response received.** Check your API key and model selection.'});}
         else{removeThinking();} // Remove live thinking before rendering message with its thinking card
         syncTopbar();renderMessages();loadDir('.');
       }

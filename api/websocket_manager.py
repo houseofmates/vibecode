@@ -396,7 +396,7 @@ class WebSocketManager:
     
     def get_stats(self) -> Dict[str, Any]:
         """Get WebSocket manager statistics."""
-        async with self.lock:
+        with self.lock:
             return {
                 'total_clients': len(self.clients),
                 'authenticated_clients': sum(1 for c in self.clients.values() if c.authenticated),

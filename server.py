@@ -245,6 +245,33 @@ def main() -> None:
     cleanup_thread.start()
     logger.info("Started cron session cleanup background thread")
 
+    # ── Multiplex SSE queue cleanup ─────────────────────────────────────────
+    def cleanup_multiplex_queues():
+        """Remove empty multiplex queues that haven't been active for 2 minutes."""
+        while True:
+            time.sleep(60)
+            try:
+                from api.config import MULTIPLEX_QUEUES, MULTIPLEX_LOCK
+                now = time.time()
+                with MULTIPLEX_LOCK:
+                    stale = []
+                    for cid, q in list(MULTIPLEX_QUEUES.items()):
+                        last_activity = max(
+                            getattr(q, '_last_get', 0),
+                            getattr(q, '_last_put', 0),
+                        )
+                        if q.empty() and now - last_activity > 120:
+                            stale.append(cid)
+                    for cid in stale:
+                        del MULTIPLEX_QUEUES[cid]
+                        print(f'[webui] Cleaned up stale multiplex queue for client_id={cid}', flush=True)
+            except Exception as e:
+                logger.debug(f"Multiplex queue cleanup error: {e}")
+
+    mq_cleanup_thread = threading.Thread(target=cleanup_multiplex_queues, daemon=True)
+    mq_cleanup_thread.start()
+    logger.info("Started multiplex queue cleanup background thread")
+
     httpd = QuietHTTPServer((HOST, PORT), Handler)
 
     # ── TLS/HTTPS setup (optional) ─────────────────────────────────────────

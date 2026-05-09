@@ -48,7 +48,7 @@ def _security_headers(handler):
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-        "img-src 'self' data:; font-src 'self' data: https://cdn.jsdelivr.net; connect-src 'self'; "
+        "img-src 'self' data:; font-src 'self' data: https://cdn.jsdelivr.net; connect-src 'self' http://localhost:* http://127.0.0.1:*; "
         "base-uri 'self'; form-action 'self'"
     )
     handler.send_header(
@@ -193,10 +193,19 @@ def read_body(handler) -> dict:
         raw = handler._post_body
     else:
         length = int(handler.headers.get('Content-Length', 0))
+        content_type = handler.headers.get('Content-Type', '')
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"Request headers - Content-Length: {length}, Content-Type: {content_type}")
         if length > MAX_BODY_BYTES:
             raise ValueError(f'Request body too large ({length} bytes, max {MAX_BODY_BYTES})')
         raw = handler.rfile.read(length) if length else b'{}'
+        if length == 0:
+            logger.warning("Request has Content-Length of 0, treating as empty body")
     try:
         return _json.loads(raw)
-    except Exception:
-        return {}
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to parse JSON body: {e}, raw body: {raw[:200]}...")
+        raise ValueError(f"Invalid JSON in request body: {e}")

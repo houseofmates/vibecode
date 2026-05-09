@@ -14,7 +14,7 @@ vibecode
 python server.py
 ```
 
-Open http://192.168.4.233:8786 in your browser.
+Open http://$HERMES_WEBUI_HOST:8786 in your browser.
 
 ## Configuration
 
@@ -29,11 +29,16 @@ cp .env.example .env
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `HERMES_WEBUI_HOST` | `192.168.4.233` | Bind address (LAN IP) |
+| `HERMES_WEBUI_HOST` | `127.0.0.1` | Bind address |
 | `HERMES_WEBUI_PORT` | `8786` | Port |
 | `HERMES_WEBUI_PASSWORD` | (none) | Set for security |
 | `HERMES_WEBUI_AGENT_DIR` | auto | Path to hermes-agent |
 | `HERMES_WEBUI_DEFAULT_WORKSPACE` | `~/workspace` | Default workspace |
+| `HERMES_DOMAIN` | (none) | Domain for web interface |
+| `UBUNTU_IP` | `127.0.0.1` | IP address of Ubuntu machine |
+| `POPOS_IP` | `127.0.0.1` | IP address of Pop!_OS machine |
+| `DEFAULT_HOME` | `~` | Default home directory path |
+| `MEMSTER_USER` | (current user) | SSH username for remote machines |
 
 ## Development
 
@@ -73,7 +78,7 @@ cp releases/vibecode.appimage ~/Applications/
 - Portable Python runtime (no system Python needed)
 - Runs from local or remote codebase
 - Code changes reflected on app restart
-- Runs at http://192.168.4.233:8786
+- Runs at http://$HERMES_WEBUI_HOST:8786
 
 **Remote Codebase Options:**
 
@@ -84,7 +89,7 @@ sudo apt install sshfs
 
 # Mount remote directory
 mkdir -p ~/vibecode-remote
-sshfs user@192.168.4.233:/home/user/vibecode ~/vibecode-remote
+sshfs $USER@$HERMES_WEBUI_HOST:/home/$USER/vibecode ~/vibecode-remote
 
 # Run AppImage
 export VIBECODE_HOME=~/vibecode-remote
@@ -116,7 +121,7 @@ make apk         # Build releases/vibecode.apk
 adb install releases/vibecode.apk
 ```
 
-**Note:** The APK connects to `http://192.168.4.233:8786`. Ensure your server is running and accessible from your phone on the same network.
+**Note:** The APK connects to `http://$HERMES_WEBUI_HOST:8786`. Ensure your server is running and accessible from your phone on the same network.
 
 ### Build All
 
@@ -156,7 +161,7 @@ export HERMES_WEBUI_TLS_KEY=/path/to/key.pem
 SSH tunnel for secure remote access:
 
 ```bash
-ssh -N -L 8786:192.168.4.233:8786 user@your-server
+ssh -N -L 8786:$HERMES_WEBUI_HOST:8786 $USER@your-server
 ```
 
 Then open http://localhost:8786

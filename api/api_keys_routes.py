@@ -15,7 +15,7 @@ except ImportError:
     from enhanced_wiki_memory_routes import MemsterClient, MEMSTER_HOST, MEMSTER_USER, SSH_KEY_PATH
 
 # Path to Hermes config on .250
-HERMES_CONFIG_PATH = '/home/house/.hermes/config.yaml'
+HERMES_CONFIG_PATH = os.environ.get('HERMES_CONFIG_PATH', f"{os.environ.get('DEFAULT_HOME', os.path.expanduser('~'))}/.hermes/config.yaml")
 
 class ApiKeysManager:
     """Manager for NVIDIA API keys via SSH to .250"""

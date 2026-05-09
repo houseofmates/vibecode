@@ -661,7 +661,7 @@ async function createNewTerminal() {
     const sessionId = (window.S && window.S.session && window.S.session.session_id) || 'anonymous';
     const payload = { cwd, session_id: sessionId };
     if (_isApkMode()) {
-        payload.ssh_host = 'house@192.168.4.250';
+        payload.ssh_host = process.env.SSH_HOST || `${process.env.MEMSTER_USER || ''}@${process.env.MEMSTER_HOST || process.env.UBUNTU_IP || '127.0.0.1'}`;
     }
 
     try {

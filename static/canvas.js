@@ -151,8 +151,13 @@ function closeCanvas() {
 }
 
 function toggleCanvas() {
-  if (Canvas._open) closeCanvas();
-  else restoreCanvas();
+  if (Canvas._open) {
+    closeCanvas();
+  } else {
+    // Don't auto-restore from sessionStorage on toggle
+    // Only open if user explicitly opens something
+    // restoreCanvas();
+  }
 }
 
 function restoreCanvas() {
@@ -905,13 +910,13 @@ function initCanvas() {
     tab.onclick = () => setCanvasMode(tab.dataset.mode);
   });
 
-  // restore canvas state if we have one
-  // (deferred to let S.session load first)
-  setTimeout(() => {
-    if (sessionStorage.getItem('canvas_state')) {
-      restoreCanvas();
-    }
-  }, 1000);
+  // Only restore canvas state if user explicitly opened it in this session
+  // Don't auto-restore on page reload to prevent unexpected sidebar appearance
+  // setTimeout(() => {
+  //   if (sessionStorage.getItem('canvas_state')) {
+  //     restoreCanvas();
+  //   }
+  // }, 1000);
 }
 
 // ── expose globally ───────────────────────────────────────────────────────

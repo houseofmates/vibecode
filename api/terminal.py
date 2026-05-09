@@ -10,12 +10,18 @@ import queue
 import select
 import struct
 import fcntl
-import termios
 import signal
 import threading
 import time
 from pathlib import Path
 from typing import Dict, Optional
+
+# Platform-specific imports
+try:
+    import termios
+    HAS_TERMIOS = True
+except ImportError:
+    HAS_TERMIOS = False
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +67,9 @@ class TerminalSession:
         # (pty.openpty() defaults to 0x0 which breaks line wrapping)
         try:
             size = struct.pack('HHHH', self.rows, self.cols, 0, 0)
-            fcntl.ioctl(self.master_fd, termios.TIOCSWINSZ, size)
-        except (OSError, IOError):
+            if HAS_TERMIOS:
+                fcntl.ioctl(self.master_fd, termios.TIOCSWINSZ, size)
+        except (OSError, IOError, AttributeError):
             pass
 
         # Set non-blocking mode on master
@@ -203,7 +210,8 @@ class TerminalSession:
         try:
             # TIOCSWINSZ - Set window size
             size = struct.pack('HHHH', rows, cols, 0, 0)
-            fcntl.ioctl(self.master_fd, termios.TIOCSWINSZ, size)
+            if HAS_TERMIOS:
+                fcntl.ioctl(self.master_fd, termios.TIOCSWINSZ, size)
             self.cols = cols
             self.rows = rows
             # Notify the shell process group so it re-reads LINES/COLUMNS
@@ -216,36 +224,88 @@ class TerminalSession:
                         os.kill(self.pid, signal.SIGWINCH)
                     except (OSError, ProcessLookupError):
                         pass
-        except (OSError, IOError) as e:
+        except (OSError, IOError, AttributeError) as e:
             logger.error(f"Resize error: {e}")
 
     def close(self):
-        """Close the terminal session."""
-        if self.master_fd is not None:
-            try:
-                os.close(self.master_fd)
-            except:
-                pass
-            self.master_fd = None
-
-        if self.pid:
-            try:
-                os.kill(self.pid, signal.SIGTERM)
-                # Give it a moment to terminate
-                time.sleep(0.1)
+        """Close the terminal session with proper cleanup."""
+        try:
+            # Close master file descriptor
+            if self.master_fd is not None:
                 try:
-                    os.kill(self.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-            except ProcessLookupError:
+                    os.close(self.master_fd)
+                    logger.debug(f"Closed master fd for terminal {self.terminal_id}")
+                except OSError as e:
+                    logger.warning(f"Error closing master fd: {e}")
+                finally:
+                    self.master_fd = None
+
+            # Terminate child process group
+            if self.pid:
+                try:
+                    # Try to get process group and send SIGTERM to entire group
+                    try:
+                        pgid = os.getpgid(self.pid)
+                        os.killpg(pgid, signal.SIGTERM)
+                        logger.debug(f"Sent SIGTERM to process group {pgid}")
+                    except (OSError, ProcessLookupError):
+                        # Fallback to killing individual process
+                        os.kill(self.pid, signal.SIGTERM)
+                        logger.debug(f"Sent SIGTERM to process {self.pid}")
+                    
+                    # Wait for graceful termination
+                    try:
+                        os.waitpid(self.pid, os.WNOHANG)
+                    except (OSError, ProcessLookupError):
+                        pass
+                    
+                    # Give it a moment to terminate
+                    time.sleep(0.2)
+                    
+                    # Force kill if still running
+                    try:
+                        pgid = os.getpgid(self.pid)
+                        os.killpg(pgid, signal.SIGKILL)
+                        logger.debug(f"Force killed process group {pgid}")
+                    except (OSError, ProcessLookupError):
+                        try:
+                            os.kill(self.pid, signal.SIGKILL)
+                            logger.debug(f"Force killed process {self.pid}")
+                        except ProcessLookupError:
+                            pass  # Process already dead
+                    
+                except Exception as e:
+                    logger.error(f"Error terminating process {self.pid}: {e}")
+                finally:
+                    self.pid = None
+
+            # Clear output queue to prevent memory leaks
+            try:
+                while not self.output_queue.empty():
+                    self.output_queue.get_nowait()
+            except queue.Empty:
                 pass
-            self.pid = None
 
-        with TERMINAL_LOCK:
-            if self.terminal_id in TERMINAL_SESSIONS:
-                del TERMINAL_SESSIONS[self.terminal_id]
+            # Clear clients set
+            self.clients.clear()
 
-        logger.info(f"Closed terminal {self.terminal_id}")
+            # Remove from active sessions
+            with TERMINAL_LOCK:
+                if self.terminal_id in TERMINAL_SESSIONS:
+                    del TERMINAL_SESSIONS[self.terminal_id]
+                    logger.debug(f"Removed terminal {self.terminal_id} from active sessions")
+
+            logger.info(f"Closed terminal {self.terminal_id}")
+
+        except Exception as e:
+            logger.error(f"Unexpected error during terminal cleanup: {e}")
+            # Ensure we still try to remove from active sessions even on error
+            try:
+                with TERMINAL_LOCK:
+                    if self.terminal_id in TERMINAL_SESSIONS:
+                        del TERMINAL_SESSIONS[self.terminal_id]
+            except Exception:
+                pass
 
     def get_output(self, timeout: float = None) -> Optional[dict]:
         """Get pending output from queue. Blocks up to timeout seconds."""

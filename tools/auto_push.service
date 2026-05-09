@@ -1,0 +1,16 @@
+[Unit]
+Description=Auto push vibecode changes to remote branch
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/house/vibecode
+ExecStart=/home/house/vibecode/tools/auto_push.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

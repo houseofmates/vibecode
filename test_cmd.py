@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-REMOTE_SESSIONS_DIR = '/home/house/.hermes/sessions'
+REMOTE_SESSIONS_DIR = os.environ.get('REMOTE_SESSIONS_DIR', os.path.expanduser('~/.hermes/sessions'))
 file_list = 'session1.json session2.json'
 
 # Current approach

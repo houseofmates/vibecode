@@ -1,6 +1,6 @@
 #!/bin/bash
 # Updated debug script for correct path
-APPIMAGE_PATH='/home/house/apps/vibecode.appimage'
+APPIMAGE_PATH='${HOME}/apps/vibecode.appimage'
 echo 'Starting vibecode with debugging...'
 echo 'DISPLAY='
 echo 'WAYLAND_DISPLAY='

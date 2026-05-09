@@ -2,10 +2,11 @@
 import subprocess
 import json
 import re
+import os
 
-host = '192.168.4.250'
-user = 'house'
-sessions_dir = '/home/house/.hermes/sessions'
+host = os.environ.get('MEMSTER_HOST', os.environ.get('UBUNTU_IP', '127.0.0.1'))
+user = os.environ.get('MEMSTER_USER', os.environ.get('USER', ''))
+sessions_dir = os.environ.get('SESSIONS_DIR', f"{os.environ.get('DEFAULT_HOME', os.path.expanduser('~'))}/.hermes/sessions")
 
 # List files
 cmd = f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 {user}@{host} 'ls -1t {sessions_dir}/*.json 2>/dev/null | head -5'"

@@ -372,8 +372,8 @@
   body.bubble-layout .msg-row:has(.msg-role.assistant){align-self:flex-start;width:auto;max-width:85%;}
   body.bubble-layout .msg-row:has(.msg-role.user){align-self:flex-end;width:auto;max-width:85%;}
   body.bubble-layout .msg-row .msg-body{padding:12px 16px;border-radius:18px;margin:0;}
-  body.bubble-layout .msg-row:has(.msg-role.user) .msg-body{background:rgba(124,185,255,0.15);border-color:rgba(124,185,255,0.3);border-radius:18px 18px 4px 18px;padding:12px 16px;}
-  body.bubble-layout .msg-row:has(.msg-role.assistant) .msg-body{background:rgba(35,35,42,0.8);border-color:rgba(100,100,110,0.3);border-radius:18px 18px 18px 4px;}
+  body.bubble-layout .msg-row:has(.msg-role.user) .msg-body{background:rgba(36,91,126,0.25);border-color:rgba(36,91,126,0.5);border-radius:18px 18px 4px 18px;padding:12px 16px;}
+  body.bubble-layout .msg-row:has(.msg-role.assistant) .msg-body{background:rgba(123,101,41,0.25);border-color:rgba(123,101,41,0.5);border-radius:18px 18px 18px 4px;}
   /* Compact role display in bubble mode */
   body.bubble-layout .msg-role{display:none;}
   body.bubble-layout .msg-files{padding-left:0;margin-bottom:4px;}

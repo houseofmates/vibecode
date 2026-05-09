@@ -37,17 +37,15 @@ function _getApiBaseCandidates(isCapacitorApp, isTauri){
   if(isCapacitorApp || isTauri){
     add('http://localhost:8786/');
     add('http://127.0.0.1:8786/');
-    // Fallback to the development server on 192.168.4.233 if local is unavailable
-    add('http://192.168.4.233:8786/');
+    // Fallback to the development server on the Pop!_OS machine if local is unavailable
+    add('http://127.0.0.1:8786/');
   }
   // Only use localhost fallbacks in packaged or local-webview contexts.
   if(!isHostedWeb){
     add('http://localhost:8786/');
     add('http://127.0.0.1:8786/');
   }
-  if(isCapacitorApp){
-    add('https://vc.houseofmates.space/');
-  }
+  if(isCapacitorApp){ if (window.HERMES_DOMAIN) add(`https://vc.${window.HERMES_DOMAIN}/`); }
 
   if(!candidates.length) add(location.href);
   return candidates;

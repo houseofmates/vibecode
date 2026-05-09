@@ -5,7 +5,7 @@ help:
 	@echo ""
 	@echo "Development:"
 	@echo "  install   Install package in editable mode"
-	@echo "  run      Run the server (http://192.168.4.233:8786)"
+	@echo "  run      Run the server (http://$HERMES_WEBUI_HOST:8786)"
 	@echo "  dev      Run in development with auto-reload"
 	@echo "  test     Run tests"
 	@echo "  clean    Clean build artifacts"

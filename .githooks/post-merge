@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Post-merge hook - runs after git pull/merge
+# Verifies vibecode customizations survived
+
+set -euo pipefail
+
+echo "=== Post-merge hook: verifying vibecode customizations ==="
+
+cd "$(dirname "$0")"
+
+if [ -f re-apply-vibecode-customizations.sh ]; then
+  bash re-apply-vibecode-customizations.sh || {
+    echo "WARNING: Customization verification found issues"
+    echo "Run 'bash re-apply-vibecode-customizations.sh' to see details"
+  }
+fi

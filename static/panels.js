@@ -805,10 +805,10 @@ function renderWorkspaceDropdownInto(dd, workspaces, currentWs){
   if(!dd)return;
   dd.innerHTML='';
 
-  // Add default /home/house workspaces for each machine at the top
+  // Add default home workspaces for each machine at the top
   const machineDefaults = [
-    { name: 'ubuntu', path: '/home/house', _machine: 'ubuntu' },
-    { name: 'pop! os', path: '/home/house', _machine: 'popos' }
+    { name: 'ubuntu', path: window.DEFAULT_HOME || '~', _machine: 'ubuntu' },
+    { name: 'pop! os', path: window.DEFAULT_HOME || '~', _machine: 'popos' }
   ];
 
   for (const m of machineDefaults) {
@@ -872,9 +872,9 @@ function renderWorkspaceDropdownInto(dd, workspaces, currentWs){
     dd.appendChild(remoteDiv);
   }
 
-  // Add existing workspaces (excluding /home/house since it's shown as machine default)
+  // Add existing workspaces (excluding default home since it's shown as machine default)
   for(const w of workspaces){
-    if (w.path === '/home/house') continue;
+    if (w.path === (window.DEFAULT_HOME || '~')) continue;
 
     const opt=document.createElement('div');
     opt.className='ws-opt'+(w.path===currentWs?' active':'');
@@ -991,8 +991,8 @@ async function loadWorkspacesPanel(){
 
 // ── Remote computer cards ───────────────────────────────────────────────
 const REMOTE_COMPUTERS=[
-  {id:'ubuntu',name:'ubuntu home',color:'rgba(59,130,246,0.08)',border:'rgba(59,130,246,0.3)',ip:'192.168.4.250',home:'/home/house'},
-  {id:'popos',name:'pop! os home',color:'rgba(244,174,17,0.08)',border:'rgba(244,174,17,0.3)',ip:'192.168.4.233',home:'/home/house'},
+  {id:'ubuntu',name:'ubuntu home',color:'rgba(59,130,246,0.08)',border:'rgba(59,130,246,0.3)',ip:window.MEMSTER_HOST || window.UBUNTU_IP || '127.0.0.1',home:window.DEFAULT_HOME || '~'},
+  {id:'popos',name:'pop! os home',color:'rgba(244,174,17,0.08)',border:'rgba(244,174,17,0.3)',ip:window.MEMSTER_HOST_LEGACY || window.POPOS_IP || '127.0.0.1',home:window.DEFAULT_HOME || '~'},
 ];
 
 // Gear icon SVG (matches the profile dropdown "manage profiles" icon)
@@ -2897,7 +2897,7 @@ async function loadHermesConfig(){
       const configYaml = configToYaml(response.config);
       editor.value = configYaml;
       _currentConfig = configYaml;
-      status.textContent = 'config loaded from 192.168.4.250';
+      status.textContent = `config loaded from ${window.MEMSTER_HOST || window.UBUNTU_IP || '127.0.0.1'}`;
       status.className = 'config-editor-status success';
     } else {
       throw new Error(response.error || 'Failed to load config');
@@ -2916,13 +2916,13 @@ async function loadHermesConfig(){
 # ${errorMsg.replace(/\n/g, '\n# ')}
 #
 # Quick fix:
-# 1. Ensure you can SSH to 192.168.4.250: ssh house@192.168.4.250
-# 2. If prompted for password, set up key auth: ssh-copy-id -i ~/.ssh/id_ed25519 house@192.168.4.250
+# 1. Ensure you can SSH to ${window.MEMSTER_HOST || window.UBUNTU_IP || '127.0.0.1'}: ssh ${window.MEMSTER_USER || ''}@${window.MEMSTER_HOST || window.UBUNTU_IP || '127.0.0.1'}
+# 2. If prompted for password, set up key auth: ssh-copy-id -i ${window.SSH_KEY_PATH || '~/.ssh/id_ed25519'} ${window.MEMSTER_USER || ''}@${window.MEMSTER_HOST || window.UBUNTU_IP || '127.0.0.1'}
 # 3. Or generate a new key: ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
 #
 # Manual fallback:
-# You can manually edit config.yaml on 192.168.4.250 at:
-# /home/house/.hermes/config.yaml
+# You can manually edit config.yaml on ${window.MEMSTER_HOST || window.UBUNTU_IP || '127.0.0.1'} at:
+# ${window.CONFIG_PATH || (window.DEFAULT_HOME || '~') + '/.hermes/config.yaml'}
 #
 # Example config structure:
 # nvidia:
@@ -2931,15 +2931,15 @@ async function loadHermesConfig(){
 #     - nvapi-yyyyyyyy
 #   current_key_index: 0
 # model: nvidia/llama-3.1-405b-instruct
-# workspace: /home/house/projects
+# workspace: ${window.DEFAULT_HOME || '~'}/projects
 `;
     } else {
       // Fallback: show placeholder with instructions
-      editor.value = `# Failed to load config from 192.168.4.250
+      editor.value = `# Failed to load config from ${window.MEMSTER_HOST || window.UBUNTU_IP || '127.0.0.1'}
 # Error: ${e.message}
 #
 # You can manually edit config.yaml on the .250 machine at:
-# /home/house/.hermes/config.yaml
+# ${window.CONFIG_PATH || (window.DEFAULT_HOME || '~') + '/.hermes/config.yaml'}
 #
 # Example config structure:
 # nvidia:
@@ -2948,7 +2948,7 @@ async function loadHermesConfig(){
 #     - nvapi-yyyyyyyy
 #   current_key_index: 0
 # model: nvidia/llama-3.1-405b-instruct
-# workspace: /home/house/projects
+# workspace: ${window.DEFAULT_HOME || '~'}/projects
 `;
     }
     status.textContent = 'error loading config: ' + e.message;
@@ -2985,7 +2985,7 @@ async function saveHermesConfig(){
     
     if (response.ok) {
       _currentConfig = yamlContent;
-      status.textContent = 'config saved to 192.168.4.250 - restart hermes to apply';
+      status.textContent = `config saved to ${window.MEMSTER_HOST || window.UBUNTU_IP || '127.0.0.1'} - restart hermes to apply`;
       status.className = 'config-editor-status success';
       showToast('Config saved successfully');
     } else {

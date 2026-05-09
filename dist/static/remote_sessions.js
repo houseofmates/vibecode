@@ -9,7 +9,7 @@
   const isCapacitorApp = !!(window.Capacitor || window.__capacitor || location.protocol==='capacitor:' || document.documentElement.classList.contains('apk-force-mobile'));
   const isTauri = !isCapacitorApp && (window.__TAURI__ || location.protocol==='tauri:' || location.protocol==='file:' || location.hostname==='tauri.localhost' || location.host==='tauri.localhost');
   const TAURI_API_BASE = window.HERMES_API_BASE || (()=>{ try{ return localStorage.getItem('hermes-api-base'); }catch(e){ return null; } })() || (()=>{ try{ return localStorage.getItem('hermes-api-origin'); }catch(e){ return null; } })() || 'http://localhost:8786';
-  const API_BASE = isTauri ? TAURI_API_BASE : (isCapacitorApp ? 'https://vc.houseofmates.space' : '');
+  const API_BASE = isTauri ? TAURI_API_BASE : (window.HERMES_API_BASE || (isCapacitorApp && window.HERMES_DOMAIN ? `https://vc.${window.HERMES_DOMAIN}/` : location.origin));
   const REMOTE_SESSIONS_API = API_BASE.replace(/\/$/, '') + '/api/remote/sessions';
 
   // Cache configuration

@@ -86,7 +86,7 @@ async function loadSession(sid){
       };
     }
   }
-  if(INFLIGHT[sid]){
+  if(INFLIGHT[sid] && activeStreamId){
     S.messages=INFLIGHT[sid].messages;
     S.toolCalls=(INFLIGHT[sid].toolCalls||[]);
     S.busy=true;
@@ -101,11 +101,15 @@ async function loadSession(sid){
     if(typeof startClarifyPolling==='function') startClarifyPolling(sid);
     S.activeStreamId=activeStreamId;
     const _cb=$('btnCancel');if(_cb&&activeStreamId)_cb.style.display='inline-flex';
-    if(INFLIGHT[sid].reattach&&activeStreamId&&typeof attachLiveStream==='function'){
+    if(INFLIGHT[sid].reattach&&typeof attachLiveStream==='function'){
       INFLIGHT[sid].reattach=false;
       attachLiveStream(sid, activeStreamId, data.session.pending_attachments||[], {reconnecting:true});
     }
-  }else{
+  } else if(INFLIGHT[sid]) {
+    // Stale inflight state with no active stream on server -- clean up
+    delete INFLIGHT[sid];
+    clearInflightState(sid);
+  } else {
     updateQueueBadge(sid);
     S.messages=data.session.messages||[];
     const pendingMsg=typeof getPendingSessionMessage==='function'?getPendingSessionMessage(data.session):null;

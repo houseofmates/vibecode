@@ -4,19 +4,21 @@ Enhanced Wiki/Memory/SP API routes for vibecode v2.0
 Rich browser with full CRUD, search, and real-time data from memster/.250
 """
 import json
+import os
 import paramiko
 import re
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
-# Configuration
-MEMSTER_HOST = '192.168.4.250'
-MEMSTER_HOST_LEGACY = '192.168.4.233'
-MEMSTER_USER = 'house'
-MEMSTER_DB = '/home/house/.memster/memster.db'
-WIKI_DB = '/home/house/.hermes/wiki/wiki.db'
-SSH_KEY_PATH = '/home/house/.ssh/id_ed25519'
-REMOTE_SESSIONS_DIR = '/home/house/.hermes/sessions'
+_HOME = os.path.expanduser('~')
+
+MEMSTER_HOST = os.environ.get('MEMSTER_HOST', os.environ.get('UBUNTU_IP', '127.0.0.1'))
+MEMSTER_HOST_LEGACY = os.environ.get('MEMSTER_HOST_LEGACY', os.environ.get('POPOS_IP', '127.0.0.1'))
+MEMSTER_USER = os.environ.get('MEMSTER_USER', os.environ.get('USER', ''))
+MEMSTER_DB = os.environ.get('MEMSTER_DB', f"{os.environ.get('DEFAULT_HOME', _HOME)}/.memster/memster.db")
+WIKI_DB = os.environ.get('WIKI_DB', f"{os.environ.get('DEFAULT_HOME', _HOME)}/.hermes/wiki/wiki.db")
+SSH_KEY_PATH = os.environ.get('SSH_KEY_PATH', f"{_HOME}/.ssh/id_ed25519")
+REMOTE_SESSIONS_DIR = os.environ.get('REMOTE_SESSIONS_DIR', f"{os.environ.get('DEFAULT_HOME', _HOME)}/.hermes/sessions")
 
 class MemsterClient:
     """Client for SSH-based memster/wiki queries on .250"""
@@ -123,7 +125,7 @@ class MemsterClient:
                         continue
                     
                     session_id = filename.replace('.json', '').replace('.jsonl', '')
-                    session_data = {"session_id": session_id, "filename": filename, "title": session_id, "source": "192.168.4.250"}
+                    session_data = {"session_id": session_id, "filename": filename, "title": session_id, "source": MEMSTER_HOST}
                     try:
                         cmd2 = f'cat {sessions_dir}/{filename} 2>/dev/null | head -c 10000'
                         stdin2, stdout2, stderr2 = ssh.exec_command(cmd2)
@@ -168,7 +170,7 @@ class MemsterClient:
                     
                     session_id = filename.replace('.json', '').replace('.jsonl', '')
                     
-                    session_data = {"session_id": session_id, "filename": filename, "title": session_id, "source": "192.168.4.233"}
+                    session_data = {"session_id": session_id, "filename": filename, "title": session_id, "source": MEMSTER_HOST_LEGACY}
                     try:
                         cmd2 = f'cat {sessions_dir}/{filename} 2>/dev/null | head -c 10000'
                         stdin2, stdout2, stderr2 = ssh.exec_command(cmd2)

@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 import subprocess
 
-host = '192.168.4.250'
-user = 'house'
+import os
+host = os.environ.get('MEMSTER_HOST', os.environ.get('UBUNTU_IP', '127.0.0.1'))
+user = os.environ.get('MEMSTER_USER', 'house')
 files = [
-    '/home/house/.hermes/sessions/session_cron_9df1b36267c3_20260425_223017.json',
-    '/home/house/.hermes/sessions/session_20260425_211328_73856f.json'
+    _HOME = os.path.expanduser('~')
+    f"{os.environ.get('DEFAULT_HOME', _HOME)}/.hermes/sessions/session_cron_9df1b36267c3_20260425_223017.json",
+    f"{os.environ.get('DEFAULT_HOME', _HOME)}/.hermes/sessions/session_20260425_211328_73856f.json"
 ]
 
 cmd_parts = []

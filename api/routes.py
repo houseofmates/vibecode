@@ -55,6 +55,19 @@ from api.helpers import (
     _redact_text,
 )
 
+# Import Termisol terminal adapter
+try:
+    from api.termisol_adapter import (
+        create_termisol_session,
+        get_termisol_session,
+        list_termisol_sessions,
+        close_termisol_session
+    )
+    TERMISOL_AVAILABLE = True
+except ImportError:
+    TERMISOL_AVAILABLE = False
+    logger.warning("Termisol adapter not available, falling back to basic terminal")
+
 # ── CSRF: validate Origin/Referer on POST ────────────────────────────────────
 import re as _re
 
@@ -492,11 +505,29 @@ def _handle_commands_catalog(handler):
     return j(handler, {"commands": all_cmds, "sub": sub})
 
 
+def _render_index_html():
+    html = _INDEX_HTML_PATH.read_text(encoding="utf-8")
+    env_values = {
+        "DEFAULT_HOME": os.getenv("DEFAULT_HOME", ""),
+        "UBUNTU_IP": os.getenv("UBUNTU_IP", ""),
+        "POPOS_IP": os.getenv("POPOS_IP", ""),
+        "MEMSTER_HOST": os.getenv("MEMSTER_HOST", ""),
+        "MEMSTER_HOST_LEGACY": os.getenv("MEMSTER_HOST_LEGACY", ""),
+        "MEMSTER_USER": os.getenv("MEMSTER_USER", ""),
+        "SSH_HOST": os.getenv("SSH_HOST", ""),
+        "SSH_KEY_PATH": os.getenv("SSH_KEY_PATH", ""),
+        "HERMES_DOMAIN": os.getenv("HERMES_DOMAIN", ""),
+        "CONFIG_PATH": os.getenv("CONFIG_PATH", ""),
+    }
+    for key, value in env_values.items():
+        html = html.replace(f"{{{{{key}}}}}", json.dumps(value))
+    return html
+
 
 def _handle_apikeys_get(handler):
     try:
         import subprocess, json
-        result = subprocess.run(['/home/house/.hermes/hermes-agent/hermes', 'auth', 'list', '--format', 'json'], capture_output=True, text=True, timeout=10)
+        result = subprocess.run([f"{os.environ.get('DEFAULT_HOME', os.path.expanduser('~'))}/.hermes/hermes-agent/hermes", 'auth', 'list', '--format', 'json'], capture_output=True, text=True, timeout=10)
         if result.returncode != 0:
             return j(handler, {'error': 'Failed to list API keys', 'details': result.stderr}, status=500)
         data = json.loads(result.stdout)
@@ -511,7 +542,7 @@ def _handle_apikeys_post(handler, body):
         if not provider or not api_key:
             return j(handler, {'error': 'provider and api_key required'}, status=400)
         import subprocess
-        result = subprocess.run(['/home/house/.hermes/hermes-agent/hermes', 'auth', 'add', '--provider', provider, '--api-key', api_key], capture_output=True, text=True, timeout=10)
+        result = subprocess.run([f"{os.environ.get('DEFAULT_HOME', os.path.expanduser('~'))}/.hermes/hermes-agent/hermes", 'auth', 'add', '--provider', provider, '--api-key', api_key], capture_output=True, text=True, timeout=10)
         if result.returncode != 0:
             return j(handler, {'error': 'Failed to add API key', 'details': result.stderr}, status=500)
         return j(handler, {'ok': True})
@@ -525,7 +556,7 @@ def handle_get(handler, parsed) -> bool:
     if parsed.path in ("/", "/index.html"):
         return t(
             handler,
-            _INDEX_HTML_PATH.read_text(encoding="utf-8"),
+            _render_index_html(),
             content_type="text/html; charset=utf-8",
         )
 
@@ -821,6 +852,9 @@ def handle_get(handler, parsed) -> bool:
 
     if parsed.path == "/api/terminal/stream":
         return _handle_terminal_sse_stream(handler, parsed)
+    
+    if TERMISOL_AVAILABLE and parsed.path == "/api/termisol/stream":
+        return _handle_termisol_sse_stream(handler, parsed)
 
     if parsed.path == '/api/sessions/gateway/stream':
         return _handle_gateway_sse_stream(handler)
@@ -981,6 +1015,36 @@ def handle_get(handler, parsed) -> bool:
     if parsed.path == "/api/terminal/list":
         _sid = parse_qs(parsed.query).get("session_id", [""])[0]
         return j(handler, {"terminals": list_terminals(_sid if _sid else None)})
+    
+    # ── Termisol Terminal API (GET) ──
+    if TERMISOL_AVAILABLE and parsed.path == "/api/termisol/list":
+        _sid = parse_qs(parsed.query).get("session_id", [""])[0]
+        return j(handler, {"terminals": list_termisol_sessions(_sid if _sid else None)})
+    
+    if TERMISOL_AVAILABLE and parsed.path.startswith("/api/termisol/") and not parsed.path.endswith(("/stream", "/ws")):
+        _p = parsed.path.split("/")
+        _tid = _p[3] if len(_p) >= 4 else ""
+        _term = get_termisol_session(_tid)
+        if _term is None:
+            return j(handler, {"error": "Termisol terminal not found"}, status=404)
+        return j(handler, {
+            "terminal_id": _term.terminal_id,
+            "name": _term.name,
+            "cwd": _term.cwd,
+            "created_at": _term.created_at,
+            "session_id": _term.session_id,
+            "features": _term.features,
+            "connected": _term.connected,
+            "available_features": [
+                {
+                    "name": f.name,
+                    "enabled": f.enabled,
+                    "description": f.description,
+                    "category": f.category
+                }
+                for f in _term.get_features()
+            ]
+        })
 
     if parsed.path.startswith("/api/terminal/") and parsed.path.endswith("/output"):
         _p = parsed.path.split("/")
@@ -1060,12 +1124,12 @@ def _handle_remote_session_get(handler, session_id):
     """Fetch a specific session from remote machine with optimized timeouts."""
     import subprocess
     import json
-    
-    MEMSTER_HOST = '192.168.4.250'
-    MEMSTER_USER = 'house'
-    STATE_DB = '/home/house/.hermes/state.db'
-    SESSIONS_DIR = '/home/house/.hermes/sessions'
-    
+
+    MEMSTER_HOST = os.environ.get('MEMSTER_HOST', os.environ.get('UBUNTU_IP', '127.0.0.1'))
+    MEMSTER_USER = os.environ.get('MEMSTER_USER', os.environ.get('USER', ''))
+    STATE_DB = os.environ.get('STATE_DB', f"{os.environ.get('DEFAULT_HOME', os.path.expanduser('~'))}/.hermes/state.db")
+    SESSIONS_DIR = os.environ.get('SESSIONS_DIR', f"{os.environ.get('DEFAULT_HOME', os.path.expanduser('~'))}/.hermes/sessions")
+
     # Try state.db first - query for the specific session with tight timeout
     try:
         cmd = f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 {MEMSTER_USER}@{MEMSTER_HOST} 'echo \"SELECT id, source, started_at, title FROM sessions WHERE id = \\\"{session_id}\\\";\" | sqlite3 -csv {STATE_DB}'"
@@ -1097,7 +1161,7 @@ def _handle_remote_session_get(handler, session_id):
                     session_data = {
                         'session_id': session_id,
                         'title': parts[3].strip() if len(parts) > 3 else session_id,
-                        'workspace': '/home/house',
+                        'workspace': os.environ.get('DEFAULT_HOME', os.path.expanduser('~')),
                         'model': 'moonshotai/kimi-k2.5',
                         'messages': messages,
                         'created_at': float(parts[2])/1000000000 if len(parts) > 2 and parts[2].strip() else None,
@@ -1854,6 +1918,23 @@ def handle_post(handler, parsed) -> bool:
             })
         except Exception as e:
             return bad(handler, str(e))
+    
+    # ── Termisol Terminal API (POST) ──
+    if TERMISOL_AVAILABLE and parsed.path == "/api/termisol/create":
+        _cwd = body.get("cwd", "")
+        _session_id = body.get("session_id", "")
+        _features = body.get("features", {})
+        try:
+            _term = create_termisol_session(_cwd if _cwd else None, _features, _session_id if _session_id else None)
+            return j(handler, {
+                "terminal_id": _term.terminal_id,
+                "name": _term.name,
+                "cwd": _term.cwd,
+                "features": _term.features,
+                "connected": _term.connected
+            })
+        except Exception as e:
+            return bad(handler, str(e))
 
     if parsed.path.startswith("/api/terminal/") and parsed.path.endswith("/write"):
         _p = parsed.path.split("/")
@@ -1897,6 +1978,61 @@ def handle_post(handler, parsed) -> bool:
             return j(handler, {"status": "closed", "terminal_id": _tid})
         else:
             return j(handler, {"error": "Terminal not found"}, status=404)
+    
+    # ── Termisol Terminal Operations (POST) ──
+    if TERMISOL_AVAILABLE and parsed.path.startswith("/api/termisol/") and parsed.path.endswith("/write"):
+        _p = parsed.path.split("/")
+        _tid = _p[3] if len(_p) >= 4 else ""
+        _data = body.get("data", "")
+        _term = get_termisol_session(_tid)
+        if _term is None:
+            return j(handler, {"error": "Termisol terminal not found"}, status=404)
+        try:
+            import asyncio
+            success = asyncio.run(_term.write(_data))
+            if success:
+                return j(handler, {"success": True})
+            else:
+                return bad(handler, "Failed to write to Termisol terminal")
+        except Exception as e:
+            return bad(handler, str(e))
+    
+    if TERMISOL_AVAILABLE and parsed.path.startswith("/api/termisol/") and parsed.path.endswith("/resize"):
+        _p = parsed.path.split("/")
+        _tid = _p[3] if len(_p) >= 4 else ""
+        _cols = body.get("cols", 80)
+        _rows = body.get("rows", 24)
+        _term = get_termisol_session(_tid)
+        if _term is None:
+            return j(handler, {"error": "Termisol terminal not found"}, status=404)
+        try:
+            import asyncio
+            asyncio.run(_term.resize(_cols, _rows))
+            return j(handler, {"success": True})
+        except Exception as e:
+            return bad(handler, str(e))
+    
+    if TERMISOL_AVAILABLE and parsed.path.startswith("/api/termisol/") and parsed.path.endswith("/features"):
+        _p = parsed.path.split("/")
+        _tid = _p[3] if len(_p) >= 4 else ""
+        _features = body.get("features", {})
+        _term = get_termisol_session(_tid)
+        if _term is None:
+            return j(handler, {"error": "Termisol terminal not found"}, status=404)
+        try:
+            for feature, enabled in _features.items():
+                _term.enable_feature(feature, enabled)
+            return j(handler, {"success": True, "features": _term.features})
+        except Exception as e:
+            return bad(handler, str(e))
+    
+    if TERMISOL_AVAILABLE and parsed.path.startswith("/api/termisol/") and parsed.path.endswith("/close"):
+        _p = parsed.path.split("/")
+        _tid = _p[3] if len(_p) >= 4 else ""
+        if close_termisol_session(_tid):
+            return j(handler, {"success": True})
+        else:
+            return j(handler, {"error": "Termisol terminal not found"}, status=404)
 
     # ── Remote Paths API (POST) ─────────────────────────────────────────────────
     if parsed.path == "/api/remote_paths":
@@ -1917,10 +2053,10 @@ def _handle_remote_sessions_list(handler):
     """List sessions from remote .250 state.db via SSH with aggressive caching."""
     import subprocess
     import time as time_module
-    
-    MEMSTER_HOST = '192.168.4.250'
-    MEMSTER_USER = 'house'
-    STATE_DB = '/home/house/.hermes/state.db'
+
+    MEMSTER_HOST = os.environ.get('MEMSTER_HOST', os.environ.get('UBUNTU_IP', '127.0.0.1'))
+    MEMSTER_USER = os.environ.get('MEMSTER_USER', os.environ.get('USER', ''))
+    STATE_DB = os.environ.get('STATE_DB', f"{os.environ.get('DEFAULT_HOME', os.path.expanduser('~'))}/.hermes/state.db")
     CACHE_TTL = 120  # 2 minutes cache TTL
     
     errors = []
@@ -2010,11 +2146,11 @@ def _handle_remote_sessions_list(handler):
 def _delete_remote_session(session_id: str) -> bool:
     """Delete a session from remote .250 machine via SSH"""
     import subprocess
-    
-    MEMSTER_HOST = '192.168.4.250'
-    MEMSTER_USER = 'house'
-    STATE_DB = '/home/house/.hermes/state.db'
-    SESSIONS_DIR = '/home/house/.hermes/sessions'
+
+    MEMSTER_HOST = os.environ.get('MEMSTER_HOST', os.environ.get('UBUNTU_IP', '127.0.0.1'))
+    MEMSTER_USER = os.environ.get('MEMSTER_USER', os.environ.get('USER', ''))
+    STATE_DB = os.environ.get('STATE_DB', f"{os.environ.get('DEFAULT_HOME', os.path.expanduser('~'))}/.hermes/state.db")
+    SESSIONS_DIR = os.environ.get('SESSIONS_DIR', f"{os.environ.get('DEFAULT_HOME', os.path.expanduser('~'))}/.hermes/sessions")
     
     try:
         # Delete from state.db with tight timeout
@@ -2035,10 +2171,10 @@ def _delete_remote_session(session_id: str) -> bool:
 def _rename_remote_session(session_id: str, new_title: str) -> bool:
     """Rename a session on remote .250 machine via SSH"""
     import subprocess
-    
-    MEMSTER_HOST = '192.168.4.250'
-    MEMSTER_USER = 'house'
-    STATE_DB = '/home/house/.hermes/state.db'
+
+    MEMSTER_HOST = os.environ.get('MEMSTER_HOST', os.environ.get('UBUNTU_IP', '127.0.0.1'))
+    MEMSTER_USER = os.environ.get('MEMSTER_USER', os.environ.get('USER', ''))
+    STATE_DB = os.environ.get('STATE_DB', f"{os.environ.get('DEFAULT_HOME', os.path.expanduser('~'))}/.hermes/state.db")
     
     try:
         # Escape quotes in title for SQL
@@ -3097,11 +3233,11 @@ def _get_or_import_session(sid):
     try:
         import subprocess
         import json
-        
-        MEMSTER_HOST = '192.168.4.250'
-        MEMSTER_HOST_LEGACY = '192.168.4.233'
-        MEMSTER_USER = 'house'
-        REMOTE_SESSIONS_DIR = '/home/house/.hermes/sessions'
+
+        MEMSTER_HOST = os.environ.get('MEMSTER_HOST', os.environ.get('UBUNTU_IP', '127.0.0.1'))
+        MEMSTER_HOST_LEGACY = os.environ.get('MEMSTER_HOST_LEGACY', os.environ.get('POPOS_IP', '127.0.0.1'))
+        MEMSTER_USER = os.environ.get('MEMSTER_USER', os.environ.get('USER', ''))
+        REMOTE_SESSIONS_DIR = os.environ.get('REMOTE_SESSIONS_DIR', f"{os.environ.get('DEFAULT_HOME', os.path.expanduser('~'))}/.hermes/sessions")
         
         for host in [MEMSTER_HOST, MEMSTER_HOST_LEGACY]:
             for ext in ['.json', '.jsonl']:
@@ -3140,11 +3276,11 @@ def _fetch_remote_session_direct(sid):
     """Fast direct fetch of a remote session using the existing handler logic."""
     import subprocess
     import json
-    
-    MEMSTER_HOST = '192.168.4.250'
-    MEMSTER_USER = 'house'
-    STATE_DB = '/home/house/.hermes/state.db'
-    SESSIONS_DIR = '/home/house/.hermes/sessions'
+
+    MEMSTER_HOST = os.environ.get('MEMSTER_HOST', os.environ.get('UBUNTU_IP', '127.0.0.1'))
+    MEMSTER_USER = os.environ.get('MEMSTER_USER', os.environ.get('USER', ''))
+    STATE_DB = os.environ.get('STATE_DB', f"{os.environ.get('DEFAULT_HOME', os.path.expanduser('~'))}/.hermes/state.db")
+    SESSIONS_DIR = os.environ.get('SESSIONS_DIR', f"{os.environ.get('DEFAULT_HOME', os.path.expanduser('~'))}/.hermes/sessions")
     
     # Try state.db first with tight timeout
     try:
@@ -3177,7 +3313,7 @@ def _fetch_remote_session_direct(sid):
                     session_data = {
                         'session_id': sid,
                         'title': parts[3].strip() if len(parts) > 3 else sid,
-                        'workspace': '/home/house',
+                        'workspace': os.environ.get('DEFAULT_HOME', os.path.expanduser('~')),
                         'model': 'moonshotai/kimi-k2.5',
                         'messages': messages,
                         'created_at': float(parts[2])/1000000000 if len(parts) > 2 and parts[2].strip() else None,
@@ -3426,15 +3562,36 @@ def _serve_static(handler, parsed):
 def _handle_multiplex_sse_stream(handler, parsed):
     """Multiplexed SSE: one connection carries events for ALL active streams.
     This bypasses the browser's 6-connections-per-domain limit, allowing
-    dozens of concurrent agent sessions to stream simultaneously."""
+    dozens of concurrent agent sessions to stream simultaneously.
+
+    Queues are kept after disconnect so that events emitted during the brief
+    reconnect window are not lost. A periodic cleanup task removes stale queues.
+    """
     from api.streaming import _sse
     from api.config import MULTIPLEX_QUEUES, MULTIPLEX_LOCK
     import queue
+    import time
 
     client_id = parse_qs(parsed.query).get("client_id", [""])[0] or "default"
-    mq = queue.Queue()
+    mq = queue.Queue(maxsize=5000)
+    mq._last_get = time.time()
+    mq._last_put = time.time()
+
     with MULTIPLEX_LOCK:
+        old_mq = MULTIPLEX_QUEUES.get(client_id)
         MULTIPLEX_QUEUES[client_id] = mq
+        if old_mq is not None:
+            # Drain old queue into new one so events emitted during disconnect
+            # aren't lost (e.g. the terminal 'done' event).
+            drained = 0
+            while True:
+                try:
+                    mq.put_nowait(old_mq.get_nowait())
+                    drained += 1
+                except (queue.Empty, queue.Full):
+                    break
+            if drained:
+                print(f"[webui] Drained {drained} events from old queue for client_id={client_id}", flush=True)
 
     handler.send_response(200)
     handler.send_header("Content-Type", "text/event-stream; charset=utf-8")
@@ -3449,7 +3606,8 @@ def _handle_multiplex_sse_stream(handler, parsed):
     try:
         while True:
             try:
-                event, data = mq.get(timeout=5)
+                event, data = mq.get(timeout=2)
+                mq._last_get = time.time()
             except queue.Empty:
                 handler.wfile.write(b": heartbeat\n\n")
                 handler.wfile.flush()
@@ -3463,10 +3621,9 @@ def _handle_multiplex_sse_stream(handler, parsed):
     except Exception as e:
         print(f"[webui] Multiplex SSE error: {e}", flush=True)
     finally:
-        with MULTIPLEX_LOCK:
-            # Only pop if this handler's queue is still the current one
-            if MULTIPLEX_QUEUES.get(client_id) is mq:
-                MULTIPLEX_QUEUES.pop(client_id, None)
+        # DO NOT remove the queue. Keep it around so a reconnecting client
+        # can drain missed events. Stale queues are cleaned up periodically.
+        pass
     print(f"[webui] Multiplex SSE closed for client_id={client_id}", flush=True)
     return True
 
@@ -3549,5 +3706,92 @@ def _handle_terminal_sse_stream(handler, parsed):
         # Remove client from terminal session
         term.remove_client(client_id)
         print(f"[webui] Terminal SSE closed for terminal_id={terminal_id}, client_id={client_id}", flush=True)
+    
+    return True
+
+
+def _handle_termisol_sse_stream(handler, parsed):
+    """Termisol Terminal SSE stream: streams output from a Termisol terminal session."""
+    import time
+    import asyncio
+    
+    terminal_id = parse_qs(parsed.query).get("terminal_id", [""])[0]
+    client_id = parse_qs(parsed.query).get("client_id", [""])[0] or "default"
+    
+    if not terminal_id:
+        handler.send_response(400)
+        handler.send_header("Content-Type", "application/json")
+        _cors_headers(handler)
+        handler.end_headers()
+        handler.wfile.write(b'{"error": "terminal_id required"}')
+        return True
+    
+    # Get Termisol terminal session
+    term = get_termisol_session(terminal_id)
+    if term is None:
+        handler.send_response(404)
+        handler.send_header("Content-Type", "application/json")
+        _cors_headers(handler)
+        handler.end_headers()
+        handler.wfile.write(b'{"error": "Termisol terminal not found"}')
+        return True
+    
+    # Add client to terminal session
+    term.add_client(client_id)
+    
+    handler.send_response(200)
+    handler.send_header("Content-Type", "text/event-stream; charset=utf-8")
+    handler.send_header("Cache-Control", "no-cache, no-transform")
+    handler.send_header("X-Accel-Buffering", "no")
+    handler.send_header("Connection", "keep-alive")
+    _cors_headers(handler)
+    handler.end_headers()
+    
+    # Send ready event
+    handler.wfile.write(b"event: ready\n")
+    handler.wfile.write(f"data: {json.dumps({'terminal_id': terminal_id, 'name': term.name})}\n\n".encode())
+    handler.wfile.flush()
+    
+    print(f"[webui] Termisol SSE started for terminal_id={terminal_id}, client_id={client_id}", flush=True)
+    
+    try:
+        last_heartbeat = time.time()
+        while True:
+            now = time.time()
+            # Send keepalive every 5 seconds to prevent proxy timeouts
+            if now - last_heartbeat > 5:
+                handler.wfile.write(b": keepalive\n\n")
+                handler.wfile.flush()
+                last_heartbeat = now
+            
+            # Block waiting for output (0.5s max) using async
+            try:
+                output = asyncio.run(term.get_output(timeout=0.5))
+                if output:
+                    handler.wfile.write(f"event: {output['type']}\n")
+                    handler.wfile.write(f"data: {json.dumps(output)}\n\n".encode())
+                    handler.wfile.flush()
+                    last_heartbeat = now
+            except asyncio.TimeoutError:
+                pass
+            except Exception as e:
+                print(f"[webui] Termisol output error: {e}", flush=True)
+                
+            # Check if terminal is still connected
+            if not term.connected:
+                # Terminal exited
+                handler.wfile.write(b"event: output\n")
+                handler.wfile.write(f"data: {json.dumps({'type': 'exit', 'code': 0})}\n\n".encode())
+                handler.wfile.flush()
+                break
+                    
+    except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError) as e:
+        print(f"[webui] Termisol SSE disconnected: {e}", flush=True)
+    except Exception as e:
+        print(f"[webui] Termisol SSE error: {e}", flush=True)
+    finally:
+        # Remove client from terminal session
+        term.remove_client(client_id)
+        print(f"[webui] Termisol SSE closed for terminal_id={terminal_id}, client_id={client_id}", flush=True)
     
     return True

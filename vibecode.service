@@ -5,18 +5,18 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=house
-WorkingDirectory=/home/house/vibecode
-ExecStart=/usr/bin/python3 server.py
+# User=house (optional; set to your runtime user if needed)
+WorkingDirectory=%h/vibecode
+ExecStart=/usr/bin/python3 %h/vibecode/server.py
 Restart=always
 RestartSec=5
 StartLimitInterval=60
 StartLimitBurst=3
-Environment=HOME=/home/house
+Environment=HOME=%h
 Environment=HERMES_WEBUI_PORT=8786
 Environment=PYTHONUNBUFFERED=1
 Environment=PYTHONOPTIMIZE=1
-Environment=PYTHONPATH=/home/house/vibecode
+Environment=PYTHONPATH=%h/vibecode
 StandardOutput=journal
 StandardError=journal
 # Performance optimizations

@@ -1,8 +1,8 @@
 #!/bin/bash
 # vibecode Desktop - Opens remote vibecode in a dedicated browser window
-# This connects to the existing server at 192.168.4.233:8786
+# This connects to the existing server at $HERMES_WEBUI_HOST:8786
 
-REMOTE_URL="http://192.168.4.233:8786"
+REMOTE_URL="http://${HERMES_WEBUI_HOST:-${POPOS_IP:-127.0.0.1}}:8786"
 
 echo "[vibecode] Opening vibecode Desktop..."
 echo "[vibecode] Connecting to: $REMOTE_URL"
@@ -10,7 +10,7 @@ echo "[vibecode] Connecting to: $REMOTE_URL"
 # Check if server is reachable
 if ! curl -s "$REMOTE_URL" > /dev/null 2>&1; then
     echo "[vibecode] ERROR: Cannot connect to $REMOTE_URL"
-    echo "[vibecode] Make sure the server is running on 192.168.4.233"
+    echo "[vibecode] Make sure the server is running on $HERMES_WEBUI_HOST"
     exit 1
 fi
 

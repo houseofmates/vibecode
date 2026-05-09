@@ -364,7 +364,7 @@ class HTTP2Optimizer:
     def update_stream_priority(self, stream_id: int, weight: int = None, 
                            dependency: Optional[int] = None):
         """Update stream priority for multiplexing."""
-        async with self.stream_lock:
+        with self.stream_lock:
             stream = self.streams.get(stream_id)
             if stream and stream.state == 'open':
                 if weight is not None:
@@ -443,8 +443,8 @@ def initialize_http2_optimizer():
     _http2_optimizer = HTTP2Optimizer()
     logger.info("Global HTTP/2 optimizer initialized")
 
-def create_http2_stream(headers: Dict[str, str], weight: int = 16, 
-                       dependency: Optional[int] = None) -> int:
+async def create_http2_stream(headers: Dict[str, str], weight: int = 16,
+                             dependency: Optional[int] = None) -> int:
     """Create HTTP/2 stream through global optimizer."""
     if not _http2_optimizer:
         raise RuntimeError("HTTP/2 optimizer not initialized")

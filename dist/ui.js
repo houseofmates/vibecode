@@ -1923,9 +1923,9 @@ async function loadSession(sessionId){
 // Create a new session
 async function newSession(focus=true){
   const model=$('modelSelect')?.value||'openai/gpt-4o';
-  // Use current session's workspace if available, otherwise default to ubuntu /home/house
+  // Use current session's workspace if available, otherwise default to home
   const currentWs=S.session?.workspace;
-  const defaultWs=currentWs||'/home/house';
+  const defaultWs=currentWs||window.DEFAULT_HOME || '~';
   const body={model,workspace:defaultWs};
   const data=await api('/api/session/new',{method:'POST',body:JSON.stringify(body)});
   S.session=data.session||data;

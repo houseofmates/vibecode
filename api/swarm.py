@@ -205,6 +205,7 @@ def _fanout_swarm_event(event_type, swarm_id, data):
             for _cid, mq in clients:
                 try:
                     mq.put_nowait((event_type, payload))
+                    mq._last_put = time.time()
                 except Exception as e:
                     logger.debug(f"Failed to send swarm event to client {_cid}: {e}")
     except Exception as e:
@@ -382,7 +383,7 @@ def _get_session_context(session_id):
             return ''
         ctx = []
         ctx.append(f"## swarm task context")
-        ctx.append(f"workspace: {s.workspace or '/home/house'}")
+        ctx.append(f"workspace: {s.workspace or os.environ.get('DEFAULT_HOME', os.path.expanduser('~'))}")
         if hasattr(s, 'title') and s.title and s.title != 'Untitled':
             ctx.append(f"conversation: {s.title}")
         if hasattr(s, 'messages') and s.messages:

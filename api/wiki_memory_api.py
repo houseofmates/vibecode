@@ -41,12 +41,13 @@ ssh_command_raw = lambda host, user, command, timeout=30: run_sqlite_query(
     fetch=False
 )
 
-MEMSTER_HOST = '192.168.4.250'  # For reference
-MEMSTER_USER = 'house'
-MEMSTER_DB = '/home/house/.memster/memster_core.db'
-WIKI_DB = '/home/house/.hermes/wiki/wiki.db'
-REMOTE_MEMSTER_DB = '/home/house/.memster/memster.db'
-REMOTE_WIKI_DB = '/home/house/.hermes/wiki/wiki.db'
+_HOME = os.path.expanduser('~')
+MEMSTER_HOST = os.environ.get('MEMSTER_HOST', '127.0.0.1')
+MEMSTER_USER = os.environ.get('MEMSTER_USER', os.environ.get('USER', ''))
+MEMSTER_DB = os.environ.get('MEMSTER_DB', f"{os.environ.get('DEFAULT_HOME', _HOME)}/.memster/memster_core.db")
+WIKI_DB = os.environ.get('WIKI_DB', f"{os.environ.get('DEFAULT_HOME', _HOME)}/.hermes/wiki/wiki.db")
+REMOTE_MEMSTER_DB = os.environ.get('REMOTE_MEMSTER_DB', f"{os.environ.get('DEFAULT_HOME', _HOME)}/.memster/memster.db")
+REMOTE_WIKI_DB = os.environ.get('REMOTE_WIKI_DB', f"{os.environ.get('DEFAULT_HOME', _HOME)}/.hermes/wiki/wiki.db")
 
 def _query_remote_or_local(sql, db_local, db_remote):
     """Try querying remote memster via SSH first, fall back to local SQLite."""

@@ -725,6 +725,16 @@ def resolve_model_provider(model_id: str) -> tuple:
         # just because the model name contains a slash (e.g. google/gemma-4-26b-a4b).
         # The user has explicitly pointed at a base_url, so trust their routing config.
         if config_base_url:
+            # If prefix matches config provider, strip and use directly.
+            if config_provider and prefix == config_provider:
+                return bare, config_provider, config_base_url
+            # If the full model_id exists in another provider's catalog, route there
+            # instead of forcing it through the configured provider.
+            for provider_slug, catalog in _PROVIDER_MODELS.items():
+                if provider_slug == config_provider:
+                    continue
+                if any((entry.get("id") or "").strip() == model_id for entry in catalog):
+                    return model_id, provider_slug, None
             # Only strip the provider prefix when it's a known provider namespace
             # (e.g. "openai/gpt-5.4" → "gpt-5.4" for a custom OpenAI-compatible proxy).
             # Unknown prefixes (e.g. "zai-org/GLM-5.1" on DeepInfra) are intrinsic to
@@ -733,10 +743,18 @@ def resolve_model_provider(model_id: str) -> tuple:
                 return bare, config_provider, config_base_url
             # Unknown prefix (not a named provider) — pass full model_id through.
             return model_id, config_provider, config_base_url
+        # If the full model_id exists in the configured provider's catalog, route
+        # through the configured provider even if the prefix looks like another
+        # provider namespace (e.g. nvidia/... models served by kilocode).
+        if config_provider and config_provider in _PROVIDER_MODELS:
+            provider_catalog = _PROVIDER_MODELS[config_provider]
+            if any((entry.get("id") or "").strip() == model_id for entry in provider_catalog):
+                return model_id, config_provider, config_base_url
+
         # If prefix does NOT match config provider, the user picked a cross-provider model
         # from the OpenRouter dropdown (e.g. config=anthropic but picked openai/gpt-5.4-mini).
         # In this case always route through openrouter with the full provider/model string.
-        if prefix in _PROVIDER_MODELS and prefix != config_provider:
+        if prefix in _PROVIDER_MODELS and config_provider and prefix != config_provider:
             return model_id, "openrouter", None
 
     # NVIDIA can be the active provider while the user still selects a bare GLM
@@ -752,6 +770,26 @@ def resolve_model_provider(model_id: str) -> tuple:
     # NVIDIA NIM provider — return the NIM endpoint base URL
     if config_provider == "nvidia":
         return model_id, "nvidia", "https://integrate.api.nvidia.com/v1"
+
+    # Bare model name fallback: if the model_id (without prefix) matches an entry
+    # in a known provider's catalog, and that provider is authenticated, route there.
+    # This handles sessions saved with bare names like "nemotron-3-super-120b-a12b:free"
+    # when the user intended a specific provider.
+    if "/" not in model_id:
+        for provider_slug, catalog in _PROVIDER_MODELS.items():
+            if provider_slug == config_provider:
+                continue
+            for entry in catalog:
+                entry_id = (entry.get("id") or "").strip()
+                # Match exact bare name or suffix after known prefix
+                if entry_id == model_id or entry_id.endswith("/" + model_id):
+                    # Don't override an explicitly configured provider unless
+                    # the configured provider doesn't have this model.
+                    if config_provider and config_provider in _PROVIDER_MODELS:
+                        cfg_catalog = _PROVIDER_MODELS[config_provider]
+                        if any((e.get("id") or "").strip() == model_id or (e.get("id") or "").strip().endswith("/" + model_id) for e in cfg_catalog):
+                            continue
+                    return entry_id, provider_slug, None
 
     return model_id, config_provider, config_base_url
 
@@ -883,6 +921,7 @@ def get_available_models() -> dict:
             "OPENCODE_GO_API_KEY",
             "NVIDIA_API_KEY",
             "NGC_API_KEY",
+            "KILOCODE_API_KEY",
         ):
             val = os.getenv(k)
             if val:
@@ -909,6 +948,8 @@ def get_available_models() -> dict:
             detected_providers.add("opencode-go")
         if all_env.get("NVIDIA_API_KEY") or all_env.get("NGC_API_KEY"):
             detected_providers.add("nvidia")
+        if all_env.get("KILOCODE_API_KEY"):
+            detected_providers.add("kilocode")
 
     # 3b. Also check config.yaml for NVIDIA API keys
     nvidia_config = cfg.get("nvidia", {})

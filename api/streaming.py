@@ -649,7 +649,12 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             q.put_nowait((event, data))
             print(f"[webui] put event: {event}", flush=True)
         except Exception as e:
-            logger.debug(f"Failed to put event to queue: {e}")
+            logger.error(f"Failed to put event to queue: {e}")
+            # Try to send error event if queue is full/broken
+            try:
+                q.put_nowait(('error', {'message': 'Stream queue error', 'details': str(e)}))
+            except Exception:
+                pass  # Queue is completely broken
         # Fan out to multiplex clients so a single SSE connection can carry
         # events for many concurrent streams (bypasses browser 6-conn limit).
         try:
@@ -669,6 +674,7 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             for _cid, mq in clients:
                 try:
                     mq.put_nowait((event, multiplex_data))
+                    mq._last_put = time.time()
                 except Exception:
                     pass
         except Exception:
@@ -1343,31 +1349,40 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                 _fallback_resolved = None
 
             print(f"[webui] Creating AIAgent with model={resolved_model}, provider={resolved_provider}", flush=True)
-            agent = _AIAgent(
-                model=resolved_model,
-                provider=resolved_provider,
-                base_url=resolved_base_url,
-                api_key=resolved_api_key,
-                api_mode=_rt.get('api_mode'),
-                acp_command=_rt.get('command'),
-                acp_args=_rt.get('args'),
-                credential_pool=_rt.get('credential_pool'),
-                platform='cli',
-                quiet_mode=True,
-                enabled_toolsets=_toolsets,
-                fallback_model=_fallback_resolved,
-                session_id=session_id,
-                session_db=_session_db,
-                stream_delta_callback=on_token,
-                reasoning_callback=on_reasoning,
-                tool_progress_callback=on_tool,
-                clarify_callback=(
-                    lambda question, choices: _clarify_callback_impl(
-                        question, choices, session_id, cancel_event, put
-                    )
-                ),
-            )
-            print(f"[webui] AIAgent created successfully", flush=True)
+            try:
+                agent = _AIAgent(
+                    model=resolved_model,
+                    provider=resolved_provider,
+                    base_url=resolved_base_url,
+                    api_key=resolved_api_key,
+                    api_mode=_rt.get('api_mode'),
+                    acp_command=_rt.get('command'),
+                    acp_args=_rt.get('args'),
+                    credential_pool=_rt.get('credential_pool'),
+                    platform='cli',
+                    quiet_mode=True,
+                    enabled_toolsets=_toolsets,
+                    fallback_model=_fallback_resolved,
+                    session_id=session_id,
+                    session_db=_session_db,
+                    stream_delta_callback=on_token,
+                    reasoning_callback=on_reasoning,
+                    tool_progress_callback=on_tool,
+                    clarify_callback=(
+                        lambda question, choices: _clarify_callback_impl(
+                            question, choices, session_id, cancel_event, put
+                        )
+                    ),
+                )
+                print(f"[webui] AIAgent created successfully", flush=True)
+            except Exception as e:
+                logger.error(f"Failed to create AIAgent: {e}")
+                put('error', {
+                    'message': 'Failed to initialize AI agent',
+                    'details': str(e),
+                    'type': 'agent_creation_error'
+                })
+                return
 
             # Store agent instance for cancel/interrupt propagation
             with STREAMS_LOCK:
@@ -1439,15 +1454,33 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                     agent._tool_use_enforcement = True
                     print(f"[webui] Forcing tool-use enforcement for NVIDIA NIM", flush=True)
             print(f"[webui] Starting agent.run_conversation()...", flush=True)
-            result = agent.run_conversation(
-                user_message=workspace_ctx + msg_text,
-                system_message=workspace_system_msg,
-                conversation_history=_sanitize_messages_for_api(s.messages),
-                task_id=session_id,
-                persist_user_message=msg_text,
-            )
-            print(f"[webui] agent.run_conversation() returned. Result keys: {list(result.keys()) if result else 'None'}", flush=True)
-            print(f"[webui] _token_sent: {_token_sent}, result error: {result.get('error') if result else 'N/A'}", flush=True)
+            try:
+                result = agent.run_conversation(
+                    user_message=workspace_ctx + msg_text,
+                    system_message=workspace_system_msg,
+                    conversation_history=_sanitize_messages_for_api(s.messages),
+                    task_id=session_id,
+                    persist_user_message=msg_text,
+                )
+                print(f"[webui] agent.run_conversation() returned. Result keys: {list(result.keys()) if result else 'None'}", flush=True)
+                print(f"[webui] _token_sent: {_token_sent}, result error: {result.get('error') if result else 'N/A'}", flush=True)
+                
+                if not result:
+                    logger.error("Agent returned None result")
+                    put('error', {
+                        'message': 'Agent execution failed - no result returned',
+                        'type': 'agent_execution_error'
+                    })
+                    return
+                    
+            except Exception as e:
+                logger.error(f"Agent execution failed: {e}")
+                put('error', {
+                    'message': 'Agent execution failed',
+                    'details': str(e),
+                    'type': 'agent_execution_error'
+                })
+                return
             # Safety reset: ensure suppression flags are never stuck after the agent finishes.
             # If the agent framework missed a tool.completed event, _tool_in_progress could
             # stay True and silently drop all remaining tokens, making the stream appear to pause.
