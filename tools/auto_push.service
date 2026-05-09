@@ -1,16 +1,18 @@
 [Unit]
-Description=Auto push vibecode changes to remote branch
-After=network-online.target
-Wants=network-online.target
+description=vibecode auto-sync service
+after=network-online.target
+wants=network-online.target
 
 [Service]
-Type=simple
-WorkingDirectory=%h/vibecode
-ExecStart=%h/vibecode/tools/auto_push.sh
-Restart=always
-RestartSec=10
-StandardOutput=journal
-StandardError=journal
+type=simple
+workingdirectory=%h/vibecode
+execstart=%h/vibecode/tools/auto_push.sh
+restart=always
+restartsec=10
+standardoutput=journal
+standarderror=journal
+
+environment=GIT_SYNC_BRANCH=main
 
 [Install]
-WantedBy=default.target
+wantedby=default.target
