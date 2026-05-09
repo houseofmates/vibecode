@@ -98,7 +98,7 @@ def test_complete_integration():
     # Summary of implemented features
     print("\n📋 Implemented Features Summary:")
     print("   ✅ Drag-and-drop file/folder handling")
-    print("   ✅ Default directory set to /home/house")
+    print("   ✅ Default directory set to the user home directory")
     print("   ✅ Device-specific workspace mapping")
     print("   ✅ Explicit directory specification")
     print("   ✅ Feature enable/disable system")

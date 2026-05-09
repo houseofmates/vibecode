@@ -24,7 +24,7 @@ def test_default_directory():
     os.chdir(repo_root)
     
     try:
-        # Create session without explicit CWD (should default to /home/house)
+        # Create session without explicit CWD (should default to the current user home directory)
         session = TermisolSession("test_default")
         print(f"Current directory: {os.getcwd()}")
         print(f"Detected directory: {session.cwd}")
@@ -47,7 +47,7 @@ def test_default_directory():
         print(f"Explicit CWD: {explicit_cwd}")
         print(f"Detected directory: {session_explicit.cwd}")
         
-        if session_explicit.cwd == '/home/house/termisol':
+        if session_explicit.cwd == explicit_cwd:
             print("✅ PASS: Explicit CWD respected")
         else:
             print("❌ FAIL: Explicit CWD not respected")
