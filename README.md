@@ -3,7 +3,7 @@
 vibecode is a local web workspace for coding, terminal sessions, and ai-enabled development flows.
 it is designed to run on your machine and keep your code accessible through a browser while preserving local project structure and git history.
 
-## what vibecode does
+<h2 align="center">what vibecode does</h2>
 
 - provides a browser-based interface for code, terminal, file browsing, and assistant workflows
 - supports local ai assistance for shell commands, code editing, and project automation
@@ -12,7 +12,7 @@ it is designed to run on your machine and keep your code accessible through a br
 - supports packaging for linux appimage and android apk
 - works with local or remote code directories and remote access tunnels
 
-## features
+<h2 align="center">features</h2>
 
 - browser terminal and file explorer
 - drag-and-drop file/folder support
@@ -22,7 +22,7 @@ it is designed to run on your machine and keep your code accessible through a br
 - packaged desktop and android build support
 - simple setup with `.env.example`
 
-## quick start
+<h2 align="center">quick start</h2>
 
 copy the example env and set your preferred values:
 
@@ -44,7 +44,7 @@ open the interface in your browser at:
 http://$HERMES_WEBUI_HOST:8786
 ```
 
-## enable the auto-sync watcher
+<h2 align="center">enable the auto-sync watcher</h2>
 
 vibecode includes a persistent watcher service that keeps code changes synced to `main`.
 if the repository is configured with a github remote, the watcher will commit stable changes and merge them into the remote `main` branch.
@@ -62,7 +62,7 @@ to check status:
 systemctl --user status auto_push.service
 ```
 
-## configuration
+<h2 align="center">configuration</h2>
 
 copy `.env.example` to `.env` and customize the values.
 
@@ -80,7 +80,7 @@ copy `.env.example` to `.env` and customize the values.
 | `POPOS_IP` | `127.0.0.1` | optional popos host ip |
 | `DEFAULT_HOME` | `~` | default home directory |
 
-## development
+<h2 align="center">development</h2>
 
 ```bash
 make install
@@ -90,7 +90,7 @@ make test
 make clean
 ```
 
-## packaging
+<h2 align="center">packaging</h2>
 
 ### linux appimage
 
@@ -104,7 +104,7 @@ make appimage
 make apk
 ```
 
-## branch and git sync
+<h2 align="center">branch and git sync</h2>
 
 vibecode is built to sync changes into the `main` branch.
 if the repository still has a local `master` branch, the watcher will rename it to `main` and keep the repository on `main`.
@@ -116,7 +116,7 @@ git config --global user.name "your name"
 git config --global user.email "you@example.com"
 ```
 
-## license
+<h2 align="center">license</h2>
 
 mit
 
