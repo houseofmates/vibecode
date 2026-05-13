@@ -49,6 +49,9 @@ class QuietHTTPServer(ThreadingHTTPServer):
     """Custom HTTP server that silently handles common network errors."""
     request_queue_size = 128  # Allow more pending connections (default is 5)
     
+    allow_reuse_address = True  # Avoid Address already in use after restarts
+    allow_reuse_port = True  # Same for port reuse
+
     def handle_error(self, request, client_address):
         """Override to suppress logging for common client disconnect errors."""
         exc_type, exc_value, _ = sys.exc_info()
