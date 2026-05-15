@@ -235,7 +235,7 @@ def main() -> None:
                     pass
                     
                 if cleaned > 0:
-                    logger.info(f"Cleaned up {cron} cron/_cron sessions")
+                    logger.info(f"Cleaned up {cleaned} cron/_cron sessions")
                     print(f'[ok] Cleaned up {cleaned} cron/_cron sessions', flush=True)
                     
             except Exception as e:
