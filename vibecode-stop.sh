@@ -1,7 +1,7 @@
 #!/bin/bash
 # Stop the vibecode background server
 
-PID_FILE="/home/house/.vibecode-server.pid"
+PID_FILE="${HOME}/.vibecode-server.pid"
 
 if [ -f "$PID_FILE" ]; then
     PID=$(cat "$PID_FILE")

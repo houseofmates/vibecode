@@ -1,0 +1,1341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#050505">
+<title>hermes</title>
+<!-- base href enables subpath mount support; app scripts and styles are served from /static on the web server -->
+<script>(function(){var p=location.pathname.endsWith('/')?location.pathname:(location.pathname.replace(/\/[^\/]*$/,'/')||'/');document.write('<base href="'+location.origin+p+'">');})()</script>
+<script>(function(){var t=localStorage.getItem('hermes-theme');if(t==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';}if(t&&t!=='dark')document.documentElement.dataset.theme=t;})()</script>
+<script>(function(){var isMobile=/android|iphone|ipad|ipod/i.test(navigator.userAgent);var isCapacitor=!!(window.Capacitor||window.__capacitor||location.protocol==='capacitor:');if(isCapacitor){document.documentElement.classList.add('capacitor');document.documentElement.classList.add('apk-force-mobile');document.documentElement.setAttribute('data-capacitor','true');if(document.body)document.body.classList.add('capacitor');}if(isMobile){document.documentElement.classList.add('mobile-device');}})()</script>
+<script>(function(){var isCapacitor=document.documentElement.classList.contains('capacitor')||document.documentElement.hasAttribute('data-capacitor')||window.Capacitor||window.__capacitor||location.protocol==='capacitor:';if(isCapacitor){document.documentElement.classList.add('apk-force-mobile');}})()</script>
+<script>
+window.DEFAULT_HOME = {{DEFAULT_HOME}};
+window.UBUNTU_IP = {{UBUNTU_IP}};
+window.POPOS_IP = {{POPOS_IP}};
+window.MEMSTER_HOST = {{MEMSTER_HOST}};
+window.MEMSTER_HOST_LEGACY = {{MEMSTER_HOST_LEGACY}};
+window.MEMSTER_USER = {{MEMSTER_USER}};
+window.SSH_HOST = {{SSH_HOST}};
+window.SSH_KEY_PATH = {{SSH_KEY_PATH}};
+window.HERMES_DOMAIN = {{HERMES_DOMAIN}};
+window.CONFIG_PATH = {{CONFIG_PATH}};
+</script>
+<link rel="stylesheet" href="/static/style.css?v=7">
+<link rel="stylesheet" href="/static/custom.css?v=8">
+<link rel="stylesheet" href="/static/custom_workspace.css?v=5">
+ <link rel="stylesheet" href="/static/canvas.css?v=1">
+<link rel="stylesheet" href="/static/swarm.css?v=2">
+<link rel="stylesheet" href="/static/mobile.css?v=13">
+  <!-- KaTeX math rendering CSS (loaded eagerly to prevent layout shift) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css" integrity="sha384-5TcZemv2l/9On385z///+d7MSYlvIEw9FuZTIdZ14vJLqWphw7e7ZPuOiCHJcFCP" crossorigin="anonymous">
+  <!-- xterm.js for terminal panel (bundled locally for offline/Tauri use) -->
+  <link rel="stylesheet" href="/static/xterm.css">
+  <script src="/static/xterm.min.js"></script>
+  <!-- Prism.js syntax highlighting (loaded async, non-blocking) -->
+  <link id="prism-theme" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" integrity="sha384-wFjoQjtV1y5jVHbt0p35Ui8aV8GVpEZkyF99OXWqP/eNJDU93D3Ugxkoyh6Y2I4A" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js" integrity="sha384-MXybTpajaBV0AkcBaCPT4KIvo0FzoCiWXgcihYsw4FUkEz0Pv3JGV6tk2G8vJtDc" crossorigin="anonymous" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js" integrity="sha384-Uq05+JLko69eOiPr39ta9bh7kld5PKZoU+fF7g0EXTAriEollhZ+DrN8Q/Oi8J2Q" crossorigin="anonymous" defer></script>
+ <script src="/static/canvas.js?v=1" defer></script>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><symbol id="swarm" viewBox="0 0 1800 1434"><g transform="translate(0,1434) scale(0.1,-0.1)"><path d="M8730 13594 c-279 -39 -546 -172 -758 -378 -152 -146 -307 -387 -399 -621 -114 -287 -168 -614 -168 -1010 0 -274 10 -388 66 -730 6 -38 15 -95 20 -125 4 -30 18 -95 29 -145 11 -49 24 -108 29 -130 5 -22 18 -76 31 -120 28 -101 49 -180 59 -225 9 -40 6 -32 102 -315 40 -119 81 -231 109 -300 15 -38 42 -106 60 -150 39 -98 46 -114 105 -239 25 -54 44 -100 42 -102 -2 -2 -172 -6 -378 -8 -363 -4 -411 -7 -729 -47 -47 -6 -116 -15 -155 -20 -38 -4 -90 -13 -115 -18 -25 -5 -88 -17 -140 -26 -52 -9 -117 -23 -145 -30 -138 -38 -214 -55 -227 -50 -9 4 -37 71 -67 163 -29 86 -58 172 -66 190 -8 17 -21 47 -29 65 -20 45 -144 299 -156 317 -5 8 -31 51 -57 95 -109 186 -339 461 -485 582 -39 32 -83 69 -97 82 -68 62 -220 151 -411 240 -18 8 -191 63 -271 85 -169 48 -306 -22 -349 -177 -19 -71 0 -144 56 -206 53 -59 87 -73 244 -102 69 -12 148 -31 175 -42 28 -10 62 -22 76 -27 64 -20 207 -94 301 -156 170 -113 374 -330 502 -533 52 -82 168 -322 206 -426 13 -33 33 -87 45 -121 12 -33 26 -79 30 -102 7 -46 10 -44 -100 -85 -117 -44 -239 -98 -403 -179 -101 -50 -189 -87 -197 -84 -9 3 -18 14 -21 23 -4 10 -35 77 -71 148 -198 400 -483 743 -837 1009 -63 47 -116 86 -119 86 -3 0 -32 17 -64 39 -57 37 -208 112 -308 153 -27 11 -66 26 -85 34 -139 57 -468 98 -584 74 -47 -10 -67 -20 -101 -54 -98 -98 -100 -242 -4 -338 51 -51 90 -66 179 -69 191 -6 411 -40 545 -85 132 -44 385 -177 445 -235 8 -8 28 -23 45 -33 47 -30 210 -193 293 -291 64 -76 176 -236 218 -310 17 -30 103 -194 126 -240 12 -22 27 -52 34 -67 20 -37 10 -53 -65 -104 -222 -151 -478 -383 -668 -604 -111 -130 -303 -386 -303 -405 0 -2 -14 -25 -31 -50 -45 -67 -170 -316 -214 -425 -149 -376 -199 -640 -200 -1045 0 -280 24 -507 72 -685 51 -190 90 -311 160 -504 24 -67 127 -285 171 -361 16 -27 46 -81 67 -120 107 -195 351 -531 538 -739 245 -273 584 -579 892 -806 55 -40 125 -92 155 -115 30 -22 82 -58 115 -80 33 -21 89 -57 125 -80 98 -64 310 -195 315 -195 2 0 28 -14 57 -31 146 -86 427 -233 603 -315 55 -25 141 -66 192 -90 50 -24 96 -44 102 -44 5 0 22 -7 38 -15 54 -28 164 -75 177 -75 7 0 21 -7 32 -15 10 -8 26 -15 34 -15 8 0 66 -21 130 -46 116 -46 159 -62 228 -88 20 -8 125 -42 232 -76 107 -34 206 -66 219 -72 14 -5 43 -13 65 -18 23 -5 66 -16 96 -25 74 -22 317 -86 360 -95 19 -4 55 -12 80 -18 60 -14 122 -27 260 -52 63 -11 147 -27 185 -35 39 -9 83 -15 98 -15 15 0 58 -6 95 -14 181 -39 693 -76 1057 -76 342 0 879 38 990 70 17 4 50 11 75 15 129 18 524 109 610 140 19 7 60 20 90 30 139 44 275 94 355 130 28 13 79 35 115 50 76 32 169 76 225 108 22 13 67 38 100 56 56 31 101 60 245 154 66 43 240 183 330 265 60 55 71 61 140 75 84 18 196 35 314 47 43 5 106 13 140 19 33 5 122 17 196 26 74 9 178 22 230 30 52 8 124 16 160 20 36 3 90 9 120 15 30 5 91 14 135 20 44 6 88 14 98 16 19 6 23 39 6 49 -5 4 -14 17 -20 28 -9 23 -17 35 -60 102 -15 22 -55 87 -89 145 -54 90 -98 162 -158 255 -6 11 -16 29 -21 40 -5 11 -24 43 -43 70 -19 28 -52 79 -73 115 -21 36 -63 102 -92 148 -30 46 -58 93 -64 105 -5 12 -18 36 -29 52 -33 49 -33 53 -16 123 9 37 16 81 16 97 0 17 6 64 14 105 20 104 30 456 17 625 -19 260 -36 360 -108 640 -40 155 -122 398 -173 510 -12 28 -28 64 -35 80 -41 100 -181 371 -253 490 -119 198 -214 334 -416 598 -178 233 -526 587 -831 846 -188 160 -205 174 -288 231 -99 68 -98 81 3 96 41 6 95 16 120 23 25 7 72 19 105 28 33 8 80 21 105 28 25 7 74 20 110 30 187 50 438 139 595 210 255 116 512 256 640 347 133 95 182 132 282 215 150 125 334 319 457 483 107 141 226 328 269 421 14 29 41 88 60 129 49 107 89 209 107 275 5 17 13 44 19 60 5 17 17 57 25 90 8 33 19 78 25 101 19 71 43 206 52 289 4 44 13 123 18 175 22 206 1 591 -43 800 -80 373 -178 611 -346 835 -148 196 -313 333 -535 444 -111 56 -253 100 -440 138 -123 25 -503 25 -615 0 -117 -25 -182 -39 -225 -47 -57 -11 -141 -35 -205 -60 -30 -12 -75 -28 -100 -37 -75 -25 -211 -83 -285 -121 -38 -19 -92 -47 -120 -61 -89 -44 -317 -183 -415 -250 -52 -36 -111 -77 -132 -91 -123 -84 -457 -359 -611 -506 -55 -52 -103 -94 -107 -94 -12 0 -17 20 -30 125 -16 122 -38 227 -86 405 -29 107 -121 335 -166 413 -15 26 -28 50 -28 53 0 14 -128 216 -183 289 -69 91 -169 207 -242 279 -134 132 -396 341 -475 379 -15 8 -24 13 -95 57 -51 32 -150 79 -245 118 -157 63 -252 88 -403 107 -140 18 -229 18 -357 -1z m285 -494 c80 -8 239 -51 291 -78 10 -6 58 -29 106 -52 184 -89 399 -251 575 -434 93 -96 216 -251 232 -291 2 -5 14 -23 27 -40 39 -52 149 -296 181 -400 56 -184 77 -279 94 -420 13 -111 17 -429 6 -508 -9 -61 -13 -67 -153 -217 -33 -36 -71 -78 -83 -95 -13 -16 -49 -59 -81 -95 -125 -140 -390 -479 -560 -717 -80 -113 -150 -214 -150 -219 0 -3 -12 -21 -26 -40 -49 -63 -305 -488 -362 -598 -16 -32 -14 -32 -177 -1 -44 8 -124 21 -178 29 -54 8 -104 19 -110 25 -7 5 -26 38 -43 73 -90 183 -146 302 -179 383 -21 50 -43 104 -50 120 -31 69 -84 203 -95 240 -15 48 -41 120 -84 233 -14 36 -62 192 -92 299 -14 50 -21 79 -57 213 -41 151 -87 397 -108 570 -5 41 -13 109 -19 150 -12 98 -12 596 0 680 6 36 12 81 15 100 22 147 57 286 98 390 65 165 110 246 219 389 62 81 174 167 293 226 62 30 120 55 130 55 9 0 26 5 37 11 19 10 117 24 188 27 14 1 66 -3 115 -8z m4755 -958 c142 -24 285 -76 395 -145 60 -37 186 -141 216 -178 88 -108 219 -337 219 -382 0 -9 6 -31 14 -49 30 -71 49 -150 87 -348 16 -89 24 -579 10 -678 -33 -232 -38 -262 -69 -372 -42 -154 -118 -356 -162 -435 -12 -22 -34 -62 -48 -89 -24 -48 -50 -88 -132 -211 -97 -144 -350 -412 -491 -519 -279 -213 -591 -384 -934 -513 -22 -8 -51 -19 -63 -24 -33 -13 -136 -46 -202 -65 -80 -23 -224 -64 -295 -84 -59 -17 -211 -49 -310 -65 -55 -9 -131 -23 -170 -30 -354 -68 -1039 -112 -1560 -101 -509 11 -1059 58 -1072 92 -6 16 256 548 351 713 36 62 66 115 66 117 0 20 304 495 424 663 198 277 183 258 362 480 54 68 111 139 126 159 15 19 45 54 66 76 20 23 49 55 62 72 68 85 321 364 476 524 508 524 961 884 1425 1133 80 42 332 151 409 176 119 39 298 81 347 82 21 1 49 5 63 9 31 11 315 5 390 -8z m-5568 -3660 c75 -5 112 -12 123 -23 15 -15 48 -93 65 -154 5 -16 25 -75 45 -130 21 -55 41 -116 45 -135 4 -19 19 -80 33 -135 13 -55 32 -136 42 -180 9 -44 21 -100 27 -125 6 -25 14 -70 18 -100 20 -137 31 -210 40 -270 6 -36 17 -194 25 -351 12 -245 12 -325 0 -565 -8 -153 -19 -308 -24 -344 -10 -59 -20 -131 -41 -275 -9 -65 -28 -166 -45 -235 -7 -30 -21 -89 -30 -130 -20 -93 -43 -183 -60 -235 -7 -22 -34 -107 -60 -190 -25 -82 -53 -168 -62 -190 -8 -22 -22 -58 -30 -80 -9 -22 -21 -53 -29 -70 -7 -16 -36 -86 -65 -155 -53 -128 -178 -387 -217 -450 -12 -19 -25 -42 -29 -50 -63 -142 -322 -533 -492 -744 -53 -65 -107 -133 -121 -150 -68 -86 -300 -333 -400 -426 -62 -58 -120 -112 -128 -120 -44 -42 -301 -253 -323 -265 -24 -13 -32 -11 -110 29 -231 117 -366 198 -644 385 -214 144 -224 151 -231 162 -3 5 -24 21 -47 36 -160 101 -563 471 -787 724 -117 131 -275 335 -322 416 -7 11 -56 92 -109 180 -106 177 -176 315 -239 478 -153 393 -190 584 -190 978 0 340 39 566 136 795 8 18 14 40 14 48 0 9 6 28 14 42 7 15 35 72 62 127 99 201 230 405 348 540 136 155 281 301 363 367 23 18 68 56 102 83 89 74 357 258 416 286 11 5 34 17 50 28 60 36 322 169 375 191 30 12 69 28 85 35 92 43 197 81 370 134 309 96 427 121 905 191 41 6 146 15 235 21 88 5 165 12 170 14 15 7 605 -4 727 -13z m3303 -1175 c55 -38 134 -93 175 -122 41 -30 99 -70 127 -90 56 -39 57 -43 81 -165 98 -508 108 -1300 22 -1855 -46 -294 -83 -472 -141 -685 -7 -25 -16 -63 -20 -85 -4 -22 -15 -62 -23 -90 -9 -27 -22 -72 -30 -100 -8 -27 -20 -66 -27 -85 -6 -19 -17 -51 -24 -70 -7 -19 -20 -60 -29 -90 -9 -30 -23 -72 -31 -92 -8 -21 -21 -55 -29 -75 -124 -334 -338 -785 -488 -1031 -21 -34 -38 -66 -38 -70 -1 -4 -25 -45 -55 -92 -29 -47 -77 -123 -106 -170 -29 -47 -72 -112 -96 -145 -175 -245 -229 -319 -294 -398 -18 -21 -45 -57 -62 -80 -17 -23 -33 -44 -37 -47 -3 -3 -41 -47 -84 -98 -43 -51 -124 -141 -180 -199 -55 -58 -118 -123 -138 -145 -33 -34 -41 -38 -88 -38 -28 0 -92 4 -143 10 -51 5 -147 14 -213 19 -67 5 -148 14 -180 20 -33 6 -102 17 -154 26 -234 38 -519 94 -598 117 -18 6 -35 15 -38 22 -2 6 60 77 138 156 130 132 327 349 419 461 20 24 59 71 86 104 124 151 288 382 449 630 58 90 144 233 144 239 0 4 12 25 26 48 15 23 51 89 81 147 31 58 70 133 87 166 18 33 52 103 76 155 23 52 60 132 81 178 22 46 39 87 39 92 0 5 6 24 14 42 85 197 226 592 226 633 0 8 6 29 14 47 13 31 25 71 60 216 16 61 40 157 61 237 84 314 165 1010 165 1410 -1 258 -36 658 -81 898 -7 40 -8 71 -3 76 5 5 124 14 264 20 140 7 280 13 310 15 30 2 84 3 120 2 63 -1 68 -3 165 -69z m2018 -2174 c10 -21 34 -76 53 -123 20 -47 42 -98 49 -115 20 -43 65 -174 75 -215 4 -19 13 -51 19 -70 34 -104 54 -184 85 -351 28 -146 40 -442 27 -647 -7 -103 -19 -211 -27 -241 -8 -30 -14 -66 -14 -80 0 -24 -21 -103 -45 -171 -31 -87 -37 -107 -45 -135 -27 -97 -102 -252 -205 -423 -39 -65 -165 -230 -223 -292 -39 -41 -71 -78 -72 -81 -1 -22 -358 -316 -455 -376 -133 -82 -242 -145 -295 -170 -191 -92 -264 -123 -273 -114 -6 6 8 32 37 69 25 33 46 63 46 66 0 3 26 43 58 88 56 80 183 286 234 378 29 53 105 188 118 210 4 8 30 60 57 115 26 55 59 120 73 145 14 25 41 81 59 125 18 44 43 103 56 130 24 53 58 136 80 195 20 56 46 122 60 155 43 99 71 187 180 555 23 78 43 153 59 225 8 39 22 99 30 135 8 36 22 101 31 145 9 44 23 110 31 146 7 37 14 80 14 95 0 16 5 45 10 64 6 19 15 76 20 125 29 284 50 457 57 468 9 15 19 6 36 -30z"/><path d="M6095 6863 c-44 -4 -118 -25 -180 -51 -51 -21 -179 -117 -228 -171 -131 -145 -237 -420 -237 -614 0 -105 41 -285 82 -360 67 -121 124 -186 204 -233 186 -109 390 -99 596 28 95 58 244 239 293 353 102 241 111 478 26 703 -56 150 -184 277 -326 324 -53 18 -164 28 -230 21z"/></g></symbol></svg>
+<script>
+const isCapacitorApp = !!(
+  window.Capacitor ||
+  window.__capacitor ||
+  location.protocol === 'capacitor:' ||
+  document.documentElement.classList.contains('capacitor') ||
+  document.documentElement.hasAttribute('data-capacitor')
+);
+function _detectTauri(){
+  return !isCapacitorApp && (
+    window.__TAURI__ !== undefined ||
+    location.protocol==='tauri:' ||
+    location.protocol==='file:' ||
+    location.hostname==='tauri.localhost' ||
+    location.host==='tauri.localhost' ||
+    location.hostname.includes('tauri')
+  );
+}
+let isTauri = _detectTauri();
+if(isCapacitorApp && window.HERMES_DOMAIN) window.HERMES_API_BASE = `https://vc.${window.HERMES_DOMAIN}/`;
+if(isTauri) window.HERMES_API_BASE = 'http://localhost:8786/';
+let apkActivePanel = null;
+console.log('[runtime] Detection check:', {__TAURI__: window.__TAURI__, protocol: location.protocol, hostname: location.hostname, host: location.host, isCapacitorApp, isTauri, HERMES_API_BASE: window.HERMES_API_BASE});
+
+// Deferred detection: Tauri may inject __TAURI__ after inline scripts run
+if(!window.HERMES_API_BASE){
+  document.addEventListener('DOMContentLoaded', function(){
+    if(!window.HERMES_API_BASE && _detectTauri()){
+      window.HERMES_API_BASE = 'http://localhost:8786/';
+      console.log('[runtime] Tauri detected deferred, set HERMES_API_BASE');
+    }
+  });
+}
+
+if(isTauri){
+  document.documentElement.classList.add('tauri-app');
+  console.log('[Tauri] Desktop mode detected');
+} else {
+  console.log('[Tauri] Not detected - normal size');
+}
+
+function activateApkPanel(panelName){
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('mobileOverlay');
+  const isOpen = !!(sidebar && sidebar.classList.contains('mobile-open'));
+  const isSamePanel = apkActivePanel === panelName && isOpen;
+
+  if (isSamePanel) {
+    apkActivePanel = null;
+    if (sidebar) sidebar.classList.remove('mobile-open');
+    if (overlay) {
+      overlay.classList.remove('visible');
+      overlay.style.display = 'none';
+      overlay.style.pointerEvents = 'none';
+    }
+    syncApkEmergencyNav(null);
+    return;
+  }
+
+  if(typeof switchPanel === 'function'){
+    switchPanel(panelName);
+  }
+  if (panelName === 'chat' && typeof renderSessionList === 'function') {
+    renderSessionList();
+  }
+
+  apkActivePanel = panelName;
+  if (sidebar) sidebar.classList.add('mobile-open');
+  if (overlay) {
+    overlay.classList.add('visible');
+    overlay.style.display = 'block';
+    overlay.style.pointerEvents = 'auto';
+  }
+  syncApkEmergencyNav(panelName);
+}
+
+function syncApkEmergencyNav(panelName){
+  const emergencyButtons = document.querySelectorAll('#apkEmergencyNav .apk-emergency-nav-button');
+  emergencyButtons.forEach(function(button){
+    const isActive = button.getAttribute('data-panel') === panelName;
+    button.style.background = isActive ? 'rgba(53,199,255,0.16)' : 'transparent';
+    button.style.color = isActive ? '#35c7ff' : '#f5f7fb';
+    button.style.borderColor = isActive ? 'rgba(53,199,255,0.45)' : 'rgba(255,255,255,0.12)';
+  });
+}
+
+function getApkEmergencyIconMarkup(panelName){
+  const icons = {
+    chat: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+    tasks: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z"/><path d="M9 4h6"/></svg>',
+    skills: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>',
+    memory: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></svg>',
+    workspaces: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+    swarm: '<svg class="swarm-icon" width="24" height="19" viewBox="0 0 1800 1434" fill="currentColor" aria-hidden="true"><use href="/static/swarm-icon.svg#swarm"/></svg>'
+  };
+  return icons[panelName] || icons.chat;
+}
+
+function ensureApkEmergencyNav(){
+  if(!isCapacitorApp || !document.body) return null;
+
+  let emergencyNav = document.getElementById('apkEmergencyNav');
+  if(!emergencyNav){
+    emergencyNav = document.createElement('div');
+    emergencyNav.id = 'apkEmergencyNav';
+    emergencyNav.setAttribute('aria-label', 'apk emergency navigation');
+    emergencyNav.style.position = 'fixed';
+    emergencyNav.style.left = '0';
+    emergencyNav.style.right = '0';
+    emergencyNav.style.bottom = '0';
+    emergencyNav.style.display = 'flex';
+    emergencyNav.style.alignItems = 'center';
+    emergencyNav.style.justifyContent = 'space-between';
+    emergencyNav.style.gap = '6px';
+    emergencyNav.style.height = '84px';
+    emergencyNav.style.padding = '10px 8px 12px';
+    emergencyNav.style.boxSizing = 'border-box';
+    emergencyNav.style.background = '#080808';
+    emergencyNav.style.borderTop = '0';
+    emergencyNav.style.boxShadow = '0 -10px 28px rgba(0,0,0,0.45)';
+    emergencyNav.style.zIndex = '2147483647';
+    emergencyNav.style.pointerEvents = 'auto';
+
+    const panels = [
+      { name: 'chat', label: 'chat' },
+      { name: 'tasks', label: 'tasks' },
+      { name: 'skills', label: 'skills' },
+      { name: 'memory', label: 'memory' },
+      { name: 'workspaces', label: 'spaces' },
+      { name: 'swarm', label: 'swarm' }
+    ];
+
+    panels.forEach(function(panel){
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'apk-emergency-nav-button';
+      button.setAttribute('data-panel', panel.name);
+      button.setAttribute('aria-label', panel.label);
+      button.setAttribute('title', panel.label);
+      button.innerHTML = getApkEmergencyIconMarkup(panel.name);
+      button.style.flex = '1';
+      button.style.height = '56px';
+      button.style.minWidth = '0';
+      button.style.display = 'flex';
+      button.style.alignItems = 'center';
+      button.style.justifyContent = 'center';
+      button.style.border = '1px solid rgba(255,255,255,0.12)';
+      button.style.borderRadius = '14px';
+      button.style.background = 'transparent';
+      button.style.color = '#f5f7fb';
+      button.style.webkitAppearance = 'none';
+      button.style.appearance = 'none';
+      button.style.boxShadow = 'inset 0 0 0 1px rgba(255,255,255,0.04)';
+      button.onclick = function(){ activateApkPanel(panel.name); };
+      const icon = button.querySelector('svg');
+      if(icon){
+        icon.style.width = '24px';
+        icon.style.height = '24px';
+        icon.style.display = 'block';
+        icon.style.stroke = 'currentColor';
+      }
+      emergencyNav.appendChild(button);
+    });
+
+    document.body.appendChild(emergencyNav);
+  }
+
+  emergencyNav.style.display = 'flex';
+  emergencyNav.style.visibility = 'visible';
+  emergencyNav.style.opacity = '1';
+  syncApkEmergencyNav(apkActivePanel);
+  return emergencyNav;
+}
+
+function applyApkHardOverrides(){
+  if(!isCapacitorApp) return;
+
+  const html = document.documentElement;
+  const body = document.body;
+  const layout = document.querySelector('.layout');
+  const main = document.querySelector('.main');
+  const topbar = document.querySelector('.topbar');
+  const sidebarNav = document.querySelector('.sidebar-nav');
+  const rightpanel = document.querySelector('.rightpanel');
+  const hamburger = document.querySelector('.mobile-hamburger');
+  const composer = document.querySelector('.composer-wrap');
+  const topbarChips = document.querySelector('.topbar-chips');
+  const workspaceToggle = document.getElementById('btnWorkspacePanelToggle');
+  const terminalToggle = document.getElementById('btnTerminalPanelToggle');
+  const overlay = document.getElementById('mobileOverlay');
+  const sidebar = document.querySelector('.sidebar');
+  const nav = document.getElementById('mobileBottomNav');
+  const navContainer = nav ? nav.querySelector('.mobile-nav-container') : null;
+  const emergencyNav = null; // single nav: #mobileBottomNav is used directly
+
+  html.classList.add('apk-force-mobile');
+  html.style.setProperty('--mobile-safe-top', '30px');
+  html.style.setProperty('--mobile-safe-bottom', '0px');
+  html.style.setProperty('--mobile-nav-height', '84px');
+  html.style.setProperty('--mobile-nav-offset', '84px');
+
+  if(body){
+    body.style.margin = '0';
+    // body.paddingTop is controlled by CSS (html.apk-force-mobile .layout padding-top:30px)
+    body.style.paddingBottom = '0';
+    body.style.background = '#050505';
+  }
+  if(layout){
+    layout.style.display = 'flex';
+    layout.style.flexDirection = 'column';
+    layout.style.paddingTop = '0'; // padding-top is on body only, not doubled on layout
+    layout.style.paddingBottom = '0';
+    layout.style.background = '#050505';
+    layout.style.boxSizing = 'border-box';
+  }
+  if(topbar){
+    topbar.style.paddingTop = '6px';
+    topbar.style.marginTop = '0';
+  }
+  if(main){
+    main.style.marginLeft = '0';
+    main.style.width = '100%';
+    main.style.paddingTop = '0';
+    main.style.paddingBottom = '104px';
+    main.style.background = '#050505';
+  }
+  if(topbarChips){
+    topbarChips.style.display = 'flex';
+    topbarChips.style.flexDirection = 'row';
+    topbarChips.style.alignItems = 'center';
+    topbarChips.style.justifyContent = 'flex-end';
+    topbarChips.style.gap = '6px';
+    if(workspaceToggle && terminalToggle){
+      topbarChips.insertBefore(workspaceToggle, terminalToggle);
+    }
+  }
+  if(sidebarNav) sidebarNav.style.display = 'none';
+  if(rightpanel) rightpanel.style.display = 'none';
+  // hamburger hidden via CSS html.apk-force-mobile .mobile-hamburger { display:none !important }
+  if(composer) composer.style.bottom = '84px';
+  if(overlay){
+    overlay.style.top = '30px';
+    if(!apkActivePanel){
+      overlay.classList.remove('visible');
+      overlay.style.display = 'none';
+      overlay.style.pointerEvents = 'none';
+    }
+  }
+  if(sidebar){
+    sidebar.style.top = '30px';
+    sidebar.style.transform = 'none';
+    sidebar.style.left = '-100vw';
+    sidebar.style.transition = 'left 0.2s ease, transform 0s';
+    if(apkActivePanel){
+      sidebar.style.left = '0';
+    } else {
+      sidebar.classList.remove('mobile-open');
+    }
+  }
+
+  if(nav){
+    nav.style.setProperty('display', 'flex', 'important');
+    nav.style.visibility = 'visible';
+    nav.style.opacity = '1';
+    nav.style.position = 'fixed';
+    nav.style.left = '0';
+    nav.style.right = '0';
+    nav.style.bottom = '0';
+    nav.style.height = '84px';
+    nav.style.minHeight = '84px';
+    nav.style.paddingBottom = '0';
+    nav.style.background = '#050505';
+    nav.style.borderTop = '0';
+    nav.style.zIndex = '2147483647';
+    nav.style.transform = 'none';
+    nav.style.pointerEvents = 'auto';
+    nav.style.boxSizing = 'border-box';
+  }
+  if(navContainer){
+    navContainer.style.display = 'grid';
+    navContainer.style.gridTemplateColumns = 'repeat(7, minmax(0, 1fr))';
+    navContainer.style.width = '100%';
+    navContainer.style.height = '84px';
+    navContainer.style.minHeight = '84px';
+    navContainer.style.alignItems = 'center';
+    navContainer.style.justifyContent = 'stretch';
+    navContainer.style.gap = '4px';
+    navContainer.style.padding = '6px 8px 8px';
+    navContainer.style.boxSizing = 'border-box';
+  }
+  document.querySelectorAll('.mobile-nav-item').forEach(function(item){
+    item.style.display = 'inline-flex';
+    item.style.visibility = 'visible';
+    item.style.opacity = '1';
+    item.style.minHeight = '68px';
+    item.style.minWidth = '0';
+    item.style.width = '100%';
+    item.style.flex = 'unset';
+    item.style.flexDirection = 'column';
+    item.style.alignItems = 'center';
+    item.style.justifyContent = 'center';
+    item.style.gap = '3px';
+    item.style.padding = '8px 4px';
+    item.style.margin = '0';
+    item.style.border = '0';
+    item.style.borderRadius = '14px';
+    item.style.background = item.classList.contains('active') ? 'rgba(53,199,255,0.16)' : 'rgba(255,255,255,0.04)';
+    item.style.color = item.classList.contains('active') ? '#35c7ff' : '#eef4ff';
+    item.style.fontSize = '10px';
+    item.style.fontWeight = '600';
+    item.style.lineHeight = '1.1';
+    item.style.textTransform = 'lowercase';
+    item.style.webkitAppearance = 'none';
+    item.style.appearance = 'none';
+    item.style.boxSizing = 'border-box';
+
+    const icon = item.querySelector('svg');
+    if(icon){
+      icon.style.display = 'block';
+      icon.style.width = '20px';
+      icon.style.height = '20px';
+      icon.style.minWidth = '20px';
+      icon.style.minHeight = '20px';
+      icon.style.fill = 'none';
+      icon.style.stroke = item.classList.contains('active') ? '#35c7ff' : '#eef4ff';
+      icon.style.flexShrink = '0';
+    }
+
+    const label = item.querySelector('.mobile-nav-label');
+    if(label){
+      label.style.display = 'block';
+      label.style.visibility = 'visible';
+      label.style.opacity = '1';
+      label.style.fontSize = '9px';
+      label.style.fontWeight = '700';
+      label.style.lineHeight = '1';
+      label.style.letterSpacing = '0.01em';
+      label.style.textAlign = 'center';
+      label.style.whiteSpace = 'nowrap';
+    }
+  });
+  if(emergencyNav){
+    emergencyNav.style.height = '84px';
+    emergencyNav.style.padding = '10px 8px 12px';
+    emergencyNav.style.borderTop = '0';
+  }
+
+  if(typeof closeMobilePanels === 'function'){
+    closeMobilePanels();
+    const chatNav = document.querySelector('.mobile-nav-item[data-panel="chat"]');
+    if(chatNav) chatNav.classList.add('active');
+  }
+  // In APK, rewire topbar toggle buttons to use switchMobilePanel (panels are full-screen overlays)
+  if(workspaceToggle){
+    workspaceToggle.setAttribute('onclick', "switchMobilePanel('workspaces')");
+    workspaceToggle.disabled = false;
+    workspaceToggle.removeAttribute('disabled');
+    workspaceToggle.style.setProperty('border-radius', '999px', 'important');
+    workspaceToggle.style.setProperty('-webkit-appearance', 'none', 'important');
+    workspaceToggle.style.setProperty('appearance', 'none', 'important');
+  }
+  if(terminalToggle){
+    terminalToggle.setAttribute('onclick', "switchMobilePanel('terminal')");
+    terminalToggle.disabled = false;
+    terminalToggle.removeAttribute('disabled');
+    terminalToggle.style.setProperty('border-radius', '999px', 'important');
+    terminalToggle.style.setProperty('-webkit-appearance', 'none', 'important');
+    terminalToggle.style.setProperty('appearance', 'none', 'important');
+  }
+}
+
+if(isCapacitorApp){
+  // Override syncWorkspacePanelUI so it never disables the workspace toggle in APK
+  document.addEventListener('DOMContentLoaded', function(){
+    if(typeof window.syncWorkspacePanelUI === 'function'){
+      const _orig = window.syncWorkspacePanelUI;
+      window.syncWorkspacePanelUI = function(){
+        _orig();
+        const wt = document.getElementById('btnWorkspacePanelToggle');
+        if(wt){ wt.disabled = false; wt.removeAttribute('disabled'); }
+      };
+    }
+  });
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', applyApkHardOverrides);
+  } else {
+    applyApkHardOverrides();
+  }
+}
+</script>
+<div class="layout">
+  <div id="mobileOverlay" class="mobile-overlay" onclick="toggleMobileSidebar()"></div>
+  <aside class="sidebar">
+
+    <div class="sidebar-nav">
+      <button class="nav-tab active" data-panel="chat" data-label="chats" onclick="switchPanel('chat')" title="chats" data-i18n-title="tab_chats"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+      <button class="nav-tab" data-panel="tasks" data-label="tasks" onclick="switchPanel('tasks')" title="tasks" data-i18n-title="tab_tasks"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg></button>
+      <button class="nav-tab" data-panel="skills" data-label="skills" onclick="switchPanel('skills')" title="skills" data-i18n-title="tab_skills"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg></button>
+      <button class="nav-tab" data-panel="memory" data-label="memory" onclick="switchPanel('memory')" title="memory" data-i18n-title="tab_memory"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></svg></button>
+      <button class="nav-tab" data-panel="workspaces" data-label="spaces" onclick="switchPanel('workspaces')" title="spaces" data-i18n-title="tab_workspaces"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
+      <button class="nav-tab" data-panel="todos" data-label="todos" onclick="switchPanel('todos')" title="current task list" data-i18n-title="tab_todos"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="6" height="6" rx="1"/><path d="m3 17 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg></button>
+      <button class="nav-tab" id="navSwarm" data-panel="swarm" data-label="swarm" onclick="switchPanel('swarm')" title="swarm: multi-agent orchestrator" data-i18n-title="tab_swarm"><svg class="swarm-icon" width="18" height="14" viewBox="0 0 1800 1434" fill="currentColor" aria-hidden="true"><use href="#swarm"/></svg></button>
+    </div>
+    <!-- Chat panel -->
+    <div class="panel-view" id="panelChat">
+      <div class="sidebar-section" style="display:flex;gap:4px;align-items:center">
+        <button class="new-chat-btn" id="btnNewChat" style="flex:1">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span data-i18n="new_conversation">new conversation</span> <span style="font-size:10px;opacity:.5;margin-left:4px">Cmd+K</span>
+        </button>
+        <button id="btnDeleteCronSessions" class="cron-delete-btn" title="Delete all cron sessions">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+        <button id="btnRefreshRemote" class="cron-delete-btn" title="Refresh remote sessions (.250)" onclick="window.Sessions && window.Sessions.forceRefresh()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
+      </div>
+      <div class="session-search"><input id="sessionSearch" placeholder="filter conversations..." data-i18n-placeholder="filter_conversations" oninput="filterSessions()"></div>
+      <div class="session-list" id="sessionList"></div>
+    </div>
+    <!-- Tasks (cron) panel -->
+    <div class="panel-view" id="panelTasks">
+      <div class="sidebar-section" style="padding:8px 12px 4px;display:flex;align-items:center;justify-content:flex-end;position:relative;z-index:2">
+        <button class="cron-btn run" style="padding:3px 8px;font-size:10px" onclick="toggleCronForm()">+ <span data-i18n="new_job">new job</span></button>
+      </div>
+      <!-- Create job form (hidden by default) -->
+      <div id="cronCreateForm" style="display:none;padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <input id="cronFormName" placeholder="job name (optional)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px">
+        <input id="cronFormSchedule" placeholder="schedule: '0 9 * * *' or 'every 1h'" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px">
+        <textarea id="cronFormPrompt" rows="3" placeholder="prompt (must be self-contained)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;resize:none;font-family:inherit;margin-bottom:6px"></textarea>
+        <select id="cronFormDeliver" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px">
+          <option value="local">local (save output only)</option>
+          <option value="discord">discord</option>
+          <option value="telegram">telegram</option>
+        </select>
+        <div class="skill-picker-wrap" style="margin-bottom:8px">
+          <input id="cronFormSkillSearch" placeholder="add skills (optional)..." style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none" autocomplete="off">
+          <div id="cronFormSkillDropdown" class="skill-picker-dropdown" style="display:none"></div>
+          <div id="cronFormSkillTags" class="skill-picker-tags"></div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="cron-btn run" style="flex:1" onclick="submitCronCreate()" data-i18n="create_job">create job</button>
+          <button class="cron-btn" style="flex:1" onclick="toggleCronForm()" data-i18n="cancel">cancel</button>
+        </div>
+        <div id="cronFormError" style="font-size:11px;color:var(--accent);margin-top:6px;display:none"></div>
+      </div>
+      <div class="cron-list" id="cronList" style="padding-top:0;margin-top:-30px;position:relative;z-index:1"><div style="padding:12px;color:var(--muted);font-size:12px" data-i18n="loading">loading...</div></div>
+    </div>
+    <!-- Skills panel -->
+    <div class="panel-view" id="panelSkills">
+      <div class="sidebar-section" style="padding:8px 12px 4px;display:flex;align-items:center;justify-content:space-between;position:relative;z-index:2">
+        <div class="skills-search" style="flex:1;padding:0"><input id="skillsSearch" placeholder="search skills..." data-i18n-placeholder="search_skills" oninput="filterSkills()"></div>
+        <button class="cron-btn run" style="padding:3px 8px;font-size:10px;flex-shrink:0;margin-left:6px" onclick="toggleSkillForm()">+ <span data-i18n="new_skill">new skill</span></button>
+      </div>
+      <!-- Skill create/edit form (hidden by default) -->
+      <div id="skillCreateForm" style="display:none;padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <input id="skillFormName" placeholder="skill name (e.g. my-skill)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px;box-sizing:border-box">
+        <input id="skillFormCategory" placeholder="category (optional, e.g. devops)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;margin-bottom:6px;box-sizing:border-box">
+        <textarea id="skillFormContent" rows="6" placeholder="skill.md content (yaml frontmatter + markdown body)" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;resize:vertical;font-family:'SF Mono',ui-monospace,monospace;margin-bottom:6px;box-sizing:border-box"></textarea>
+        <div style="display:flex;gap:6px">
+          <button class="cron-btn run" style="flex:1" onclick="submitSkillSave()" data-i18n="save_skill">save skill</button>
+          <button class="cron-btn" style="flex:1" onclick="toggleSkillForm()" data-i18n="cancel">cancel</button>
+        </div>
+        <div id="skillFormError" style="font-size:11px;color:var(--accent);margin-top:6px;display:none"></div>
+      </div>
+      <div class="skills-list" id="skillsList"><div style="padding:12px;color:var(--muted);font-size:12px" data-i18n="loading">loading...</div></div>
+      <!-- Skill WYSIWYG Editor (hidden by default) -->
+      <div id="skillEditor" style="display:none;flex-direction:column;height:50%;border-top:1px solid var(--border);flex-shrink:0;">
+        <div class="skill-editor-header" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);">
+          <span id="skillEditorName" style="font-size:12px;font-weight:500;color:var(--text);"></span>
+          <div style="display:flex;gap:6px;">
+            <button class="cron-btn" onclick="closeSkillEditor()" data-i18n="close">close</button>
+            <button class="cron-btn run" onclick="saveSkillEditor()" data-i18n="save">save</button>
+          </div>
+        </div>
+        <div class="skill-editor-toolbar" style="display:flex;gap:4px;padding:6px 12px;background:var(--hover-bg);border-bottom:1px solid var(--border);">
+          <button onclick="formatSkillText('bold')" title="bold" style="padding:4px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;"><b>B</b></button>
+          <button onclick="formatSkillText('italic')" title="italic" style="padding:4px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;"><i>I</i></button>
+          <button onclick="formatSkillText('h1')" title="heading 1" style="padding:4px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;">H1</button>
+          <button onclick="formatSkillText('h2')" title="heading 2" style="padding:4px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;">H2</button>
+          <button onclick="formatSkillText('ul')" title="bullet list" style="padding:4px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;">• list</button>
+          <button onclick="formatSkillText('ol')" title="numbered list" style="padding:4px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;">1. list</button>
+          <button onclick="formatSkillText('code')" title="code" style="padding:4px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;">&lt;/&gt;</button>
+          <button onclick="formatSkillText('link')" title="link" style="padding:4px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;">link</button>
+        </div>
+        <textarea id="skillEditorContent" style="flex:1;width:100%;background:var(--bg);border:none;color:var(--text);padding:12px;font-size:13px;resize:none;outline:none;font-family:'SF Mono',ui-monospace,monospace;" placeholder="skill content..."></textarea>
+        <div id="skillEditorError" style="display:none;padding:8px 12px;font-size:11px;color:var(--accent);background:var(--surface);"></div>
+      </div>
+    </div>
+    <!-- Memory panel - Enhanced Wiki/Memory Browser -->
+    <div class="panel-view" id="panelMemory">
+      <div class="wiki-memory-browser" id="wikiMemoryBrowser">
+        <div class="wmb-header">
+          <div class="wmb-tabs">
+            <button class="wmb-tab active" data-tab="wiki" title="Wiki pages from memster">wiki</button>
+            <button class="wmb-tab" data-tab="memories" title="Memories from memster">memories</button>
+          </div>
+          <div class="wmb-actions">
+            <button class="wmb-refresh" id="wmbRefresh" title="Refresh"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg></button>
+          </div>
+        </div>
+        <div class="wmb-toolbar">
+          <input type="text" class="wmb-search" id="wmbSearch" placeholder="search wiki..." />
+          <select class="wmb-filter" id="wmbFilter">
+            <option value="all">all</option>
+          </select>
+        </div>
+        <div class="wmb-content" id="wmbContent"></div>
+        <div class="wmb-empty" id="wmbEmpty" style="display:none">no items found</div>
+        <div class="wmb-loading" id="wmbLoading" style="display:none">
+          <div class="wmb-spinner"></div>
+        </div>
+      </div>
+      <!-- Wiki Page Editor Modal -->
+      <div class="wmb-modal" id="wmbModal" style="display:none">
+        <div class="wmb-modal-overlay" onclick="closeWikiModal()"></div>
+        <div class="wmb-modal-content">
+          <div class="wmb-modal-header">
+            <input type="text" class="wmb-modal-title" id="wmbModalTitle" placeholder="Page title..." />
+            <button class="wmb-modal-close" onclick="closeWikiModal()">&times;</button>
+          </div>
+          <div class="wmb-modal-body">
+            <textarea class="wmb-modal-editor" id="wmbModalEditor" rows="20" placeholder="Wiki content... Markdown supported. Use [[page-name]] for links."></textarea>
+          </div>
+          <div class="wmb-modal-footer">
+            <div class="wmb-modal-meta" id="wmbModalMeta"></div>
+            <div class="wmb-modal-actions">
+              <button class="wmb-btn wmb-btn-secondary" onclick="closeWikiModal()">cancel</button>
+              <button class="wmb-btn wmb-btn-primary" onclick="saveWikiPage()">save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Todo panel -->
+    <div class="panel-view" id="panelTodos">
+      <div id="todoPanel" style="flex:1;overflow-y:auto;padding:8px 12px"></div>
+    </div>
+    <!-- Workspaces panel -->
+      <!-- Swarm panel -->
+
+ <div class="panel-view" id="panelSwarm" style="flex-direction:column;height:100%;overflow:hidden;">
+ <div class="swarm-panel-wrap">
+  <div class="swarm-panel-header">
+   <div class="swarm-panel-actions">
+    <button class="sp-plus-btn" id="btnSwarmNew" title="start new swarm">
+     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f6b012" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+   </div>
+  </div>
+  <div class="swarm-panel-body">
+   <div class="swarm-list-view" id="swarmListView">
+    <div id="swarmCards" class="swarm-cards-grid"></div>
+    <div id="swarmEmpty" class="swarm-empty">
+     no active swarms
+     <div class="swarm-empty-hint">click the plus to start a swarm, or use the button below to open an orchestration chat.</div>
+     <button class="swarm-empty-cta" onclick="SwarmApp.openOrchestrationChat()">open orchestration chat</button>
+    </div>
+   </div>
+   <div class="swarm-detail-view" id="swarmDetailView" style="display:none">
+    <button class="sp-back-btn" id="swarmBackBtn">← back</button>
+    <div id="swarmDetailHeader"></div>
+    <div class="swarm-detail-tabs" id="swarmDetailTabs">
+     <button class="sdt active" data-tab="coord" onclick="SwarmApp.showTab('coord')">coordination</button>
+     <button class="sdt" data-tab="agents" onclick="SwarmApp.showTab('agents')">agents</button>
+    </div>
+    <div class="swarm-tab-pane active" id="swarmTabCoord">
+     <div class="swarm-chat" id="swarmCoordChat"></div>
+     <div class="swarm-chat-input" id="swarmCoordInput">
+      <textarea id="swarmChatMsg" placeholder="message the swarm..." rows="1"></textarea>
+      <button id="btnSwarmChatSend">↑</button>
+     </div>
+    </div>
+    <div class="swarm-tab-pane" id="swarmTabAgents">
+     <div id="swarmAgentsList"></div>
+    </div>
+   </div>
+   <div class="swarm-new-view" id="swarmNewView" style="display:none">
+    <button class="sp-back-btn" id="btnSwarmNewBack" onclick="SwarmApp.showView('list')">← cancel</button>
+    <div class="swarm-new-form">
+     <label class="snf-label">what should the swarm work on together?</label>
+     <textarea id="swarmNewTask" class="swarm-textarea" placeholder="e.g. research the best approaches for building a real-time collaboration system..." rows="4"></textarea>
+     <label class="snf-label" style="margin-top:12px">workers</label>
+     <div class="swarm-agent-count">
+      <button class="sac-btn" data-count="2">2</button>
+      <button class="sac-btn active" data-count="3">3</button>
+      <button class="sac-btn" data-count="4">4</button>
+      <button class="sac-btn" data-count="6">6</button>
+      <button class="sac-btn" data-count="8">8</button>
+     </div>
+     <label class="snf-label" style="margin-top:12px">mode</label>
+     <select id="swarmNewMode" class="swarm-select">
+      <option value="collaborate">collaborate</option>
+      <option value="compete">compete</option>
+      <option value="research">research</option>
+     </select>
+     <label class="snf-label" style="margin-top:12px">model</label>
+     <select id="swarmNewModel" class="swarm-select">
+      <option value="">default</option>
+      <option value="deepseek-ai/deepseek-v4-pro">deepseek</option>
+      <option value="z-ai/glm-5.1">glm</option>
+      <option value="minimaxai/minimax-m2.7">minimax</option>
+     </select>
+     <button class="sp-launch-btn" id="btnSwarmLaunch">launch swarm</button>
+    </div>
+   </div>
+  </div>
+ </div>
+</div>
+
+<div class="panel-view" id="panelWorkspaces">
+      <div style="flex:1;overflow-y:auto;padding:8px 12px 12px" id="workspacesPanel"><div style="color:var(--muted);font-size:12px">loading...</div></div>
+    </div>
+    <div class="sidebar-bottom">
+      <button class="hermes-launch-btn" id="btnHermesPanel" onclick="toggleSettings()" title="open hermes control center">
+        <span class="hermes-launch-icon" aria-hidden="true"><img src="/static/hermes.png" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;" alt="Hermes"></span>
+        <span class="hermes-launch-copy">
+          <span class="hermes-launch-title">hermes webui</span>
+          <span class="hermes-launch-meta">preferences, conversation tools, api keys, and system controls.</span>
+        </span>
+        <span class="hermes-launch-chevron" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+      </button>
+    </div>
+  <div class="resize-handle" id="sidebarResize"></div>
+  </aside>
+  <div class="layout-center">
+    <div class="layout-main">
+  <main class="main">
+    <div class="topbar">
+      <button class="mobile-hamburger" id="btnHamburger" onclick="toggleMobileSidebar()" title="menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="topbar-header" id="topbarHeader" style="flex:1;min-width:0;overflow:hidden;position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:4px;" oncontextmenu="handleTopbarRightClick(event)">
+        <span class="topbar-title" id="topbarTitle" title="click to edit" style="cursor:text;padding:4px 8px;border-radius:6px;transition:background 0.15s;" onmouseenter="this.style.background='rgba(255,255,255,0.05)'" onmouseleave="this.style.background='transparent'" onclick="startInlineTitleEdit()">hermes</span>
+        <div class="session-tabs" id="sessionTabs" style="display:flex;align-items:center;gap:6px;overflow-x:auto;width:100%;scrollbar-width:none;-ms-overflow-style:none;"></div>
+      </div>
+      <div class="topbar-chips" style="flex-direction:column;gap:4px;align-items:flex-end">
+        <button class="chip workspace-toggle-btn" id="btnWorkspacePanelToggle" onclick="toggleWorkspacePanel()" title="show workspace panel" aria-pressed="false" style="padding:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
+        <button class="chip terminal-toggle-btn" id="btnTerminalPanelToggle" onclick="switchPanel('terminal')" title="open terminal" aria-pressed="false" style="padding:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block;margin-top:1px"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg></button>
+      </div>
+    </div>
+    <div class="messages" id="messages">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-logo"><img src="/static/hermes.png" alt="Hermes" style="width:80px;height:80px;border-radius:50%;object-fit:cover;display:block;"></div>
+        <h2 data-i18n="empty_title">what can i help with?</h2>
+        <p data-i18n="empty_subtitle">ask anything, run commands, explore files, or manage your scheduled tasks.</p>
+      </div>
+      <div class="messages-inner" id="msgInner"></div>
+      <div id="liveToolCards" style="display:none;max-width:800px;margin:0 auto;width:100%;padding:0 24px;"></div>
+    </div>
+    <div class="update-banner" id="updateBanner">
+      <span id="updateMsg"></span>
+      <div style="display:flex;gap:8px;flex-shrink:0">
+        <button class="update-btn" onclick="dismissUpdate()">later</button>
+        <button class="update-btn update-primary" id="btnApplyUpdate" onclick="applyUpdates()">update now</button>
+      </div>
+    </div>
+    <div class="reconnect-banner" id="reconnectBanner">
+      <span id="reconnectMsg"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-1px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> A response may have been in progress when you last left. Reload messages?</span>
+      <div style="display:flex;gap:8px;flex-shrink:0">
+        <button class="reconnect-btn" onclick="dismissReconnect()">dismiss</button>
+        <button class="reconnect-btn" onclick="refreshSession()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-1px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> reload</button>
+      </div>
+    </div>
+    <div class="approval-card" id="approvalCard" role="alertdialog" aria-labelledby="approvalHeading" aria-describedby="approvalDesc">
+      <div class="approval-inner">
+        <div class="approval-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span id="approvalHeading" data-i18n="approval_heading">approval required</span>
+        </div>
+        <div class="approval-desc" id="approvalDesc"></div>
+        <div class="approval-cmd" id="approvalCmd"></div>
+        <div class="approval-counter" id="approvalCounter" style="display:none;font-size:0.75em;opacity:0.6;margin-top:4px;"></div>
+        <div class="approval-btns">
+          <button class="approval-btn once" id="approvalBtnOnce" onclick="respondApproval('once')" title="Allow this one command (Enter)" data-i18n-title="approval_btn_once_title">
+            <span class="approval-btn-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
+            <span class="approval-btn-label" data-i18n="approval_btn_once">allow once</span>
+            <kbd class="approval-kbd">↵</kbd>
+          </button>
+          <button class="approval-btn session" id="approvalBtnSession" onclick="respondApproval('session')" title="Allow for this session">
+            <span class="approval-btn-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+            <span class="approval-btn-label" data-i18n="approval_btn_session">allow session</span>
+          </button>
+          <button class="approval-btn always" id="approvalBtnAlways" onclick="respondApproval('always')" title="Always allow this command pattern">
+            <span class="approval-btn-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
+            <span class="approval-btn-label" data-i18n="approval_btn_always">always allow</span>
+          </button>
+          <button class="approval-btn deny" id="approvalBtnDeny" onclick="respondApproval('deny')" title="Deny — do not run this command">
+            <span class="approval-btn-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+            <span class="approval-btn-label" data-i18n="approval_btn_deny">deny</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="clarify-card" id="clarifyCard" role="dialog" aria-labelledby="clarifyHeading" aria-describedby="clarifyQuestion clarifyHint">
+      <div class="clarify-inner">
+        <div class="clarify-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 17h.01"/><path d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 4-3 4h-8a3 3 0 0 1-3-3V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          <span id="clarifyHeading" data-i18n="clarify_heading">clarification needed</span>
+        </div>
+        <div class="clarify-question" id="clarifyQuestion"></div>
+        <div class="clarify-choices" id="clarifyChoices"></div>
+        <div class="clarify-response">
+          <input class="clarify-input" id="clarifyInput" type="text" data-i18n-placeholder="clarify_input_placeholder" placeholder="type your response…">
+          <button class="clarify-submit" id="clarifySubmit" onclick="respondClarify()" data-i18n="clarify_send">send</button>
+        </div>
+        <div class="clarify-hint" id="clarifyHint" data-i18n="clarify_hint">pick a choice, or type your own answer below.</div>
+      </div>
+    </div>
+    <div class="composer-wrap" id="composerWrap">
+      <div class="cmd-dropdown" id="cmdDropdown"></div>
+      <div class="composer-box" id="composerBox">
+        <div class="drop-hint" id="dropHint">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21.44 11.05-9.19 9.19a6 6 0 0 0-8.49 8.49l8.57-8.57A2.12 2.12 0 0 1 16.1 8.84l-4.24 4.24z"/></svg>
+          drop files to upload to workspace
+        </div>
+        <div class="attach-tray" id="attachTray"></div>
+        <div class="mic-status" id="micStatus" style="display:none"><span class="mic-dot"></span> listening…</div>
+        <div class="input-ghost-wrap"><div class="ghost-text" id="ghostText"></div><textarea id="msg" rows="1" placeholder="message hermes…"></textarea></div>
+        <div class="composer-footer">
+          <div class="composer-left">
+            <input type="file" id="fileInput" multiple accept="image/*,text/*,application/pdf,application/json,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.md,.py,.js,.ts,.yaml,.yml,.toml,.csv,.sh,.txt,.log,.env,.xls,.xlsx,.doc,.docx" style="display:none">
+            <button class="icon-btn" id="btnAttach" title="attach files">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18.1 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </button>
+            <button class="icon-btn mic-btn" id="btnMic" title="voice input" style="display:none">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="1" width="6" height="12" rx="3"/>
+                <path d="M5 10a7 7 0 0 0 14 0"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            </button>
+            <div class="composer-ws-wrap">
+              <button class="composer-workspace-chip ws-chip" id="composerWorkspaceChip" type="button" onclick="toggleComposerWsDropdown();event.stopPropagation();" title="switch workspace" style="pointer-events:auto;cursor:pointer;opacity:1;">
+                <span class="composer-workspace-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+                <span class="composer-workspace-label" id="composerWorkspaceLabel">workspace</span>
+                <span class="composer-workspace-chevron" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+              </button>
+            </div>
+            <div class="composer-model-wrap">
+              <button class="composer-model-chip" id="composerModelChip" type="button" onclick="toggleModelDropdown()" title="conversation model">
+                <span class="composer-model-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg></span>
+                <span class="composer-model-label" id="composerModelLabel">model</span>
+                <span class="composer-model-chevron" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+              </button>
+              <select id="modelSelect" class="composer-model-select" title="conversation model" aria-hidden="true" tabindex="-1">
+              <optgroup label="nvidia NIM">
+                <option value="@nvidia:deepseek-ai/deepseek-v4-pro">deepseek</option>
+                <option value="@nvidia:moonshotai/kimi-k2.6">kimi</option>
+                <option value="@nvidia:mistralai/mistral-medium-3.5-128b">mistral</option>
+                <option value="z-ai/glm-5.1">glm</option>
+                <option value="minimaxai/minimax-m2.7">minimax</option>
+              </optgroup>
+              <optgroup label="kilo/kilocode">
+                <option value="@kilocode:nvidia/nemotron-3-super-120b-a12b:free">nemotron</option>
+              </optgroup>
+            </select>
+            </div>
+          </div>
+          <div class="composer-right">
+            <div class="composer-spinner" id="composerSpinner" style="display:none">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" stroke-opacity="0.3"></circle>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="1">
+                  <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
+                </path>
+              </svg>
+            </div>
+            <span class="composer-elapsed" id="composerElapsed" style="display:none"></span>
+            <span class="composer-status" id="composerStatus" style="display:none"></span>
+            <div class="ctx-indicator-wrap" id="ctxIndicatorWrap" style="display:none">
+              <button class="ctx-indicator" id="ctxIndicator" type="button" aria-label="context window usage" aria-describedby="ctxTooltip">
+                <div class="ctx-bar">
+                  <div class="ctx-bar-track">
+                    <div class="ctx-bar-value" id="ctxBarValue"></div>
+                  </div>
+                  <span class="ctx-bar-text" id="ctxPercent">0%</span>
+                </div>
+              </button>
+              <div class="ctx-tooltip" id="ctxTooltip" role="tooltip" aria-hidden="true">
+                <div class="ctx-tooltip-title">context window</div>
+                <div class="ctx-tooltip-line" id="ctxTooltipUsage"></div>
+                <div class="ctx-tooltip-line" id="ctxTooltipTokens"></div>
+                <div class="ctx-tooltip-line" id="ctxTooltipThreshold"></div>
+                <div class="ctx-tooltip-line" id="ctxTooltipCost" style="display:none"></div>
+              </div>
+            </div>
+            <button class="cancel-btn" id="btnCancel" onclick="cancelStream()" style="display:none" title="stop generation" aria-label="stop generation">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg>
+            </button>
+            <button class="send-btn" id="btnSend" title="send message">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="7 12 12 7 17 12"/></svg>
+            </button>
+          </div>
+          <div class="ws-dropdown ws-dropdown-footer" id="composerWsDropdown"></div>
+          <div class="model-dropdown" id="composerModelDropdown"></div>
+        </div>
+        <div class="upload-bar-wrap" id="uploadBarWrap"><div class="upload-bar" id="uploadBar"></div></div>
+      </div>
+    </div>
+  </main>
+  
+ <aside class="canvas-panel" id="canvasPanel">
+  <div class="canvas-resize" id="canvasResize"></div>
+  <div class="canvas-header">
+   <div class="canvas-header-icon" id="canvasHeaderIcon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+   <span class="canvas-header-title" id="canvasHeaderTitle">canvas</span>
+   <span class="canvas-header-badge code" id="canvasHeaderBadge">code</span>
+   <div class="canvas-header-actions">
+    <button class="canvas-action-btn" id="canvasCopyBtn" title="copy content"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+    <button class="canvas-action-btn" id="canvasDownloadBtn" title="download"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+    <button class="canvas-action-btn" id="canvasFullscreenBtn" title="fullscreen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
+    <button class="canvas-action-btn" id="canvasCloseBtn" title="close canvas"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+   </div>
+  </div>
+  <div class="canvas-versions" id="canvasVersions" style="display:none"></div>
+  <div class="canvas-modes" style="display:none">
+   <button class="canvas-mode-tab active" data-mode="preview" onclick="setCanvasMode('preview')">preview</button>
+   <button class="canvas-mode-tab" data-mode="code" onclick="setCanvasMode('code')">source</button>
+  </div>
+  <div class="canvas-body" id="canvasBody">
+   <div class="canvas-empty">
+    <div class="canvas-empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+    <div class="canvas-empty-text">open a file or artifact to view it here</div>
+   </div>
+  </div>
+ </aside>
+ <aside class="rightpanel">
+    <div class="resize-handle" id="rightpanelResize"></div>
+    <div class="panel-header">
+      <span id="rightPanelTitle" style="text-transform: lowercase;">workspace</span>
+      <span class="git-badge" id="gitBadge" style="display:none"></span>
+      <div class="panel-actions">
+        <button class="panel-icon-btn" id="btnUpDir" title="parent directory" onclick="navigateUp()" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="7 12 12 7 17 12"/></svg></button>
+        <button class="panel-icon-btn" id="btnNewFile" title="new file" onclick="promptNewFile()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+        <button class="panel-icon-btn" id="btnNewFolder" title="new folder" onclick="promptNewFolder()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
+        <button class="panel-icon-btn" id="btnRefreshPanel" title="refresh" onclick="if(S.session)loadDir(S.currentDir)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
+      </div>
+    </div>
+    <div class="breadcrumb-bar" id="breadcrumbBar" style="display:none"></div>
+    <div class="path-input-bar" id="pathInputBar" style="display:none;padding:6px 12px;border-bottom:1px solid var(--border);">
+      <input type="text" id="dirPathInput" placeholder="/absolute/path or ~/relative..." style="width:100%;background:var(--panel-bg);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;font-size:12px;color:var(--text);outline:none;" autocomplete="off">
+    </div>
+    <div class="file-tree" id="fileTree"></div>
+    <div class="preview-area" id="previewArea">
+      <div class="preview-path" id="previewPath">
+        <span id="previewPathText"></span>
+        <span class="preview-badge" id="previewBadge"></span>
+        <button id="btnDownloadFile" class="panel-icon-btn" style="margin-left:auto;font-size:12px;width:auto;padding:2px 8px;display:inline-flex;align-items:center;gap:4px" onclick="downloadFile(_previewCurrentPath)" title="download file to your computer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> download</button>
+        <button id="btnEditFile" class="panel-icon-btn" style="font-size:12px;width:auto;padding:2px 8px;display:none;align-items:center;gap:4px" onclick="toggleEditMode()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> edit</button>
+      </div>
+      <pre class="preview-code" id="previewCode"></pre>
+      <div class="preview-img-wrap" id="previewImgWrap" style="display:none"><img class="preview-img" id="previewImg" src="" alt=""></div>
+      <div class="preview-md" id="previewMd" style="display:none"></div>
+      <textarea id="previewEditArea" style="display:none;flex:1;width:100%;background:var(--code-bg);color:#e2e8f0;border:1px solid var(--border2);border-radius:8px;padding:12px;font-family:'SF Mono',ui-monospace,monospace;font-size:12px;line-height:1.6;resize:none;outline:none" oninput="_previewDirty=true;updateEditBtn()"></textarea>
+    </div>
+  </aside>
+  </div>
+    <div class="bottom-panel" id="bottomPanel">
+      <div class="panel-view" id="panelTerminal" style="flex-direction:column;height:100%;overflow:hidden;">
+        <div id="terminalResize" class="terminal-header-handle" style="display:flex;align-items:center;justify-content:space-between;gap:4px;padding:4px 8px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;">
+          <div style="display:flex;align-items:center;gap:4px;">
+            <button class="panel-icon-btn" id="btnNewTerminal" title="new terminal" style="padding:4px 8px;font-size:13px;line-height:1;">+</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <button class="panel-icon-btn" id="btnCloseTerminal" title="close terminal" style="padding:4px 8px;font-size:13px;line-height:1;">&times;</button>
+          </div>
+        </div>
+        <div id="terminalTabs" style="display:flex;align-items:center;gap:4px;padding:2px 6px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;min-height:28px;overflow-x:auto;"></div>
+        <div id="terminalContainer" style="flex:1;overflow:hidden;min-height:0;background:#000;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="onboarding-overlay" id="onboardingOverlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
+  <div class="onboarding-card">
+    <div class="onboarding-shell">
+      <div class="onboarding-sidebar">
+        <div class="onboarding-badge" data-i18n="onboarding_badge">first run</div>
+        <h2 id="onboardingTitle" data-i18n="onboarding_title">welcome to hermes web ui</h2>
+        <p id="onboardingLead" data-i18n="onboarding_lead">a quick guided setup will check your hermes install, choose a workspace and model, and optionally protect the app with a password.</p>
+        <div class="onboarding-steps" id="onboardingSteps"></div>
+      </div>
+      <div class="onboarding-main">
+        <div class="onboarding-status" id="onboardingNotice"></div>
+        <div class="onboarding-body" id="onboardingBody"></div>
+        <div class="onboarding-actions">
+          <button class="sm-btn" id="onboardingBackBtn" onclick="prevOnboardingStep()" style="display:none" data-i18n="onboarding_back">back</button>
+          <button class="sm-btn" id="onboardingSkipBtn" onclick="skipOnboarding()" style="margin-right:auto;opacity:.7" data-i18n="onboarding_skip">skip setup</button>
+          <button class="sm-btn" id="onboardingNextBtn" onclick="nextOnboardingStep()" style="font-weight:700;color:var(--blue);border-color:rgba(124,185,255,.32)" data-i18n="onboarding_continue">continue</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="app-dialog-overlay" id="appDialogOverlay" style="display:none" aria-hidden="true">
+  <div class="app-dialog" role="dialog" aria-modal="true">
+    <div class="app-dialog-header">
+      <div class="app-dialog-title" id="appDialogTitle">Confirm</div>
+      <button class="app-dialog-close" id="appDialogClose" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="app-dialog-desc" id="appDialogDesc"></div>
+    <input type="text" class="app-dialog-input" id="appDialogInput" style="display:none">
+    <div class="app-dialog-actions">
+      <button class="app-dialog-btn" id="appDialogCancel">Cancel</button>
+      <button class="app-dialog-btn confirm" id="appDialogConfirm">Confirm</button>
+    </div>
+  </div>
+</div>
+<div class="settings-overlay" id="settingsOverlay" style="display:none" onclick="if(event.target===this){console.log('overlay click');_closeSettingsPanel();}">
+  <div class="settings-panel">
+    <div class="settings-header">
+      <div class="settings-heading">
+        <h3 style="margin:0;font-size:18px">control center</h3>
+        <div class="settings-subtitle">preferences, conversation tools, api keys, and system controls.</div>
+      </div>
+      <button class="panel-icon-btn" id="btnCloseSettings" title="close" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10000;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="settings-body">
+      <div class="settings-shell">
+        <div class="settings-tabs" role="tablist" aria-label="Hermes control center sections">
+          <button class="settings-tab active" id="settingsTabConversation" type="button" role="tab" aria-selected="true" aria-controls="settingsPaneConversation" onclick="switchSettingsSection('conversation')">
+            <svg class="settings-tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span class="settings-tab-title">conversation</span>
+          </button>
+          <button class="settings-tab" id="settingsTabPreferences" type="button" role="tab" aria-selected="false" aria-controls="settingsPanePreferences" onclick="switchSettingsSection('preferences')">
+            <svg class="settings-tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+            <span class="settings-tab-title">preferences</span>
+          </button>
+          <button class="settings-tab" id="settingsTabSystem" type="button" role="tab" aria-selected="false" aria-controls="settingsPaneSystem" onclick="switchSettingsSection('system')">
+            <svg class="settings-tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><line x1="6" y1="7" x2="6.01" y2="7"/><line x1="6" y1="17" x2="6.01" y2="17"/></svg>
+            <span class="settings-tab-title">system</span>
+          </button>
+          <button class="settings-tab" id="settingsTabApiKeys" type="button" role="tab" aria-selected="false" aria-controls="settingsPaneApiKeys" onclick="switchSettingsSection('apikeys')">
+            <svg class="settings-tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+            <span class="settings-tab-title">api keys</span>
+          </button>
+          <button class="settings-tab" id="settingsTabConfig" type="button" role="tab" aria-selected="false" aria-controls="settingsPaneConfig" onclick="switchSettingsSection('config')">
+            <svg class="settings-tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+            <span class="settings-tab-title">config editor</span>
+          </button>
+        </div>
+        <div class="settings-main">
+          <div class="settings-pane active" id="settingsPaneConversation" role="tabpanel" aria-labelledby="settingsTabConversation">
+            <div class="settings-section-head">
+              <div>
+                <div class="settings-section-title">conversation</div>
+                <div class="settings-section-meta" id="hermesSessionMeta">no active conversation selected.</div>
+              </div>
+            </div>
+            <div class="hermes-action-grid">
+              <button class="settings-action-btn" id="btnDownload" title="download as markdown" data-i18n-title="download_transcript"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> <span data-i18n="transcript">transcript</span></button>
+              <button class="settings-action-btn" id="btnExportJSON" title="export full session as json"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg> JSON</button>
+              <button class="settings-action-btn" id="btnImportJSON" title="import session from json"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> <span data-i18n="import">import</span></button>
+              <button class="settings-action-btn danger" id="btnClearConvModal" onclick="clearConversation()" title="clear all messages in this conversation"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2h-8a3 3 0 0 1-3-3V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 1 2 2 2v2"/></svg> Clear</button>
+            </div>
+            <input type="file" id="importFileInput" accept=".json" style="display:none">
+          </div>
+          <div class="settings-pane" id="settingsPanePreferences" role="tabpanel" aria-labelledby="settingsTabPreferences">
+            <div class="settings-section-head">
+              <div>
+                <div class="settings-section-title">preferences</div>
+                <div class="settings-section-meta">defaults and ui behavior for hermes web ui.</div>
+              </div>
+            </div>
+            <div class="settings-field">
+              <label for="settingsModel" data-i18n="settings_label_model">default model</label>
+              <select id="settingsModel" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px"></select>
+            </div>
+            <div class="settings-field">
+              <label for="settingsSendKey" data-i18n="settings_label_send_key">send key</label>
+              <select id="settingsSendKey" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px">
+                <option value="enter">enter to send, ctrl+enter for newline</option>
+              </select>
+            </div>
+            <div class="settings-field">
+              <label for="settingsTheme" data-i18n="settings_label_theme">theme</label>
+              <select id="settingsTheme" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px" onchange="_applyTheme(this.value)">
+                <option value="system">system (auto)</option>
+                <option value="dark">dark (default)</option>
+                <option value="light">light</option>
+                <option value="slate">slate (charcoal)</option>
+                <option value="solarized">solarized dark</option>
+                <option value="monokai">monokai</option>
+                <option value="nord">nord</option>
+                <option value="oled">oled</option>
+              </select>
+            </div>
+            <div class="settings-field">
+              <label for="settingsLanguage" data-i18n="settings_label_language">language</label>
+              <select id="settingsLanguage" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px"></select>
+            </div>
+            <div class="settings-field">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="settingsSoundEnabled" style="width:15px;height:15px;accent-color:var(--accent)">
+                <span data-i18n="settings_label_sound">notification sound</span>
+              </label>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_sound">play a sound when the assistant finishes a response.</div>
+            </div>
+            <div class="settings-field">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="settingsNotificationsEnabled" style="width:15px;height:15px;accent-color:var(--accent)">
+                <span data-i18n="settings_label_notifications">browser notifications</span>
+              </label>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_notifications">show a system notification when a response completes while the tab is in the background.</div>
+            </div>
+            <div class="settings-field">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="settingsShowTokenUsage" style="width:15px;height:15px;accent-color:var(--accent)">
+                <span data-i18n="settings_label_token_usage">show token usage after responses</span>
+              </label>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_token_usage">displays input/output token count below each assistant reply. also toggled with <code>/usage</code>.</div>
+            </div>
+            <div class="settings-field">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="settingsBubbleLayout" style="width:15px;height:15px;accent-color:var(--accent)">
+                <span data-i18n="settings_label_bubble_layout">chat bubble layout</span>
+              </label>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_bubble_layout">right-align user messages and left-align assistant replies. off by default to keep code blocks and tool output full-width.</div>
+            </div>
+            <div class="settings-field">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="settingsShowCliSessions" style="width:15px;height:15px;accent-color:var(--accent)">
+                <span data-i18n="settings_label_cli_sessions">show cli sessions in sidebar</span>
+              </label>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_cli_sessions">merges sessions from the hermes cli (state.db) into the session list. click a cli session to import it and continue the conversation.</div>
+            </div>
+            <div class="settings-field">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="settingsSyncInsights" style="width:15px;height:15px;accent-color:var(--accent)">
+                <span data-i18n="settings_label_sync_insights">sync usage to /insights</span>
+              </label>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_sync_insights">mirrors webui token usage to state.db so <code>hermes /insights</code> includes browser session data. off by default.</div>
+            </div>
+            <div class="settings-field">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="settingsCheckUpdates" style="width:15px;height:15px;accent-color:var(--accent)">
+                <span data-i18n="settings_label_check_updates">check for updates</span>
+              </label>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_check_updates">show a banner when newer versions of the webui or agent are available. runs a background git fetch periodically.</div>
+            </div>
+            <div class="settings-field">
+              <label for="settingsBotName" data-i18n="settings_label_bot_name">assistant name</label>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:6px" data-i18n="settings_desc_bot_name">display name for the assistant throughout the ui. defaults to hermes.</div>
+              <input type="text" id="settingsBotName" placeholder="hermes" maxlength="64" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px">
+            </div>
+            <button class="sm-btn" onclick="saveSettings()" style="margin-top:12px;width:100%;padding:8px;font-weight:600" data-i18n="settings_save_btn">save settings</button>
+          </div>
+          <div class="settings-pane" id="settingsPaneApiKeys" role="tabpanel" aria-labelledby="settingsTabApiKeys">
+            <div class="settings-section-head">
+              <div>
+                <div class="settings-section-title">api keys</div>
+                <div class="settings-section-meta">manage api keys for nvidia and kilocode providers.</div>
+              </div>
+            </div>
+            <div class="api-keys-container">
+              <div class="api-key-input-wrap">
+                <select id="apiKeyProvider" class="api-key-provider" style="margin-right:8px;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px;">
+                  <option value="nvidia">nvidia</option>
+                  <option value="kilocode">kilocode</option>
+                </select>
+                <input type="password" id="apiKeyInput" class="api-key-input" placeholder="enter api key..." onkeydown="if(event.key==='enter')addApiKey()">
+                <button class="api-key-add-btn" id="apiKeyAddBtn" onclick="addApiKey()" title="add api key">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#050505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><line x1="12" y1="5" x2="12" y2="19"/></svg>
+                </button>
+              </div>
+              <div class="api-keys-list" id="apiKeysList"></div>
+              <div class="api-keys-meta">
+                <div style="font-size:11px;color:var(--muted);margin-top:8px;">
+                  • select provider above • press enter to add • hold and drag to reorder nvidia keys
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="settings-pane" id="settingsPaneSystem" role="tabpanel" aria-labelledby="settingsTabSystem">
+            <div class="settings-section-head">
+              <div>
+                <div class="settings-section-title">system</div>
+                <div class="settings-section-meta">instance version and access controls.</div>
+              </div>
+              <span class="settings-version-badge">v0.50.68</span>
+            </div>
+            <div class="settings-field" style="border-top:1px solid var(--border);padding-top:12px;margin-top:8px">
+              <label for="settingsPassword" data-i18n="settings_label_password">access password</label>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:6px" data-i18n="settings_desc_password">enter a new password to set or change it. leave blank to keep current setting.</div>
+              <input type="password" id="settingsPassword" placeholder="enter new password…" data-i18n-placeholder="password_placeholder" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px">
+            </div>
+            <button class="sm-btn" id="btnDisableAuth" onclick="disableAuth()" style="margin-top:6px;width:100%;padding:8px;font-weight:600;color:#e8a030;border-color:rgba(232,160,48,.3);display:none" data-i18n="disable_auth">disable auth</button>
+            <button class="sm-btn" id="btnSignOut" onclick="signOut()" style="margin-top:6px;width:100%;padding:8px;font-weight:600;color:var(--accent);border-color:rgba(233,69,96,.3);display:none" data-i18n="sign_out">sign out</button>
+          </div>
+          <div class="settings-pane" id="settingsPaneConfig" role="tabpanel" aria-labelledby="settingsTabConfig">
+            <div class="settings-section-head">
+              <div>
+                <div class="settings-section-title">config editor</div>
+                <div class="settings-section-meta">edit hermes configuration directly. connects to ${window.MEMSTER_HOST || window.UBUNTU_IP || '127.0.0.1'}.</div>
+              </div>
+            </div>
+            <div class="config-editor-container">
+              <div class="config-editor-actions">
+                <button class="sm-btn primary" id="btnLoadConfig" onclick="loadHermesConfig()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  load config
+                </button>
+                <button class="sm-btn primary" id="btnSaveConfig" onclick="saveHermesConfig()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  save config
+                </button>
+              </div>
+              <div class="config-editor-status" id="configEditorStatus"></div>
+              <div class="config-editor-wrapper">
+                <textarea id="configEditor" class="config-editor-textarea" placeholder="# hermes config.yaml will appear here..." spellcheck="false"></textarea>
+              </div>
+              <div class="config-editor-help">
+                <div style="font-size:11px;color:var(--muted);margin-top:8px;">
+                  • edits config.yaml on ${window.MEMSTER_HOST || window.UBUNTU_IP || '127.0.0.1'} at ${window.DEFAULT_HOME || '~'}/.hermes/ • restart hermes after changes
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+  <!-- icons.js inlined -->
+<script>// Permanent sidebar AND rightpanel resize fix - inline at end to ensure it runs
+(function(){
+  const SIDEBAR_MIN=180, SIDEBAR_MAX=420;
+  const RIGHTPANEL_MIN=180, RIGHTPANEL_MAX=1200;
+  let _sidebarInitialized = false;
+  let _rightpanelInitialized = false;
+  
+  function _initSidebarResize(){
+    const handle = document.getElementById('sidebarResize');
+    const sidebar = document.querySelector('.sidebar');
+    if(!handle || !sidebar) return;
+    if(_sidebarInitialized) return;
+    _sidebarInitialized = true;
+    console.log('[resize-fix] initializing sidebar resize');
+    let startX=0, startW=0, dragging=false;
+    handle.addEventListener('mousedown', function(e){
+      console.log('[resize-fix] sidebar mousedown!');
+      e.preventDefault();
+      e.stopPropagation();
+      dragging = true;
+      startX = e.clientX;
+      startW = sidebar.getBoundingClientRect().width;
+      handle.classList.add('dragging');
+      document.body.classList.add('resizing');
+      function onMove(ev){
+        if(!dragging) return;
+        const delta = ev.clientX - startX;
+        const newW = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, startW + delta));
+        sidebar.style.width = newW + 'px';
+      }
+      function onUp(){
+        console.log('[resize-fix] sidebar mouseup! dragging='+dragging);
+        if(!dragging) return;
+        dragging = false;
+        handle.classList.remove('dragging');
+        document.body.classList.remove('resizing');
+        localStorage.setItem('hermes-sidebar-w', parseInt(sidebar.style.width));
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+    // Restore saved width
+    const saved = localStorage.getItem('hermes-sidebar-w');
+    if(saved) sidebar.style.width = saved + 'px';
+  }
+  
+  function _initRightpanelResize(){
+    const handle = document.getElementById('rightpanelResize');
+    const rightpanel = document.querySelector('.rightpanel');
+    const layout = document.querySelector('.layout');
+    if(!handle || !rightpanel) return;
+    if(_rightpanelInitialized) return;
+    _rightpanelInitialized = true;
+    console.log('[resize-fix] initializing rightpanel resize');
+    let startX=0, startW=0, dragging=false;
+    handle.addEventListener('mousedown', function(e){
+      console.log('[resize-fix] rightpanel mousedown!');
+      e.preventDefault();
+      e.stopPropagation();
+      dragging = true;
+      startX = e.clientX;
+      startW = rightpanel.getBoundingClientRect().width;
+      handle.classList.add('dragging');
+      document.body.classList.add('resizing');
+      function onMove(ev){
+        if(!dragging) return;
+        // For rightpanel, moving left decreases width (negative delta)
+        const delta = startX - ev.clientX;
+        const newW = Math.min(RIGHTPANEL_MAX, Math.max(RIGHTPANEL_MIN, startW + delta));
+        rightpanel.style.width = newW + 'px';
+        rightpanel.style.flex = 'none';
+      }
+      function onUp(){
+        console.log('[resize-fix] rightpanel mouseup! dragging='+dragging);
+        if(!dragging) return;
+        dragging = false;
+        handle.classList.remove('dragging');
+        document.body.classList.remove('resizing');
+        localStorage.setItem('hermes-rightpanel-w', parseInt(rightpanel.style.width));
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+    // Restore saved width
+    const saved = localStorage.getItem('hermes-rightpanel-w');
+    if(saved){
+      rightpanel.style.width = saved + 'px';
+      rightpanel.style.flex = 'none';
+    }
+  }
+  
+  // Try immediately
+  setTimeout(function(){
+    _initSidebarResize();
+    _initRightpanelResize();
+  }, 100);
+  
+  // Watch for sidebar/rightpanel replacement
+  let _lastSidebar = null;
+  let _lastRightpanel = null;
+  setInterval(function(){
+    const curSidebar = document.querySelector('.sidebar');
+    const curRightpanel = document.querySelector('.rightpanel');
+    if(curSidebar !== _lastSidebar){
+      _lastSidebar = curSidebar;
+      _sidebarInitialized = false;
+      _initSidebarResize();
+    }
+    if(curRightpanel !== _lastRightpanel){
+      _lastRightpanel = curRightpanel;
+      _rightpanelInitialized = false;
+      _initRightpanelResize();
+    }
+  }, 500);
+})();</script>
+<script src="/static/i18n.js?v=5"></script>
+<script src="/static/icons.js?v=4"></script>
+<script src="/static/ui.js?v=7"></script>
+<script src="/static/workspace.js?v=8"></script>
+<script src="/static/commands.js?v=5"></script>
+<script src="/static/messages.js?v=10"></script>
+<script src="/static/panels.js?v=127"></script>
+<script src="/static/swarm.js?v=2"></script>
+<script src="/static/onboarding.js?v=1"></script>
+<script src="/static/sessions.js?v=14"></script>
+<script src="/static/boot.js?v=126"></script>
+<script src="/static/remote_sessions.js?v=13"></script>
+<script src="/static/terminal.js?v=4"></script>
+<script src="/static/workspace_layer.js?v=6"></script>
+<!-- Mobile Bottom Navigation -->
+<nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="mobile navigation" style="display:flex;position:fixed;left:0;right:0;bottom:0;height:72px;min-height:72px;padding-bottom:0;background:#050505;border-top:0;z-index:2147483647;visibility:visible;opacity:1;pointer-events:auto;">
+  <div class="mobile-nav-container" style="display:flex;width:100%;height:100%;min-height:72px;align-items:center;justify-content:space-around;padding:0 4px;overflow:visible;">
+    <button class="mobile-nav-item active" data-panel="chat" onclick="switchMobilePanel('chat')" style="display:flex;visibility:visible;opacity:1;min-height:64px;flex:1;align-items:center;justify-content:center;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span class="mobile-nav-label">chats</span>
+    </button>
+    <button class="mobile-nav-item" data-panel="tasks" onclick="switchMobilePanel('tasks')" style="display:flex;visibility:visible;opacity:1;min-height:64px;flex:1;align-items:center;justify-content:center;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12l3 3 6-6"/></svg>
+      <span class="mobile-nav-label">tasks</span>
+    </button>
+    <button class="mobile-nav-item" data-panel="skills" onclick="switchMobilePanel('skills')" style="display:flex;visibility:visible;opacity:1;min-height:64px;flex:1;align-items:center;justify-content:center;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+      <span class="mobile-nav-label">skills</span>
+    </button>
+    <button class="mobile-nav-item" data-panel="memory" onclick="switchMobilePanel('memory')" style="display:flex;visibility:visible;opacity:1;min-height:64px;flex:1;align-items:center;justify-content:center;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></svg>
+      <span class="mobile-nav-label">memory</span>
+    </button>
+    <button class="mobile-nav-item" data-panel="workspaces" onclick="switchMobilePanel('workspaces')" style="display:flex;visibility:visible;opacity:1;min-height:64px;flex:1;align-items:center;justify-content:center;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <span class="mobile-nav-label">spaces</span>
+    </button>
+    <button class="mobile-nav-item" data-panel="todos" onclick="switchMobilePanel('todos')" style="display:flex;visibility:visible;opacity:1;min-height:64px;flex:1;align-items:center;justify-content:center;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      <span class="mobile-nav-label">todos</span>
+    </button>
+  </div>
+</nav>
+<script>function li(n,s=16){const i={'clock':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 16 10 12 14"/></svg>`,'calendar':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,'check':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`,'x':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,'plus':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,'trash':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,'settings':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82.33 1.65 1.65 0 0 0-1 1H3a2 2 0 0 1-2 2 2 2 0 0 1 2 2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,'copy':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2 2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,'terminal':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>`,'folder':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,'file':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`,'search':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,'book':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`,'book-open':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,'brain':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4c-2 0-3.5 1.5-4 3.5-.5 0-1 .2-1.5.5C5.5 8.5 5 9.5 5 10.5c0 1 .3 1.8 1 2.5-.5.7-.8 1.5-.8 2.3 0 2 1.3 3.7 3 4.3V20c0 1.7 1.3 3 3 3s3-1.3 3-3v-.4c1.7-.6 3-2.3 3-4.3 0-.8-.3-1.6-.8-2.3.7-.7 1-1.5 1-2.5 0-1-.5-2-1.5-2.5-.5-.3-1-.5-1.5-.5-.5-2-2-3.5-4-3.5z"/><path d="M8 10h8"/><path d="M8 13h8"/><path d="M8 16h8"/></svg>`,'list':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,'list-todo':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="6" height="6" rx="1"/><path d="m3 17 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>`,'message':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,'message-square':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,'play':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>`,'rotate-ccw':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>`,'pencil':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`,'trash-2':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 1 2 2 2v2"/></svg>`,'chevron-right':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>`,'chevron-down':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>`,'chevron-left':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>`,'paperclip':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18.1 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`,'wrench':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,'folder-tree':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 10h7a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1h-2.5a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2"/><path d="M13 16h-2a1 1 0 0 1-1-1v-2a1 1 0 0 0-1-1H6a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 1 1 1v2a1 1 0 0 0 1 1h2"/><path d="M6 7h2a1 1 0 0 1 1 1v2"/></svg>`,'user':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,'loader':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>`,'square':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>`,'hash':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>`,'layers':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`,'zap':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,'lightbulb':`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>`};return i[n]||i['square']}</script>
+</body>
+</html>

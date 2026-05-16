@@ -2,7 +2,8 @@
 # Start vibecode server in the background with optimized startup
 set -e
 
-VENV_PYTHON="/home/house/vibecode/venv/bin/python"
+VIBECODE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)"
+VENV_PYTHON="${VIBECODE_ROOT}/venv/bin/python"
 if [ -f "$VENV_PYTHON" ]; then
   PYTHON="$VENV_PYTHON"
 else
@@ -17,7 +18,7 @@ LOGFILE="/tmp/vibecode.log"
 export HERMES_WEBUI_PORT=8786
 export PYTHONUNBUFFERED=1
 export PYTHONOPTIMIZE=2
-export PYTHONPATH="/home/house/vibecode"
+export PYTHONPATH="${VIBECODE_ROOT}"
 export PYTHONDONTWRITEBYTECODE=1
 export PYTHONHASHSEED=random
 export OMP_NUM_THREADS=4
@@ -92,7 +93,7 @@ import time
 import os
 from pathlib import Path
 # Preload API modules
-sys.path.insert(0, '/home/house/vibecode')
+sys.path.insert(0, os.environ.get("PYTHONPATH", os.path.dirname(os.path.abspath(__file__))))
 try:
     from api import config, helpers, models
     from api.streaming import _get_ai_agent

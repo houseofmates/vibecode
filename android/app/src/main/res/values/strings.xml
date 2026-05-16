@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">vibecode</string>
-    <string name="title_activity_main">vibecode</string>
-    <string name="package_name">app.vibecode.mobile2</string>
-    <string name="custom_url_scheme">app.vibecode.mobile2</string>
-</resources>

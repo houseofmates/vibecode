@@ -1,0 +1,495 @@
+/**
+ * Termisol Terminal Styles for Vibecode
+ * Advanced terminal interface with feature panels and modern UI
+ */
+
+/* Termisol Terminal Container */
+.termisol-terminal-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Terminal Header */
+.termisol-terminal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--sidebar);
+    border-bottom: 1px solid var(--border);
+    min-height: 40px;
+}
+
+.termisol-terminal-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.termisol-icon {
+    opacity: 0.8;
+}
+
+.termisol-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+}
+
+.termisol-status-dot.connecting {
+    background: #f6b012;
+    animation: pulse 1.5s infinite;
+}
+
+.termisol-status-dot.connected {
+    background: #27c93f;
+}
+
+.termisol-status-dot.disconnected {
+    background: #ff5f56;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Terminal Controls */
+.termisol-terminal-controls {
+    display: flex;
+    gap: 4px;
+}
+
+.termisol-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    transition: all 0.2s ease;
+    font-size: 12px;
+}
+
+.termisol-btn:hover {
+    background: var(--hover);
+    color: var(--text);
+    border-color: var(--text);
+}
+
+.termisol-btn:active {
+    transform: scale(0.95);
+}
+
+/* Terminal Content */
+.termisol-terminal-content {
+    flex: 1;
+    padding: 8px;
+    background: #0d0d0d;
+    overflow: hidden;
+}
+
+/* Terminal Footer with Feature Panels */
+.termisol-terminal-footer {
+    background: var(--sidebar);
+    border-top: 1px solid var(--border);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* Feature Panels */
+.termisol-features-panel,
+.termisol-ai-panel,
+.termisol-media-panel,
+.termisol-collab-panel {
+    padding: 12px;
+}
+
+.termisol-features-panel.hidden,
+.termisol-ai-panel.hidden,
+.termisol-media-panel.hidden,
+.termisol-collab-panel.hidden {
+    display: none;
+}
+
+.termisol-features-panel h4,
+.termisol-ai-panel h4,
+.termisol-media-panel h4,
+.termisol-collab-panel h4 {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+}
+
+/* Features Grid */
+.termisol-features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 8px;
+}
+
+.termisol-feature-item {
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--background);
+    transition: all 0.2s ease;
+}
+
+.termisol-feature-item.enabled {
+    border-color: #27c93f;
+    background: rgba(39, 201, 63, 0.1);
+}
+
+.termisol-feature-item.disabled {
+    border-color: var(--muted);
+    opacity: 0.6;
+}
+
+.termisol-feature-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.termisol-feature-toggle input[type="checkbox"] {
+    margin: 0;
+}
+
+.termisol-feature-name {
+    flex: 1;
+}
+
+.termisol-feature-desc {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.3;
+}
+
+/* AI Panel */
+.termisol-ai-chat {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+    padding: 8px;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.termisol-ai-message {
+    margin-bottom: 8px;
+}
+
+.termisol-ai-message .user-message {
+    color: #35c7ff;
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+.termisol-ai-message .ai-response {
+    color: #27c93f;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.termisol-ai-welcome {
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+    padding: 20px;
+}
+
+.termisol-ai-input {
+    display: flex;
+    gap: 6px;
+}
+
+.termisol-ai-input input {
+    flex: 1;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 8px;
+    color: var(--text);
+    font-size: 12px;
+}
+
+.termisol-ai-input input:focus {
+    outline: none;
+    border-color: #35c7ff;
+}
+
+.termisol-ai-input button {
+    background: #35c7ff;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.termisol-ai-input button:hover {
+    background: #28b9ff;
+}
+
+/* Media Panel */
+.termisol-media-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
+}
+
+.media-feature {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.media-feature.enabled {
+    border-color: #f6b012;
+    background: rgba(246, 176, 18, 0.1);
+}
+
+.media-feature.disabled {
+    opacity: 0.5;
+}
+
+.media-feature h5 {
+    margin: 0 0 4px 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.media-feature p {
+    margin: 0;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+/* Collaboration Panel */
+.collab-info {
+    text-align: center;
+    padding: 20px;
+    color: var(--muted);
+}
+
+.collab-info p {
+    margin: 4px 0;
+    font-size: 12px;
+}
+
+/* Context Menu */
+.termisol-context-menu {
+    position: fixed;
+    background: var(--sidebar);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 0;
+    z-index: 1000;
+    min-width: 160px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.termisol-menu-item {
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text);
+    transition: background 0.2s ease;
+}
+
+.termisol-menu-item:hover {
+    background: var(--hover);
+}
+
+.termisol-menu-separator {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+}
+
+/* Terminal Tabs */
+.termisol-tab {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    background: var(--sidebar);
+    border: 1px solid var(--border);
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--muted);
+    transition: all 0.2s ease;
+}
+
+.termisol-tab:hover {
+    background: var(--hover);
+    color: var(--text);
+}
+
+.termisol-tab.active {
+    background: var(--background);
+    color: var(--text);
+    border-bottom-color: var(--background);
+}
+
+.termisol-tab-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.termisol-tab-close {
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.termisol-tab-close:hover {
+    opacity: 1;
+}
+
+/* Drag and Drop */
+.termisol-terminal-wrapper.drag-over {
+    border-color: #35c7ff;
+    box-shadow: 0 0 0 2px rgba(53, 199, 255, 0.2);
+}
+
+/* Status Indicators */
+.termisol-status-indicator {
+    animation: fadeInOut 0.3s ease;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .termisol-terminal-header {
+        padding: 6px 8px;
+    }
+    
+    .termisol-terminal-controls {
+        gap: 2px;
+    }
+    
+    .termisol-btn {
+        padding: 3px 4px;
+        font-size: 11px;
+    }
+    
+    .termisol-features-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .termisol-media-controls {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Dark Theme Enhancements */
+@media (prefers-color-scheme: dark) {
+    .termisol-terminal-wrapper {
+        background: #0a0a0a;
+        border-color: #333;
+    }
+    
+    .termisol-terminal-header {
+        background: #1a1a1a;
+        border-bottom-color: #333;
+    }
+    
+    .termisol-terminal-footer {
+        background: #1a1a1a;
+        border-top-color: #333;
+    }
+}
+
+/* Accessibility */
+.termisol-btn:focus,
+.termisol-feature-toggle:focus,
+.termisol-ai-input input:focus {
+    outline: 2px solid #35c7ff;
+    outline-offset: 2px;
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+    .termisol-terminal-wrapper {
+        border-width: 2px;
+    }
+    
+    .termisol-btn {
+        border-width: 2px;
+    }
+    
+    .termisol-feature-item {
+        border-width: 2px;
+    }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    .termisol-status-dot.connecting {
+        animation: none;
+    }
+    
+    .termisol-btn,
+    .termisol-feature-item,
+    .media-feature {
+        transition: none;
+    }
+    
+    .termisol-status-indicator {
+        animation: none;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .termisol-terminal-header,
+    .termisol-terminal-footer {
+        display: none;
+    }
+    
+    .termisol-terminal-wrapper {
+        border: none;
+        border-radius: 0;
+    }
+    
+    .termisol-terminal-content {
+        background: white;
+        color: black;
+    }
+}

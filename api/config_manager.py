@@ -96,7 +96,7 @@ class FeatureConfig:
 class AppConfig:
     """Main application configuration."""
     environment: Environment = Environment.DEVELOPMENT
-    host: str = "127.0.0.1"
+    host: str = "0.0.0.0"
     port: int = 8786
     debug: bool = False
     secret_key: str = None

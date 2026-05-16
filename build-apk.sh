@@ -4,7 +4,7 @@ set -e
 
 echo "=== vibecode APK Builder ==="
 echo "Target: releases/vibecode.apk"
-echo "Server: https://vc.houseofmates.space (or local fallback)"
+echo "Server: https://vc.${HERMES_DOMAIN:-your-domain.com} (or local fallback)"
 echo ""
 
 # Check dependencies
@@ -89,7 +89,7 @@ if [ -f "releases/vibecode.apk" ]; then
     echo ""
     echo "Or transfer to phone and install manually"
     echo ""
-    echo "Note: The APK connects to https://vc.houseofmates.space"
+    echo "Note: The APK connects to https://vc.${HERMES_DOMAIN:-your-domain.com}"
     echo "Ensure you have internet connectivity before using the app"
     echo ""
     echo "Note: Using debug build (no signing required)"

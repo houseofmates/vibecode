@@ -1,7 +1,7 @@
 #!/bin/bash
 # Extract AppImage since FUSE mount fails
 echo 'Extracting AppImage...'
-/home/house/apps/vibecode.appimage --appimage-extract
+${HOME}/apps/vibecode.appimage --appimage-extract
 echo 'Extracted to squashfs-root/'
 echo 'To run the extracted app:'
 echo 'cd squashfs-root'

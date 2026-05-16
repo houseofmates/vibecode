@@ -23,6 +23,9 @@ def _sanitize_error(e: Exception) -> str:
     """Strip filesystem paths from exception messages before returning to client."""
     import re
     msg = str(e)
+    lower_msg = msg.lower()
+    if "<html" in lower_msg and ("bad gateway" in lower_msg or "cloudflare" in lower_msg):
+        return "Upstream gateway error (502 Bad Gateway)"
     # Remove absolute paths (Unix and Windows)
     msg = re.sub(r'(?:(?:/[a-zA-Z0-9_.-]+)+|(?:[A-Z]:\\[^\s]+))', '<path>', msg)
     return msg
@@ -42,52 +45,40 @@ def _security_headers(handler):
     handler.send_header('Referrer-Policy', 'same-origin')
     handler.send_header(
         'Content-Security-Policy',
-        "default-src 'self' https://*.cloudflareaccess.com; "
-        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://static.cloudflareinsights.com; "
-        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
-        "img-src 'self' data: https: blob:; font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com; connect-src 'self'; "
-        "manifest-src 'self' https://*.cloudflareaccess.com; "
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "img-src 'self' data:; font-src 'self' data: https://cdn.jsdelivr.net; connect-src 'self' http://localhost:* http://127.0.0.1:*; "
         "base-uri 'self'; form-action 'self'"
     )
     handler.send_header(
         'Permissions-Policy',
-        'camera=(), microphone=(self), geolocation=(), clipboard-write=(self)'
+        'camera=(), microphone=(self), geolocation=()'
     )
 
 
-def _accepts_gzip(handler) -> bool:
-    """Check if the client accepts gzip encoding."""
-    headers = getattr(handler, 'headers', None)
-    if not headers:
-        return False
-    ae = headers.get('Accept-Encoding', '')
-    return 'gzip' in ae
+def _cors_headers(handler) -> None:
+    """Send CORS headers to allow Tauri AppImage and cross-origin access."""
+    origin = handler.headers.get('Origin', '')
+    # Echo back the actual origin (required when credentials: 'include' is used)
+    if origin:
+        handler.send_header('Access-Control-Allow-Origin', origin)
+    else:
+        handler.send_header('Access-Control-Allow-Origin', '*')
+    handler.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    handler.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    handler.send_header('Access-Control-Allow-Credentials', 'true')
 
 
-def j(handler, payload, status: int=200, extra_headers: dict=None) -> None:
-    """Send a JSON response.
-
-    *extra_headers*: optional dict of additional headers to include
-    (e.g., {'Set-Cookie': '...'}).  Headers are sent before end_headers().
-    """
+def j(handler, payload, status: int=200) -> None:
+    """Send a JSON response."""
     body = _json.dumps(payload, ensure_ascii=False, indent=2).encode('utf-8')
     handler.send_response(status)
     handler.send_header('Content-Type', 'application/json; charset=utf-8')
-
-    # Gzip-compress responses over 1KB when the client accepts it.
-    # Typical JSON API responses compress 70-80%, giving a big speedup
-    # for large payloads (session history, message lists).
-    if _accepts_gzip(handler) and len(body) > 1024:
-        import gzip
-        body = gzip.compress(body, compresslevel=4)
-        handler.send_header('Content-Encoding', 'gzip')
-
     handler.send_header('Content-Length', str(len(body)))
     handler.send_header('Cache-Control', 'no-store')
     _security_headers(handler)
-    if extra_headers:
-        for k, v in extra_headers.items():
-            handler.send_header(k, v)
+    _cors_headers(handler)
     handler.end_headers()
     handler.wfile.write(body)
 
@@ -100,6 +91,7 @@ def t(handler, payload, status: int=200, content_type: str='text/plain; charset=
     handler.send_header('Content-Length', str(len(body)))
     handler.send_header('Cache-Control', 'no-store')
     _security_headers(handler)
+    _cors_headers(handler)
     handler.end_headers()
     handler.wfile.write(body)
 
@@ -110,10 +102,14 @@ MAX_BODY_BYTES = 20 * 1024 * 1024  # 20MB limit for non-upload POST bodies
 # ── Credential redaction ──────────────────────────────────────────────────────
 
 def _build_redact_fn():
-    """Return a redactor backed by hermes-agent plus local fallback patterns."""
-    # Minimal fallback covering the most common credential prefixes.
-    # Keep this active even when hermes-agent is importable so API responses do
-    # not regress if the agent redactor misses a token shape.
+    """Return redact_sensitive_text from hermes-agent if available, else a fallback."""
+    try:
+        from agent.redact import redact_sensitive_text
+        return redact_sensitive_text
+    except ImportError:
+        pass
+
+    # Minimal fallback covering the most common credential prefixes
     _CRED_RE = _re.compile(
         r"(?<![A-Za-z0-9_-])("
         r"sk-[A-Za-z0-9_-]{10,}"          # OpenAI / Anthropic / OpenRouter
@@ -152,62 +148,20 @@ def _build_redact_fn():
         text = _PRIVKEY_RE.sub("[REDACTED PRIVATE KEY]", text)
         return text
 
-    try:
-        from agent.redact import redact_sensitive_text
-    except ImportError:
-        return _fallback_redact
-
-    def _combined_redact(text: str) -> str:
-        if not isinstance(text, str) or not text:
-            return text
-        # WebUI API responses are a hard safety boundary — pass force=True so the
-        # agent's broader patterns (Stripe sk_live_, Google AIza…, JWT eyJ…, DB
-        # connection strings, Telegram bot tokens) run regardless of the user's
-        # HERMES_REDACT_SECRETS opt-in. The local fallback then handles the
-        # common short-prefix shapes the agent omits (ghp_, sk-, hf_, AKIA).
-        try:
-            agent_redacted = redact_sensitive_text(text, force=True)
-        except TypeError:
-            # Older hermes-agent builds that predate the force kwarg.
-            agent_redacted = redact_sensitive_text(text)
-        return _fallback_redact(agent_redacted)
-
-    return _combined_redact
+    return _fallback_redact
 
 
-_redact_fn_cached = _build_redact_fn()
+_redact_text = _build_redact_fn()
 
 
-def _redact_text(text: str, *, _enabled: bool | None = None) -> str:
-    """Redact sensitive text from API responses. Respects api_redact_enabled setting.
-
-    The ``_enabled`` parameter is an internal optimization for callers that
-    redact many strings in a single response — `redact_session_data()` reads
-    the setting once and threads it through ``_redact_value`` so we avoid
-    re-loading settings.json from disk per string. (Opus pre-release perf fix.)
-    """
-    if not isinstance(text, str) or not text:
-        return text
-    if _enabled is None:
-        from api.config import load_settings
-        _enabled = bool(load_settings().get("api_redact_enabled", True))
-    if not _enabled:
-        return text
-    return _redact_fn_cached(text)
-
-
-def _redact_value(v, *, _enabled: bool | None = None):
-    """Recursively redact credentials from strings, dicts, and lists.
-
-    ``_enabled`` is threaded through so a single response-level redact pass
-    only reads settings.json once. (Opus pre-release perf fix.)
-    """
+def _redact_value(v):
+    """Recursively redact credentials from strings, dicts, and lists."""
     if isinstance(v, str):
-        return _redact_text(v, _enabled=_enabled)
+        return _redact_text(v)
     if isinstance(v, dict):
-        return {k: _redact_value(val, _enabled=_enabled) for k, val in v.items()}
+        return {k: _redact_value(val) for k, val in v.items()}
     if isinstance(v, list):
-        return [_redact_value(item, _enabled=_enabled) for item in v]
+        return [_redact_value(item) for item in v]
     return v
 
 
@@ -216,79 +170,42 @@ def redact_session_data(session_dict: dict) -> dict:
 
     Applies to: messages[], tool_calls[], and title.
     The underlying session file is not modified; redaction is response-layer only.
-
-    Reads the ``api_redact_enabled`` setting ONCE for the entire response and
-    threads it through to avoid hundreds of settings.json reads per session
-    payload (a 50-message session has hundreds of nested strings). When the
-    setting is disabled this is also a fast path: the recursion still walks
-    but every string returns early.
     """
-    from api.config import load_settings
-    _enabled = bool(load_settings().get("api_redact_enabled", True))
     result = dict(session_dict)
     if isinstance(result.get('title'), str):
-        result['title'] = _redact_text(result['title'], _enabled=_enabled)
+        result['title'] = _redact_text(result['title'])
     if 'messages' in result:
-        result['messages'] = _redact_value(result['messages'], _enabled=_enabled)
+        result['messages'] = _redact_value(result['messages'])
     if 'tool_calls' in result:
-        result['tool_calls'] = _redact_value(result['tool_calls'], _enabled=_enabled)
+        result['tool_calls'] = _redact_value(result['tool_calls'])
     return result
 
 
 def read_body(handler) -> dict:
-    """Read and JSON-parse a POST request body (capped at 20MB)."""
-    length = int(handler.headers.get('Content-Length', 0))
-    if length > MAX_BODY_BYTES:
-        raise ValueError(f'Request body too large ({length} bytes, max {MAX_BODY_BYTES})')
-    raw = handler.rfile.read(length) if length else b'{}'
+    """Read and JSON-parse a POST request body (capped at 20MB).
+
+    Supports pre-read body from do_POST (stored in handler._post_body).
+    This prevents 100-continue hang and allows check_auth to read body
+    without consuming the stream.
+    """
+    # Use pre-read body if available (set by do_POST pre-read)
+    if hasattr(handler, '_post_body') and handler._post_body:
+        raw = handler._post_body
+    else:
+        length = int(handler.headers.get('Content-Length', 0))
+        content_type = handler.headers.get('Content-Type', '')
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"Request headers - Content-Length: {length}, Content-Type: {content_type}")
+        if length > MAX_BODY_BYTES:
+            raise ValueError(f'Request body too large ({length} bytes, max {MAX_BODY_BYTES})')
+        raw = handler.rfile.read(length) if length else b'{}'
+        if length == 0:
+            logger.warning("Request has Content-Length of 0, treating as empty body")
     try:
         return _json.loads(raw)
-    except Exception:
-        return {}
-
-
-# ── Profile cookie helpers (issue #798) ─────────────────────────────────────
-
-PROFILE_COOKIE_NAME = 'hermes_profile'
-
-
-def get_profile_cookie(handler) -> str | None:
-    """Extract the hermes_profile cookie value from the request, or None."""
-    cookie_header = handler.headers.get('Cookie', '')
-    if not cookie_header:
-        return None
-    import http.cookies as _hc
-    cookie = _hc.SimpleCookie()
-    try:
-        cookie.load(cookie_header)
-    except _hc.CookieError:
-        return None
-    morsel = cookie.get(PROFILE_COOKIE_NAME)
-    if morsel and morsel.value:
-        # Validate against profile-name pattern before trusting
-        from api.profiles import _PROFILE_ID_RE
-        val = morsel.value
-        if val == 'default' or _PROFILE_ID_RE.fullmatch(val):
-            return val
-    return None
-
-
-def build_profile_cookie(name: str) -> str:
-    """Build a Set-Cookie header value for the hermes_profile cookie.
-
-    Always persist the selected profile in the cookie, including 'default'.
-    Clearing the cookie causes the backend to fall back to process-global
-    _active_profile, which can unexpectedly switch clients back to another
-    profile.
-
-    Set HttpOnly because the UI reads the active profile from
-    /api/profile/active JSON and does not need to access this cookie via
-    document.cookie.
-    """
-    import http.cookies as _hc
-    cookie = _hc.SimpleCookie()
-    cookie[PROFILE_COOKIE_NAME] = name
-    cookie[PROFILE_COOKIE_NAME]['path'] = '/'
-    cookie[PROFILE_COOKIE_NAME]['httponly'] = True
-    cookie[PROFILE_COOKIE_NAME]['samesite'] = 'Lax'
-    return cookie[PROFILE_COOKIE_NAME].OutputString()
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to parse JSON body: {e}, raw body: {raw[:200]}...")
+        raise ValueError(f"Invalid JSON in request body: {e}")

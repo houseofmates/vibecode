@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Wiki/Memory/SP Browser API Routes for Vibecode
-Connects to .250 (192.168.4.233) for memster, wiki, and Simply Plural data via SSH
+Connects to remote host for memster, wiki, and Simply Plural data via SSH
 Full CRUD operations for memories, wiki pages, and SP data
 """
 import json
@@ -14,7 +14,7 @@ try:
  from .importance_calc import calculate_importance
 except ImportError:
  import sys
- sys.path.insert(0, '/home/house/vibecode/api')
+ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
  from importance_calc import calculate_importance
 
 def ssh_json_command(host, user, command, timeout=30):
@@ -46,10 +46,11 @@ def ssh_command_raw(host, user, command, timeout=30):
     except Exception as e:
         return {'error': str(e), 'output': '', 'returncode': -1}
 
-MEMSTER_HOST = '192.168.4.233'
-MEMSTER_USER = 'house'
-MEMSTER_DB = '/home/house/.memster/memster_core.db'
-WIKI_DB = '/home/house/.hermes/wiki/wiki.db'
+_HOME = os.path.expanduser('~')
+MEMSTER_HOST = os.environ.get('MEMSTER_HOST_LEGACY', os.environ.get('POPOS_IP', '127.0.0.1'))
+MEMSTER_USER = os.environ.get('MEMSTER_USER', os.environ.get('USER', ''))
+MEMSTER_DB = os.environ.get('MEMSTER_DB', f"{os.environ.get('DEFAULT_HOME', _HOME)}/.memster/memster_core.db")
+WIKI_DB = os.environ.get('WIKI_DB', f"{os.environ.get('DEFAULT_HOME', _HOME)}/.hermes/wiki/wiki.db")
 
 # ============ MEMORIES - FULL CRUD ============
 
@@ -171,35 +172,32 @@ def create_memster_memory(content, category='observation', tier='L2', tags=None)
     content_escaped = content.replace("'", "''")
     cat_escaped = (category or 'observation').replace("'", "''")
     tier_escaped = (tier or 'L2').replace("'", "''")
-    
+
     # Calculate importance based on content
     calculated_importance = calculate_importance(content, category)
-    
+
     sql = f"INSERT INTO memories (content, category, tier, importance, t_recorded, t_event) VALUES ('{content_escaped}', '{cat_escaped}', '{tier_escaped}', {calculated_importance}, datetime('now'), datetime('now'))"
     cmd = f"sqlite3 '{MEMSTER_DB}' '{sql}'"
     result = ssh_command_raw(MEMSTER_HOST, MEMSTER_USER, cmd)
-    
+
     if result.get('error'):
         return {'error': result['error']}
-    
+
     # Get the ID of the inserted row
     id_sql = "SELECT last_insert_rowid()"
     id_cmd = f"sqlite3 '{MEMSTER_DB}' '{id_sql}'"
     id_result = ssh_json_command(MEMSTER_HOST, MEMSTER_USER, id_cmd)
-    
+
     try:
         mem_id = int(id_result.get('output', '0').strip() or '0')
     except:
         mem_id = None
-    
+
     # Tags aren't supported in memster - add to content as text if needed
     if mem_id and tags:
         pass  # Tags stored inline in content or skipped
-    
-    if mem_id:
-        return {'success': True, 'id': mem_id}
-    return {'success': True, 'id': None}
 
+    return {'id': mem_id, 'created': True}
 
 def update_memster_memory(mem_id, content=None, category=None, tier=None, tags=None):
     """Update an existing memory."""

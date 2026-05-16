@@ -6,8 +6,8 @@ import subprocess
 from pathlib import Path
 
 # Remote skills directory
-REMOTE_HOST = "house@192.168.4.250"
-REMOTE_SKILLS_DIR = "/home/house/.hermes/skills"
+REMOTE_HOST = os.environ.get('REMOTE_HOST', f"{os.environ.get('MEMSTER_USER', os.environ.get('USER', ''))}@{os.environ.get('MEMSTER_HOST', os.environ.get('UBUNTU_IP', '127.0.0.1'))}")
+REMOTE_SKILLS_DIR = os.environ.get('REMOTE_SKILLS_DIR', f"{os.environ.get('DEFAULT_HOME', os.path.expanduser('~'))}/.hermes/skills")
 
 
 def _run_remote(cmd: str):
@@ -38,7 +38,7 @@ def skills_list():
             return json.dumps({
                 "skills": [], 
                 "error": f"Failed to list remote skills: {err}",
-                "remote_host": "192.168.4.250"
+                "remote_host": os.environ.get('MEMSTER_HOST', os.environ.get('UBUNTU_IP', '127.0.0.1'))
             })
         
         for name in out.strip().split("\n"):
@@ -80,7 +80,7 @@ def skills_list():
             })
             
     except Exception as e:
-        return json.dumps({"skills": [], "error": str(e), "remote_host": "192.168.4.250"})
+        return json.dumps({"skills": [], "error": str(e), "remote_host": os.environ.get('MEMSTER_HOST', os.environ.get('UBUNTU_IP', '127.0.0.1'))})
     
     return json.dumps({"skills": skills})
 
@@ -177,4 +177,4 @@ def skill_delete(name: str) -> str:
 
 
 # Keep backward compatibility with existing code
-SKILLS_DIR = Path("/home/house/.hermes/skills")
+SKILLS_DIR = Path(os.path.expanduser(os.environ.get('DEFAULT_HOME', '~')) + '/.hermes/skills')

@@ -10,22 +10,29 @@ import time
 import traceback
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-
-try:
-    import resource
-except ImportError:  # pragma: no cover - resource is Unix-only
-    resource = None
 from urllib.parse import urlparse
+
+# Set up JSON logging for the root logger
+try:
+    from pythonjsonlogger import JsonFormatter
+except ImportError:
+    from pythonjsonlogger.json import JsonFormatter
+
+logHandler = logging.StreamHandler(sys.stdout)
+formatter = JsonFormatter('%(timestamp)s %(level)s %(name)s %(message)s')
+logHandler.setFormatter(formatter)
+# Clear any existing handlers and set our own
+logging.root.handlers.clear()
+logging.root.addHandler(logHandler)
+logging.root.setLevel(logging.INFO)
 
 logger = logging.getLogger(__name__)
 
 from api.auth import check_auth
 from api.config import HOST, PORT, STATE_DIR, SESSION_DIR, DEFAULT_WORKSPACE
-from api.helpers import j, get_profile_cookie
-from api.profiles import set_request_profile, clear_request_profile
-from api.routes import handle_delete, handle_get, handle_patch, handle_post
+from api.helpers import j
+from api.routes import handle_get, handle_post
 from api.startup import auto_install_agent_deps, fix_credential_permissions
-from api.updates import WEBUI_VERSION
 
 
 def _warmup_session_cache():
@@ -33,88 +40,40 @@ def _warmup_session_cache():
     try:
         from api.models import _rebuild_session_index
         _rebuild_session_index()
-        logger.info("Session index warmed up at startup.")
+        print('[ok] Session index warmed up.', flush=True)
     except Exception as e:
-        logger.warning(f"Session index warmup failed: {e}")
+        print(f'[!!] Session index warmup failed: {e}', flush=True)
 
 
 class QuietHTTPServer(ThreadingHTTPServer):
     """Custom HTTP server that silently handles common network errors."""
-    daemon_threads = True
-    request_queue_size = 128
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.accept_loop_requests_total = 0
-        self.accept_loop_last_request_at = 0.0
-
-    def _handle_request_noblock(self):
-        """Record accept-loop progress before dispatching a request handler.
-
-        A process can be alive and still stop accepting/dispatching requests.
-        Exposing this heartbeat on /health gives supervisors and watchdogs a
-        cheap signal that the accept loop is still moving.
-
-        Note: this method is called only from the single ``serve_forever()``
-        thread in CPython socketserver, so the un-locked ``+=`` increment is
-        safe — there is no other thread mutating these counters. The /health
-        readers may see a stale value momentarily but never an inconsistent
-        one (Python int reads are atomic). Per Opus advisor on stage-297.
-        """
-        self.accept_loop_requests_total += 1
-        self.accept_loop_last_request_at = time.time()
-        return super()._handle_request_noblock()
+    request_queue_size = 128  # Allow more pending connections (default is 5)
+    
+    allow_reuse_address = True  # Avoid Address already in use after restarts
+    allow_reuse_port = True  # Same for port reuse
 
     def handle_error(self, request, client_address):
         """Override to suppress logging for common client disconnect errors."""
         exc_type, exc_value, _ = sys.exc_info()
-
+        
         # Silently ignore common connection errors caused by client disconnects
-        if exc_type in (ConnectionResetError, BrokenPipeError, ConnectionAbortedError, TimeoutError):
+        if exc_type in (ConnectionResetError, BrokenPipeError, ConnectionAbortedError):
             return
-
+        
         # Also handle socket errors that indicate client disconnect
-        if issubclass(exc_type, OSError):
+        if exc_type is socket.error:
             # errno 54 is Connection reset by peer on macOS/BSD
             # errno 104 is Connection reset by peer on Linux
-            if getattr(exc_value, 'errno', None) in (32, 54, 104, 110):  # EPIPE, ECONNRESET, ETIMEDOUT
+            if exc_value.errno in (54, 104, 32):  # ECONNRESET, EPIPE
                 return
-
+        
         # For other errors, use default logging
         super().handle_error(request, client_address)
 
 
 class Handler(BaseHTTPRequestHandler):
-    timeout = 30  # seconds — kills idle/incomplete connections to prevent thread exhaustion
-
-    def setup(self):
-        """Set socket options for each accepted connection."""
-        super().setup()
-        # TCP_NODELAY — universal, disables Nagle for HTTP latency
-        try:
-            self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        except OSError:
-            pass
-        # SO_KEEPALIVE — universal master switch (must be set before timing params)
-        try:
-            self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        except OSError:
-            pass
-        # Per-platform timing parameters
-        if hasattr(socket, 'TCP_KEEPIDLE'):  # Linux
-            try:
-                self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 10)
-                self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 5)
-                self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
-            except OSError:
-                pass
-        elif hasattr(socket, 'TCP_KEEPALIVE'):  # macOS
-            try:
-                self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPALIVE, 10)
-            except OSError:
-                pass
-    _ver_suffix = WEBUI_VERSION.removeprefix('v')
-    server_version = ('HermesWebUI/' + _ver_suffix) if _ver_suffix != 'unknown' else 'HermesWebUI'
+    timeout = 0  # disabled — SSE streams must stay open indefinitely; OS handles dead connections
+    server_version = 'HermesWebUI/0.50.38'
     def log_message(self, fmt, *args): pass  # suppress default Apache-style log
 
     def log_request(self, code: str='-', size: str='-') -> None:
@@ -130,25 +89,8 @@ class Handler(BaseHTTPRequestHandler):
         })
         print(f'[webui] {record}', flush=True)
 
-    def do_OPTIONS(self) -> None:
-        """Handle CORS preflight requests."""
-        self.send_response(204)
-        origin = self.headers.get('Origin', '')
-        if origin:
-            self.send_header('Access-Control-Allow-Origin', origin)
-        else:
-            self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Profile')
-        self.send_header('Access-Control-Allow-Credentials', 'true')
-        self.end_headers()
-
     def do_GET(self) -> None:
         self._req_t0 = time.time()
-        # Per-request profile context from cookie (issue #798)
-        cookie_profile = get_profile_cookie(self)
-        if cookie_profile:
-            set_request_profile(cookie_profile)
         try:
             parsed = urlparse(self.path)
             if not check_auth(self, parsed): return
@@ -158,104 +100,37 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:
             print(f'[webui] ERROR {self.command} {self.path}\n' + traceback.format_exc(), flush=True)
             return j(self, {'error': 'Internal server error'}, status=500)
-        finally:
-            clear_request_profile()
 
-    def _handle_write(self, route_func) -> None:
+    def do_OPTIONS(self) -> None:
+        """Handle CORS preflight requests."""
+        self.send_response(204)
+        origin = self.headers.get('Origin', '')
+        if origin:
+            self.send_header('Access-Control-Allow-Origin', origin)
+        else:
+            self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        self.send_header('Access-Control-Allow-Credentials', 'true')
+        self.end_headers()
+
+    def do_POST(self) -> None:
         self._req_t0 = time.time()
-        # Per-request profile context from cookie (issue #798)
-        cookie_profile = get_profile_cookie(self)
-        if cookie_profile:
-            set_request_profile(cookie_profile)
         try:
             parsed = urlparse(self.path)
             if not check_auth(self, parsed): return
-            # Pre-read POST/PATCH/DELETE body to prevent rfile.read() hang
+            # Pre-read POST body to prevent rfile.read() hang
             try:
                 _cl = int(self.headers.get('Content-Length', 0))
                 self._post_body = self.rfile.read(_cl) if _cl else b'{}'
             except Exception:
                 self._post_body = b'{}'
-            result = route_func(self, parsed)
+            result = handle_post(self, parsed)
             if result is False:
                 return j(self, {'error': 'not found'}, status=404)
         except Exception as e:
             print(f'[webui] ERROR {self.command} {self.path}\n' + traceback.format_exc(), flush=True)
             return j(self, {'error': 'Internal server error'}, status=500)
-        finally:
-            clear_request_profile()
-
-    def do_POST(self) -> None:
-        self._handle_write(handle_post)
-
-    def do_PATCH(self) -> None:
-        self._handle_write(handle_patch)
-
-    def do_DELETE(self) -> None:
-        self._handle_write(handle_delete)
-
-
-def _raise_fd_soft_limit(target: int = 4096) -> dict:
-    """Best-effort raise of RLIMIT_NOFILE for persistent WebUI hosts.
-
-    macOS launchd jobs often start with a 256 soft limit. If a future FD leak
-    regresses, that low ceiling turns a leak into a hard HTTP wedge quickly.
-    Raising the soft limit does not hide leaks; it buys enough headroom for
-    diagnostics and watchdog recovery.
-    """
-    if resource is None:
-        return {"status": "unsupported"}
-    try:
-        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-    except Exception as exc:
-        return {"status": "error", "error": str(exc)}
-
-    # On Unix, RLIM_INFINITY is commonly a large int; keep the logic explicit
-    # so tests can use ordinary integers without depending on platform values.
-    desired = int(target)
-    if hard not in (-1, getattr(resource, "RLIM_INFINITY", object())):
-        desired = min(desired, int(hard))
-    if soft >= desired:
-        return {"status": "unchanged", "soft": soft, "hard": hard}
-    try:
-        resource.setrlimit(resource.RLIMIT_NOFILE, (desired, hard))
-    except Exception as exc:
-        return {"status": "error", "soft": soft, "hard": hard, "error": str(exc)}
-    return {"status": "raised", "soft": desired, "hard": hard, "previous_soft": soft}
-
-
-def _start_cron_session_cleanup():
-    """Background thread to periodically clean up cron/_cron sessions."""
-    def cleanup_loop():
-        import time as _time
-        while True:
-            try:
-                _time.sleep(3600)  # Run every hour
-                from api.config import SESSION_DIR
-                from api.models import Session
-                cleaned = 0
-                for p in SESSION_DIR.glob("*.json"):
-                    stem = p.stem
-                    if not (stem.startswith('cron') or stem.startswith('_cron')):
-                        continue
-                    try:
-                        p.unlink(missing_ok=True)
-                        cleaned += 1
-                    except Exception:
-                        continue
-                try:
-                    from api.models import _rebuild_session_index
-                    _rebuild_session_index()
-                except Exception:
-                    pass
-                if cleaned > 0:
-                    logger.info(f"Cleaned up {cleaned} cron/_cron sessions")
-            except Exception:
-                continue
-
-    t = threading.Thread(target=cleanup_loop, daemon=True)
-    t.start()
-    logger.info("Started cron session cleanup background thread")
 
 
 def main() -> None:
@@ -263,31 +138,8 @@ def main() -> None:
 
     print_startup_config()
 
-    fd_limit = _raise_fd_soft_limit()
-    if fd_limit.get("status") == "raised":
-        print(
-            f"[ok] Raised file descriptor soft limit "
-            f"{fd_limit.get('previous_soft')} -> {fd_limit.get('soft')}",
-            flush=True,
-        )
-    elif fd_limit.get("status") == "error":
-        print(f"[!!] WARNING: Could not raise file descriptor limit: {fd_limit.get('error')}", flush=True)
-
     # Fix sensitive file permissions before doing anything else
     fix_credential_permissions()
-
-    # ── #1558 startup self-heal ─────────────────────────────────────────
-    # If a previous process wrote a session JSON with fewer messages than
-    # its .bak (the data-loss shape #1558 produced), restore from the .bak.
-    # Safe to run unconditionally — a clean install is a no-op.
-    try:
-        from api.session_recovery import recover_all_sessions_on_startup
-        result = recover_all_sessions_on_startup(SESSION_DIR)
-        if result.get("restored"):
-            print(f"[recovery] Restored {result['restored']}/{result['scanned']} sessions from .bak (see #1558).", flush=True)
-    except Exception as exc:
-        # Recovery is best-effort; never block server startup.
-        print(f"[recovery] startup recovery failed: {exc}", flush=True)
 
     within_container = False
     # Check for the "/.within_container" file to determine if we're running inside a container; this file is created in the Dockerfile
@@ -304,29 +156,29 @@ def main() -> None:
     from api.auth import is_auth_enabled
     if HOST not in ('127.0.0.1', '::1', 'localhost') and not is_auth_enabled():
         print(f'[!!] WARNING: Binding to {HOST} with NO PASSWORD SET.', flush=True)
-        print(f'     Anyone on the network can access your filesystem and agent.', flush=True)
-        print(f'     Set a password via Settings or HERMES_WEBUI_PASSWORD env var.', flush=True)
-        print(f'     To suppress: bind to 127.0.0.1 or set a password.', flush=True)
+        print(f' Anyone on the network can access your filesystem and agent.', flush=True)
+        print(f' Set a password via Settings or HERMES_WEBUI_PASSWORD env var.', flush=True)
+        print(f' To suppress: bind to 127.0.0.1 or set a password.', flush=True)
         if within_container:
-            print(f'     Note: You are running within a container, must bind to 0.0.0.0 to publish the port.', flush=True)
+            print(f' Note: You are running within a container, must bind to 0.0.0.0 to publish the port.', flush=True)
     elif not is_auth_enabled():
-        print(f'  [tip] No password set. Any process on this machine can read sessions', flush=True)
-        print(f'        and memory via the local API. Set HERMES_WEBUI_PASSWORD to', flush=True)
-        print(f'        enable authentication.', flush=True)
+        print(f' [tip] No password set. Any process on this machine can read sessions', flush=True)
+        print(f' and memory via the local API. Set HERMES_WEBUI_PASSWORD to', flush=True)
+        print(f' enable authentication.', flush=True)
 
     ok, missing, errors = verify_hermes_imports()
     if not ok and _HERMES_FOUND:
         print(f'[!!] Warning: Hermes agent found but missing modules: {missing}', flush=True)
         for mod, err in errors.items():
-            print(f'     {mod}: {err}', flush=True)
-        print('     Attempting to install missing dependencies from agent requirements.txt...', flush=True)
+            print(f'    {mod}: {err}', flush=True)
+        print('  Attempting to install missing dependencies from agent requirements.txt...', flush=True)
         auto_install_agent_deps()
         ok, missing, errors = verify_hermes_imports()
         if not ok:
             print(f'[!!] Still missing after install attempt: {missing}', flush=True)
             for mod, err in errors.items():
-                print(f'     {mod}: {err}', flush=True)
-            print('     Agent features may not work correctly.', flush=True)
+                print(f'    {mod}: {err}', flush=True)
+            print('  Agent features may not work correctly.', flush=True)
         else:
             print('[ok] Agent dependencies installed successfully.', flush=True)
 
@@ -344,8 +196,84 @@ def main() -> None:
     except Exception as e:
         print(f'[!!] WARNING: Gateway watcher failed to start: {e}', flush=True)
 
-    # Start background cron session cleanup thread
-    _start_cron_session_cleanup()
+    # Start background cron session cleanup (every hour)
+    def cleanup_cron_sessions():
+        """Background cleanup of cron sessions only"""
+        import time
+        from api.config import SESSION_DIR, LOCK
+        from api.models import Session
+        
+        while True:
+            try:
+                time.sleep(3600)  # Run every hour
+                
+                cleaned = 0
+                for p in SESSION_DIR.glob("*.json"):
+                    # Only clean sessions that start with cron or _cron
+                    if not (p.stem.startswith('cron') or p.stem.startswith('_cron')):
+                        continue
+                        
+                    try:
+                        s = Session.load(p.stem)
+                        if not s:
+                            continue
+                            
+                        # Always delete cron/_cron sessions regardless of content
+                        with LOCK:
+                            SESSIONS.pop(p.stem, None)
+                        p.unlink(missing_ok=True)
+                        cleaned += 1
+                    except Exception:
+                        # Skip problematic files
+                        continue
+                        
+                # Rebuild index to remove cleaned sessions
+                try:
+                    from api.models import _rebuild_session_index
+                    _rebuild_session_index()
+                except Exception:
+                    pass
+                    
+                if cleaned > 0:
+                    logger.info(f"Cleaned up {cleaned} cron/_cron sessions")
+                    print(f'[ok] Cleaned up {cleaned} cron/_cron sessions', flush=True)
+                    
+            except Exception as e:
+                logger.error(f"Error in cron session cleanup: {e}")
+                # Continue the loop even if there's an error
+                continue
+
+    # Start cleanup thread as daemon so it doesn't block shutdown
+    cleanup_thread = threading.Thread(target=cleanup_cron_sessions, daemon=True)
+    cleanup_thread.start()
+    logger.info("Started cron session cleanup background thread")
+
+    # ── Multiplex SSE queue cleanup ─────────────────────────────────────────
+    def cleanup_multiplex_queues():
+        """Remove empty multiplex queues that haven't been active for 2 minutes."""
+        while True:
+            time.sleep(60)
+            try:
+                from api.config import MULTIPLEX_QUEUES, MULTIPLEX_LOCK
+                now = time.time()
+                with MULTIPLEX_LOCK:
+                    stale = []
+                    for cid, q in list(MULTIPLEX_QUEUES.items()):
+                        last_activity = max(
+                            getattr(q, '_last_get', 0),
+                            getattr(q, '_last_put', 0),
+                        )
+                        if q.empty() and now - last_activity > 120:
+                            stale.append(cid)
+                    for cid in stale:
+                        del MULTIPLEX_QUEUES[cid]
+                        print(f'[webui] Cleaned up stale multiplex queue for client_id={cid}', flush=True)
+            except Exception as e:
+                logger.debug(f"Multiplex queue cleanup error: {e}")
+
+    mq_cleanup_thread = threading.Thread(target=cleanup_multiplex_queues, daemon=True)
+    mq_cleanup_thread.start()
+    logger.info("Started multiplex queue cleanup background thread")
 
     httpd = QuietHTTPServer((HOST, PORT), Handler)
 
@@ -367,7 +295,7 @@ def main() -> None:
     print(f'  Hermes Web UI listening on {scheme}://{HOST}:{PORT}', flush=True)
     if HOST == '127.0.0.1' or within_container:
         print(f'  Remote access: ssh -N -L {PORT}:127.0.0.1:{PORT} <user>@<your-server>', flush=True)
-    print(f'  Then open:     {scheme}://localhost:{PORT}', flush=True)
+        print(f'               Then open: {scheme}://localhost:{PORT}', flush=True)
     print('', flush=True)
     try:
         httpd.serve_forever()

@@ -6,11 +6,9 @@ or configuring a password in the Settings panel.
 import hashlib
 import hmac
 import http.cookies
-import json
 import logging
 import os
 import secrets
-import tempfile
 import time
 
 from api.config import STATE_DIR, load_settings
@@ -21,60 +19,13 @@ logger = logging.getLogger(__name__)
 PUBLIC_PATHS = frozenset({
     '/login', '/health', '/favicon.ico',
     '/api/auth/login', '/api/auth/status',
-    '/manifest.json', '/manifest.webmanifest',
 })
 
 COOKIE_NAME = 'hermes_session'
-SESSION_TTL = 86400 * 30  # 30 days
+SESSION_TTL = 86400  # 24 hours
 
-_SESSIONS_FILE = STATE_DIR / '.sessions.json'
-
-
-def _load_sessions() -> dict[str, float]:
-    """Load persisted sessions from STATE_DIR, pruning expired entries.
-
-    Returns an empty dict on any read or parse error so startup is never
-    blocked by a corrupt or missing sessions file.
-    """
-    try:
-        if _SESSIONS_FILE.exists():
-            data = json.loads(_SESSIONS_FILE.read_text(encoding='utf-8'))
-            if not isinstance(data, dict):
-                raise ValueError('malformed sessions file — expected dict')
-            now = time.time()
-            return {t: exp for t, exp in data.items()
-                    if isinstance(t, str) and isinstance(exp, (int, float)) and exp > now}
-    except Exception as e:
-        logger.debug("Failed to load sessions file, starting fresh: %s", e)
-    return {}
-
-
-def _save_sessions(sessions: dict[str, float]) -> None:
-    """Atomically persist sessions to STATE_DIR/.sessions.json (0600).
-
-    Uses a temp file + os.replace() so a crash mid-write never leaves a
-    truncated file.  Mirrors the same pattern as .signing_key persistence.
-    """
-    try:
-        STATE_DIR.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=STATE_DIR, suffix='.sessions.tmp')
-        try:
-            with os.fdopen(fd, 'w', encoding='utf-8') as f:
-                json.dump(sessions, f)
-            os.chmod(tmp, 0o600)
-            os.replace(tmp, _SESSIONS_FILE)
-        except Exception:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-            raise
-    except Exception as e:
-        logger.debug("Failed to persist sessions: %s", e)
-
-
-# Active sessions: token -> expiry timestamp (persisted across restarts via STATE_DIR)
-_sessions = _load_sessions()
+# Active sessions: token -> expiry timestamp
+_sessions = {}
 
 # ── Login rate limiter ──────────────────────────────────────────────────────
 _login_attempts = {}  # ip -> [timestamp, ...]
@@ -100,13 +51,13 @@ def _record_login_attempt(ip: str) -> None:
 def _signing_key():
     """Return a random signing key, generating and persisting one on first call."""
     key_file = STATE_DIR / '.signing_key'
-    try:
-        if key_file.exists():
+    if key_file.exists():
+        try:
             raw = key_file.read_bytes()
             if len(raw) >= 32:
                 return raw[:32]
-    except Exception:
-        logger.debug("Failed to read or access signing key file, using in-memory key")
+        except Exception:
+            logger.debug("Failed to read signing key from file, generating new key")
     # Generate a new random key
     key = secrets.token_bytes(32)
     try:
@@ -156,7 +107,6 @@ def create_session() -> str:
     """Create a new auth session. Returns signed cookie value."""
     token = secrets.token_hex(32)
     _sessions[token] = time.time() + SESSION_TTL
-    _save_sessions(_sessions)
     sig = hmac.new(_signing_key(), token.encode(), hashlib.sha256).hexdigest()[:32]
     return f"{token}.{sig}"
 
@@ -164,11 +114,8 @@ def create_session() -> str:
 def _prune_expired_sessions():
     """Remove all expired session entries to prevent unbounded memory growth."""
     now = time.time()
-    expired = [t for t, exp in _sessions.items() if now > exp]
-    if expired:
-        for token in expired:
-            _sessions.pop(token, None)
-        _save_sessions(_sessions)
+    for token in [t for t, exp in _sessions.items() if now > exp]:
+        _sessions.pop(token, None)
 
 
 def verify_session(cookie_value) -> bool:
@@ -191,9 +138,7 @@ def invalidate_session(cookie_value) -> None:
     """Remove a session token."""
     if cookie_value and '.' in cookie_value:
         token = cookie_value.rsplit('.', 1)[0]
-        if token in _sessions:
-            _sessions.pop(token, None)
-            _save_sessions(_sessions)
+        _sessions.pop(token, None)
 
 
 def parse_cookie(handler) -> str | None:
@@ -216,7 +161,7 @@ def check_auth(handler, parsed) -> bool:
     if not is_auth_enabled():
         return True
     # Public paths don't require auth
-    if parsed.path in PUBLIC_PATHS or parsed.path.startswith('/static/') or parsed.path.startswith('/session/static/'):
+    if parsed.path in PUBLIC_PATHS or parsed.path.startswith('/static/'):
         return True
     # Check session cookie
     cookie_val = parse_cookie(handler)
@@ -230,33 +175,7 @@ def check_auth(handler, parsed) -> bool:
         handler.wfile.write(b'{"error":"Authentication required"}')
     else:
         handler.send_response(302)
-        # Pass the original path as ?next= so login.js redirects back after auth.
-        # SECURITY/CORRECTNESS: the inner `?` and `&` MUST be percent-encoded
-        # when stuffed into the outer `?next=` parameter, otherwise:
-        #   (a) multi-param query strings get truncated at the first inner `&`
-        #       (e.g. `/api/sessions?limit=50&offset=0` would round-trip as
-        #       just `/api/sessions?limit=50` after the browser parses the
-        #       outer URL — `offset=0` becomes a separate top-level query
-        #       parameter that the login page ignores).
-        #   (b) attacker-controlled paths could inject a second `next=`
-        #       parameter; per RFC 3986 the duplicate behaviour is undefined
-        #       and parsers diverge (Python's parse_qs returns last-match,
-        #       URLSearchParams returns first-match), opening a query-pollution
-        #       footgun even though _safeNextPath() rejects most malicious
-        #       shapes downstream.
-        # Encoding the entire `path?query` blob with quote(safe='/') turns
-        # `?` → `%3F` and `&` → `%26`, so the outer parameter holds exactly
-        # one path-with-query string and `searchParams.get('next')` returns
-        # the full original URL (the browser auto-decodes once).
-        # (Opus pre-release advisor finding for v0.50.258.)
-        import urllib.parse as _urlparse
-        _path_with_query = parsed.path or '/'
-        if parsed.query:
-            _path_with_query += '?' + parsed.query
-        # safe='/' keeps path separators readable; everything else (including
-        # `?`, `&`, `=`) gets percent-encoded.
-        _next = _urlparse.quote(_path_with_query, safe='/')
-        handler.send_header('Location', 'login?next=' + _next)
+        handler.send_header('Location', '/login')
         handler.end_headers()
     return False
 

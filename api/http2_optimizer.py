@@ -361,10 +361,10 @@ class HTTP2Optimizer:
         return {sid: stream for sid, stream in self.streams.items() 
                 if stream.state == 'open'}
     
-    async def update_stream_priority(self, stream_id: int, weight: int = None, 
+    def update_stream_priority(self, stream_id: int, weight: int = None, 
                            dependency: Optional[int] = None):
         """Update stream priority for multiplexing."""
-        async with self.stream_lock:
+        with self.stream_lock:
             stream = self.streams.get(stream_id)
             if stream and stream.state == 'open':
                 if weight is not None:
@@ -443,20 +443,20 @@ def initialize_http2_optimizer():
     _http2_optimizer = HTTP2Optimizer()
     logger.info("Global HTTP/2 optimizer initialized")
 
-async def create_http2_stream(headers: Dict[str, str], weight: int = 16, 
-                       dependency: Optional[int] = None) -> int:
+async def create_http2_stream(headers: Dict[str, str], weight: int = 16,
+                             dependency: Optional[int] = None) -> int:
     """Create HTTP/2 stream through global optimizer."""
     if not _http2_optimizer:
         raise RuntimeError("HTTP/2 optimizer not initialized")
     return await _http2_optimizer.create_stream(headers, weight, dependency)
 
-async def get_push_promises(referer: str = None, limit: int = 5) -> List[PushPromise]:
+def get_push_promises(referer: str = None, limit: int = 5) -> List[PushPromise]:
     """Get push promises through global optimizer."""
     if _http2_optimizer:
         return _http2_optimizer.get_push_promises(referer, limit)
     return []
 
-async def cache_push_resource(url: str, content: bytes):
+def cache_push_resource(url: str, content: bytes):
     """Cache push resource through global optimizer."""
     if _http2_optimizer:
         _http2_optimizer.cache_push_resource(url, content)

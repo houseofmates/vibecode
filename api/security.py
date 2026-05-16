@@ -85,7 +85,7 @@ SECURITY_HEADERS = {
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: blob:; "
         "font-src 'self'; "
-        "connect-src 'self' ws: wss:; "
+        "connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:*; "
         "frame-ancestors 'none';"
     ),
     'Referrer-Policy': 'strict-origin-when-cross-origin',

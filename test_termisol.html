@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Termisol Terminal Test</title>
+    <link rel="stylesheet" href="/static/termisol_terminal.css">
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+</head>
+<body style="margin: 0; padding: 20px; background: #0d0d0d; color: #ffd45f; font-family: monospace;">
+    <h1>Termisol Terminal Integration Test</h1>
+    <div style="margin: 20px 0;">
+        <button onclick="createTermisolTerminal()">Create Termisol Terminal</button>
+        <button onclick="listTerminals()">List Terminals</button>
+        <button onclick="testFeatures()">Test Features</button>
+    </div>
+    <div id="terminalContainer" style="width: 100%; height: 600px; border: 1px solid #333; border-radius: 8px;"></div>
+    <div id="output" style="margin-top: 20px; padding: 10px; background: #1a1a1a; border-radius: 4px; font-family: monospace; font-size: 12px; white-space: pre-wrap;"></div>
+
+    <script src="/static/termisol_terminal.js"></script>
+    <script>
+        let currentTerminal = null;
+
+        async function createTermisolTerminal() {
+            try {
+                const response = await fetch('/api/termisol/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        cwd: '~',
+                        session_id: 'test',
+                        features: {
+                            ai_assistance: true,
+                            video_playback: true,
+                            audio_visualization: true,
+                            '3d_modeling': true,
+                            git_integration: true,
+                            docker_integration: true,
+                            database_client: true,
+                            syntax_highlighting: true,
+                            error_detection: true,
+                            command_prediction: true,
+                            file_manager: true,
+                            collaboration: true,
+                            session_recording: true,
+                            performance_monitoring: true,
+                            hotkeys: true,
+                            notifications: true,
+                            themes: true,
+                            plugins: true
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                logOutput(`Created terminal: ${JSON.stringify(data, null, 2)}`);
+                
+                if (data.terminal_id) {
+                    await createTerminalInstance(data.terminal_id, data.name, data.cwd, data.features);
+                }
+            } catch (error) {
+                logOutput(`Error creating terminal: ${error.message}`);
+            }
+        }
+
+        async function createTerminalInstance(terminalId, name, cwd, features) {
+            const container = document.getElementById('terminalContainer');
+            container.innerHTML = '';
+            
+            currentTerminal = new TermisolTerminalInstance(terminalId, name, cwd, features);
+            await currentTerminal.init(container);
+            
+            logOutput(`Terminal instance created: ${terminalId}`);
+        }
+
+        async function listTerminals() {
+            try {
+                const response = await fetch('/api/termisol/list');
+                const data = await response.json();
+                logOutput(`Active terminals: ${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                logOutput(`Error listing terminals: ${error.message}`);
+            }
+        }
+
+        async function testFeatures() {
+            if (!currentTerminal) {
+                logOutput('No terminal active - create one first');
+                return;
+            }
+
+            logOutput('Testing feature toggles...');
+            
+            // Test AI assistance toggle
+            await currentTerminal.toggleFeature('ai_assistance', false);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await currentTerminal.toggleFeature('ai_assistance', true);
+            
+            // Test quantum mode
+            await currentTerminal.toggleFeature('quantum_computing', true);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await currentTerminal.toggleFeature('quantum_computing', false);
+            
+            logOutput('Feature toggle tests completed');
+        }
+
+        function logOutput(message) {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toISOString();
+            output.textContent += `[${timestamp}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            logOutput('Termisol Terminal Test Page Loaded');
+            logOutput('Click "Create Termisol Terminal" to begin testing');
+        });
+    </script>
+</body>
+</html>

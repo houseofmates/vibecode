@@ -1,0 +1,17 @@
+[Unit]
+Description=vibecode auto-sync service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/vibecode
+ExecStart=%h/vibecode/tools/auto_push.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment=GIT_SYNC_BRANCH=main
+
+[Install]
+WantedBy=default.target
