@@ -1,8 +1,12 @@
 <h1 align="center">vibecode</h1>
 
-a local web workspace for coding, terminal sessions, and ai-enabled development. runs on your machine, keeps your code accessible through a browser, and preserves project structure and git history.
+a local web workspace for coding, terminal sessions, and ai-enabled development. runs on your machine, keeps your code accessible through a browser, and preserves project structure and git history. built for house because having a browser window open to the terminal is sometimes all the workspace needs to be, and sometimes a ui makes it better.
 
 it is a fork of [hermes-webui](https://github.com/nesquena/hermes-webui) by nicolas esquivel (@nesquena). the upstream repo provides the foundation. this fork adds the git watch service, appimage / apk packaging, and a few local improvements. the original license is mit — see the license section below for the upstream link.
+
+## made for
+
+vibecode is built for house so the workspace is there when it needs to be and stays in sync without thinking about it. the auto-sync watcher exists because maintaining a remote branch from a local repo manually is annoying and this setup does it ten seconds after the last file settles.
 
 ## what makes it personal
 
