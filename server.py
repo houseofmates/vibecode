@@ -4,6 +4,7 @@ Thin routing shell: imports Handler, delegates to api/routes.py, runs server.
 All business logic lives in api/*.
 """
 import logging
+import os
 import socket
 import sys
 import time
@@ -34,6 +35,85 @@ from api.helpers import j
 from api.routes import handle_get, handle_post
 from api.startup import auto_install_agent_deps, fix_credential_permissions
 
+# Import optimization modules (temporarily disabled for testing)
+# from api.optimization_manager import initialize_optimizations, get_optimization_stats, shutdown_optimizations
+# from api.performance_monitor import performance_monitor, record_request, register_alert_callback
+# from api.connection_manager import add_connection, remove_connection, broadcast_to_topic
+# from api.static_optimizer import get_optimized_asset, get_preload_links
+# from api.batch_processor import batch_request
+# from api.query_optimizer import execute_optimized_query
+# from api.memory_leak_detector import track_object_creation, stop_memory_monitoring
+
+
+async def _initialize_optimizations():
+    """Initialize all optimization systems."""
+    try:
+        print('[*] Initializing optimization systems...', flush=True)
+        
+        # Optimization configuration
+        optimization_config = {
+            'database': {
+                'path': str(SESSION_DIR / 'sessions.db') if SESSION_DIR else None,
+                'redis_url': None  # Add Redis URL if available
+            },
+            'cache': {
+                'redis_url': None,  # Add Redis URL if available
+                'l1_size': 2000,  # Larger L1 cache for better performance
+                'default_ttl': 600  # 10 minutes default TTL
+            },
+            'static': {
+                'dir': 'static',
+                'cache_dir': None,  # Use default cache directory
+                'compression_enabled': True,
+                'minify_enabled': True
+            },
+            'batch': {
+                'max_batch_size': 100,  # Larger batches for better throughput
+                'max_wait_time': 0.05,  # 50ms batch window
+                'max_queue_size': 2000
+            },
+            'monitoring': {
+                'max_history': 50000,  # Larger history for better analytics
+                'alert_thresholds': {
+                    'response_time_slow': 0.5,  # Stricter thresholds
+                    'response_time_critical': 2.0,
+                    'memory_usage_high': 75.0,
+                    'cpu_usage_high': 75.0,
+                    'error_rate_high': 0.02
+                }
+            },
+            'connections': {
+                'max_connections': 20000,  # Higher connection limit
+                'heartbeat_interval': 15.0  # More frequent heartbeats
+            },
+            'memory': {
+                'check_interval': 30.0,  # More frequent memory checks
+                'history_size': 200,
+                'leak_thresholds': {
+                    'memory_growth_rate': 5.0,  # Stricter leak detection
+                    'object_growth_rate': 500,
+                    'memory_leak_threshold': 50.0,
+                    'object_leak_threshold': 5000
+                }
+            }
+        }
+        
+        await initialize_optimizations(optimization_config)
+        
+        # Setup performance alerting
+        def performance_alert(alert):
+            alert_type = alert.get('type', 'unknown')
+            severity = alert.get('data', {}).get('severity', 'info')
+            print(f'[ALERT] {alert_type.upper()} [{severity.upper()}]: {alert.get("data", {}).get("description", "No description")}', flush=True)
+        
+        register_alert_callback(performance_alert)
+        
+        print('[ok] All optimization systems initialized.', flush=True)
+        
+    except Exception as e:
+        print(f'[!!] Optimization initialization failed: {e}', flush=True)
+        import traceback
+        traceback.print_exc()
 
 def _warmup_session_cache():
     """Pre-build session index at startup for instant page loads."""
@@ -45,9 +125,93 @@ def _warmup_session_cache():
         print(f'[!!] Session index warmup failed: {e}', flush=True)
 
 
-class QuietHTTPServer(ThreadingHTTPServer):
-    """Custom HTTP server that silently handles common network errors."""
-    request_queue_size = 128  # Allow more pending connections (default is 5)
+class OptimizedHTTPServer(ThreadingHTTPServer):
+    """High-performance HTTP server with optimization integration."""
+    request_queue_size = 256  # Allow more pending connections
+    allow_reuse_address = True  # Allow socket reuse
+    allow_reuse_port = True  # Allow port reuse
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.connections = set()
+        self.start_time = time.time()
+    
+    def process_request(self, handler, *args, **kwargs):
+        """Process request with performance monitoring."""
+        start_time = time.time()
+        
+        # Track connection
+        client_ip = handler.client_address[0] if hasattr(handler, 'client_address') else 'unknown'
+        connection_id = None
+        
+        try:
+            # Add connection to manager
+            connection_id = add_connection(
+                client_ip=client_ip,
+                user_agent=handler.headers.get('User-Agent', 'unknown') if hasattr(handler, 'headers') else 'unknown'
+            )
+            
+            # Process request with monitoring
+            with performance_monitor():
+                result = super().process_request(handler, *args, **kwargs)
+            
+            # Record request metrics
+            response_time = time.time() - start_time
+            status_code = getattr(result, 'status_code', 200)
+            
+            record_request(
+                method=getattr(handler, 'command', 'GET'),
+                path=getattr(handler, 'path', '/'),
+                status_code=status_code,
+                response_time=response_time,
+                user_id=getattr(handler, 'user_id', None),
+                session_id=getattr(handler, 'session_id', None)
+            )
+            
+            return result
+            
+        except Exception as e:
+            # Record error metrics
+            response_time = time.time() - start_time
+            record_request(
+                method=getattr(handler, 'command', 'GET'),
+                path=getattr(handler, 'path', '/'),
+                status_code=500,
+                response_time=response_time,
+                user_id=getattr(handler, 'user_id', None),
+                session_id=getattr(handler, 'session_id', None)
+            )
+            raise
+        
+        finally:
+            # Clean up connection
+            if connection_id:
+                remove_connection(connection_id)
+    
+    def server_bind(self):
+        """Override server bind for optimization."""
+        # Set socket options for better performance
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        
+        # Enable TCP_NODELAY for better latency
+        self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        
+        # Set socket buffer sizes
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 65536)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 65536)
+        
+        super().server_bind()
+    
+    def get_performance_stats(self):
+        """Get server performance statistics."""
+        uptime = time.time() - self.start_time
+        return {
+            'uptime_seconds': uptime,
+            'active_connections': len(self.connections),
+            'total_connections_processed': len(self.connections),
+            'server_type': 'OptimizedHTTPServer'
+        }
     
     allow_reuse_address = True  # Avoid Address already in use after restarts
     allow_reuse_port = True  # Same for port reuse
@@ -133,8 +297,11 @@ class Handler(BaseHTTPRequestHandler):
             return j(self, {'error': 'Internal server error'}, status=500)
 
 
-def main() -> None:
+async def main() -> None:
     from api.config import print_startup_config, verify_hermes_imports, _HERMES_FOUND
+
+    # Initialize optimizations first (temporarily disabled)
+    # await _initialize_optimizations()
 
     print_startup_config()
 
@@ -165,6 +332,16 @@ def main() -> None:
         print(f' [tip] No password set. Any process on this machine can read sessions', flush=True)
         print(f' and memory via the local API. Set HERMES_WEBUI_PASSWORD to', flush=True)
         print(f' enable authentication.', flush=True)
+
+    # Remote-client override: if restricted to localhost but no auth is set,
+    # override to 0.0.0.0 so AppImage and other remote clients can connect.
+    # This preserves explicit localhost binding when auth IS enabled (secure).
+    if HOST in ('127.0.0.1', '::1', 'localhost') and not os.getenv('HERMES_WEBUI_FORCE_LOCALHOST'):
+        if not is_auth_enabled():
+            import api.config
+            print('[!!] Overriding localhost binding to 0.0.0.0 — remote clients (AppImage, other machines) cannot reach 127.0.0.1.', flush=True)
+            print('[!!] Set HERMES_WEBUI_FORCE_LOCALHOST=1 to keep localhost binding, or set a password.', flush=True)
+            api.config.HOST = '0.0.0.0'
 
     ok, missing, errors = verify_hermes_imports()
     if not ok and _HERMES_FOUND:
@@ -248,6 +425,7 @@ def main() -> None:
     cleanup_thread.start()
     logger.info("Started cron session cleanup background thread")
 
+<<<<<<< Updated upstream
     # ── Multiplex SSE queue cleanup ─────────────────────────────────────────
     def cleanup_multiplex_queues():
         """Remove empty multiplex queues that haven't been active for 2 minutes."""
@@ -276,6 +454,9 @@ def main() -> None:
     logger.info("Started multiplex queue cleanup background thread")
 
     httpd = QuietHTTPServer((HOST, PORT), Handler)
+=======
+    httpd = ThreadingHTTPServer((HOST, PORT), Handler)
+>>>>>>> Stashed changes
 
     # ── TLS/HTTPS setup (optional) ─────────────────────────────────────────
     from api.config import TLS_ENABLED, TLS_CERT, TLS_KEY
@@ -300,6 +481,13 @@ def main() -> None:
     try:
         httpd.serve_forever()
     finally:
+        # Shutdown optimization systems
+        try:
+            import asyncio
+            asyncio.create_task(shutdown_optimizations())
+        except Exception:
+            logger.debug("Failed to shutdown optimization systems")
+        
         # Stop the gateway watcher on shutdown
         try:
             from api.gateway_watcher import stop_watcher
@@ -308,4 +496,5 @@ def main() -> None:
             logger.debug("Failed to stop gateway watcher during shutdown")
 
 if __name__ == '__main__':
-    main()
+    import asyncio
+    asyncio.run(main())

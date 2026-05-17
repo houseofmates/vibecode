@@ -46,15 +46,23 @@ class OptimizationManager:
         logger.info("Optimization manager initialized")
     
     async def initialize(self, config: Dict[str, Any] = None):
-        """Initialize all optimization systems."""
+        """Initialize all optimization systems with configuration."""
         if self.initialized:
             logger.warning("Optimization manager already initialized")
             return
         
         self.startup_time = time.time()
-        self.optimization_config = config or self._get_default_config()
         
-        logger.info("Initializing optimization systems...")
+        # Load configuration from file if provided, else use defaults
+        if config:
+            from api.optimization_config import load_config
+            loaded_config = load_config()
+            self.optimization_config = loaded_config
+        else:
+            from api.optimization_config import initialize_config
+            self.optimization_config = initialize_config()
+        
+        logger.info("Initializing optimization systems with configuration...")
         
         try:
             # 1. Initialize connection pooling
