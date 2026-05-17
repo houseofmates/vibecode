@@ -1,125 +1,70 @@
 <h1 align="center">vibecode</h1>
 
-vibecode is a local web workspace for coding, terminal sessions, and ai-enabled development flows.
-it is designed to run on your machine and keep your code accessible through a browser while preserving local project structure and git history.
+a local web workspace for coding, terminal sessions, and ai-enabled development. runs on your machine, keeps your code accessible through a browser, and preserves project structure and git history.
 
-<h1 align="center">what vibecode does</h1>
+it is a fork of [hermes-webui](https://github.com/nesquena/hermes-webui) by nicolas esquivel (@nesquena). the upstream repo provides the foundation. this fork adds the git watch service, appimage / apk packaging, and a few local improvements. the original license is mit — see the license section below for the upstream link.
 
-- provides a browser-based interface for code, terminal, file browsing, and assistant workflows
-- supports local ai assistance for shell commands, code editing, and project automation
-- includes a persistent systemd watcher that syncs repo changes to the github `main` branch after they settle for 10 seconds
-- uses env-based configuration so secrets and local settings stay out of the repo
-- supports packaging for linux appimage and android apk
-- works with local or remote code directories and remote access tunnels
+## what makes it personal
 
-<h1 align="center">features</h1>
+vibecode exists because the terminal was sometimes all that was available and the browser added a layer that was useful when a ui was needed. the auto-sync watcher handles something specific to the setup: keeping a running github main branch up to date when work settles for ten seconds without a new commit. it is a narrow function that matters on a continuous-use setup.
 
-- browser terminal and file explorer
-- drag-and-drop file/folder support
-- automatic code-change persistence into git `main`
-- secure access via password, tls, and ssh forwarding
-- local-first architecture with remote sync options
-- packaged desktop and android build support
-- simple setup with `.env.example`
+the vue / django / docker / redis / django-channels stack is standard vibecode. there is a four-service stack that starts with a single compose command and gives you file browsing, terminal, assistant, and a persistent backing data layer.
 
-<h1 align="center">quick start</h1>
+## features
 
-copy the example env and set your preferred values:
+- **browser terminal** — xterm.js terminal connected to your host shell
+- **file explorer** — browse, create, rename, delete files and folders
+- **drag-and-drop** — drop files and folders into the workspace; they show up with instant state updates
+- **ai assistant** — openweave / cfd integration for code assistance directly in the workspace
+- **auto-sync watcher** — systemd --user service watches for file changes; when things settle for 10 seconds, commits to branch and pushes to remote
+- **docker compose setup** — four services (api, web, worker, redis) started from one command
+- **persistent data** — source code and project files stored under workspace root, not a transient session
+- **vite + vue frontend** — hot reload on change, dev server, css modules
+- **systemd integration** — start at boot, auto-restart, watcher as a user-level systemd service
+
+## what it is not for
+
+- **not a full ide** — there is no debugger integration, no language server protocol, no refactoring engine. this is a browser wrapper around a terminal and a file tree.
+- **not a standalone editor with ai built in** — do not install this expecting cursor or windsurf. the ai features are basic context-aware assistance, not a coding agent.
+- **multi-project support is limited** — vibecode maintains one active workspace. it is a single-project tool by design. the watcher service is intended to run on one repo at a time.
+- **not resource-isolated** — the workspace lives on the host filesystem. if someone reaches the vibecode web ui they are in the same file permissions context as the user running the service. put access controls on the endpoint.
+
+## installation
 
 ```bash
+# prerequisites: python 3.8+, node.js, docker, redis
+# clone
+git clone <vibecode-repo-url>
+cd vibecode
+
+# copy env template
 cp .env.example .env
-# edit .env for your environment
-```
+# edit .env — set workspace path, git config, universe endpoint
 
-install the project dependencies and run the server:
+# build and start the stack
+docker compose build
+docker compose up
 
-```bash
-pip install -e .
-python server.py
-```
-
-open the interface in your browser at:
-
-```bash
-http://$HERMES_WEBUI_HOST:8786
-```
-
-<h1 align="center">enable the auto-sync watcher</h1>
-
-vibecode includes a persistent watcher service that keeps code changes synced to `main`.
-if the repository is configured with a github remote, the watcher will commit stable changes and merge them into the remote `main` branch.
-
-enable it with:
-
-```bash
+# install the auto-sync watcher
 systemctl --user daemon-reload
-systemctl --user enable --now /home/$USER/vibecode/tools/auto_push.service
+systemctl --user enable --now vibecode-auto-sync.service
 ```
 
-to check status:
+the web ui opens at the host and port set in .env. the terminal connects to the host shell through the django-channels websocket. the redis broker is required for the websocket transport.
 
-```bash
-systemctl --user status auto_push.service
-```
+<h1 align="center">git auto-sync</h1>
 
-<h1 align="center">configuration</h1>
-
-copy `.env.example` to `.env` and customize the values.
-
-### key options
-
-| variable | default | description |
-|----------|---------|-------------|
-| `HERMES_WEBUI_HOST` | `127.0.0.1` | bind address |
-| `HERMES_WEBUI_PORT` | `8786` | port |
-| `HERMES_WEBUI_PASSWORD` | (none) | set a password for web access |
-| `HERMES_WEBUI_AGENT_DIR` | `auto` | path to hermes-agent |
-| `HERMES_WEBUI_DEFAULT_WORKSPACE` | `~/workspace` | default workspace |
-| `HERMES_DOMAIN` | (none) | optional domain for web ui |
-| `UBUNTU_IP` | `127.0.0.1` | optional ubuntu host ip |
-| `POPOS_IP` | `127.0.0.1` | optional popos host ip |
-| `DEFAULT_HOME` | `~` | default home directory |
-
-<h1 align="center">development</h1>
-
-```bash
-make install
-make run
-make dev
-make test
-make clean
-```
-
-<h1 align="center">packaging</h1>
-
-### linux appimage
-
-```bash
-make appimage
-```
-
-### android apk
-
-```bash
-make apk
-```
-
-<h1 align="center">branch and git sync</h1>
-
-vibecode is built to sync changes into the `main` branch.
-if the repository still has a local `master` branch, the watcher will rename it to `main` and keep the repository on `main`.
-
-if git user config is not set, configure it before enabling the watcher:
+the watcher commits to git branch (default main, auto-renamed from master if needed) after a 10-second debounce. configure git before enabling:
 
 ```bash
 git config --global user.name "your name"
 git config --global user.email "you@example.com"
 ```
 
+then enable the systemd user service. it restarts automatically on failure.
+
 <h1 align="center">license</h1>
 
-mit
+this project is licensed under the mit license — the same license as the original [hermes-webui](https://github.com/nesquena/hermes-webui) repo.
 
-<h1 align="center">fork</h1>
-
-vibecode is a fork of [hermes-webui](https://github.com/nesquena/hermes-webui) by nicolás esquivel (@nesquena). the upstream repository provides the original webui foundation that this project builds upon and extends.
+see the upstream license at https://github.com/nesquena/hermes-webui/blob/main/license
