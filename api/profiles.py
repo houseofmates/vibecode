@@ -520,3 +520,19 @@ def delete_profile_api(name: str) -> dict:
             raise ValueError(f"Profile '{name}' does not exist.")
 
     return {'ok': True, 'name': name}
+
+# Request-scoped profile context (for cookie-based profile selection)
+_request_profile_context = threading.local()
+
+def set_request_profile(profile_name: str) -> None:
+    """Set the profile for the current request only (does not change global active profile)."""
+    _request_profile_context.profile = profile_name
+
+def clear_request_profile() -> None:
+    """Clear the request-scoped profile context."""
+    if hasattr(_request_profile_context, 'profile'):
+        delattr(_request_profile_context, 'profile')
+
+def get_request_profile() -> str | None:
+    """Get the request-scoped profile if set, otherwise return None."""
+    return getattr(_request_profile_context, 'profile', None)

@@ -266,3 +266,39 @@ def get_job_output(job_id: str, limit: int = 100) -> list[dict]:
         return []
 
 
+
+def parse_schedule(schedule_str: str) -> str:
+    """Parse a schedule string into a cron expression.
+    
+    Supports human-readable strings like 'every 5 minutes', '30m', '2h', etc.
+    Returns a cron expression string.
+    """
+    import re
+    schedule_str = schedule_str.strip().lower()
+    
+    # Handle common formats
+    if schedule_str.endswith('m') and schedule_str[:-1].isdigit():
+        minutes = int(schedule_str[:-1])
+        return f"*/{minutes} * * * *"
+    elif schedule_str.endswith('h') and schedule_str[:-1].isdigit():
+        hours = int(schedule_str[:-1])
+        return f"0 */{hours} * * *"
+    elif schedule_str.endswith('d') and schedule_str[:-1].isdigit():
+        days = int(schedule_str[:-1])
+        return f"0 0 */{days} * *"
+    elif re.match(r'every (\d+) minutes?', schedule_str):
+        match = re.match(r'every (\d+) minutes?', schedule_str)
+        minutes = int(match.group(1))
+        return f"*/{minutes} * * * *"
+    elif re.match(r'every (\d+) hours?', schedule_str):
+        match = re.match(r'every (\d+) hours?', schedule_str)
+        hours = int(match.group(1))
+        return f"0 */{hours} * * *"
+    elif re.match(r'every (\d+) days?', schedule_str):
+        match = re.match(r'every (\d+) days?', schedule_str)
+        days = int(match.group(1))
+        return f"0 0 */{days} * *"
+    else:
+        # Assume it's already a cron expression
+        return schedule_str
+remove_job = delete_job

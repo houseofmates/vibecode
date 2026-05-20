@@ -209,3 +209,18 @@ def read_body(handler) -> dict:
         logger = logging.getLogger(__name__)
         logger.error(f"Failed to parse JSON body: {e}, raw body: {raw[:200]}...")
         raise ValueError(f"Invalid JSON in request body: {e}")
+
+def get_profile_cookie(handler) -> str | None:
+    """Extract the profile cookie from the request headers."""
+    cookie_header = handler.headers.get('Cookie', '')
+    if not cookie_header:
+        return None
+    import http.cookies
+    cookie = http.cookies.SimpleCookie()
+    try:
+        cookie.load(cookie_header)
+    except http.cookies.CookieError:
+        return None
+    # The profile cookie is named 'profile'
+    morsel = cookie.get('profile')
+    return morsel.value if morsel else None
