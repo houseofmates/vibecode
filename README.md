@@ -4,17 +4,20 @@ a local web workspace for coding, terminal sessions, and ai-enabled development.
 
 it is a fork of [hermes-webui](https://github.com/nesquena/hermes-webui) by nicolas esquivel (@nesquena). the upstream repo provides the foundation. this fork adds the git watch service, appimage / apk packaging, and a few local improvements. the original license is mit — see the license section below for the upstream link.
 
-## made for
+<h2 align="center">made for</h2>
+
 
 vibecode is built for house so the workspace is there when it needs to be and stays in sync without thinking about it. the auto-sync watcher exists because maintaining a remote branch from a local repo manually is annoying and this setup does it ten seconds after the last file settles.
 
-## what makes it personal
+<h2 align="center">what makes it personal</h2>
+
 
 vibecode exists because the terminal was sometimes all that was available and the browser added a layer that was useful when a ui was needed. the auto-sync watcher handles something specific to the setup: keeping a running github main branch up to date when work settles for ten seconds without a new commit. it is a narrow function that matters on a continuous-use setup.
 
 the vue / django / docker / redis / django-channels stack is standard vibecode. there is a four-service stack that starts with a single compose command and gives you file browsing, terminal, assistant, and a persistent backing data layer.
 
-## features
+<h2 align="center">features</h2>
+
 
 - **browser terminal** — xterm.js terminal connected to your host shell
 - **file explorer** — browse, create, rename, delete files and folders
@@ -26,30 +29,38 @@ the vue / django / docker / redis / django-channels stack is standard vibecode. 
 - **vite + vue frontend** — hot reload on change, dev server, css modules
 - **systemd integration** — start at boot, auto-restart, watcher as a user-level systemd service
 
-## what it is not for
+<h2 align="center">what it is not for</h2>
+
 
 - **not a full ide** — there is no debugger integration, no language server protocol, no refactoring engine. this is a browser wrapper around a terminal and a file tree.
 - **not a standalone editor with ai built in** — do not install this expecting cursor or windsurf. the ai features are basic context-aware assistance, not a coding agent.
 - **multi-project support is limited** — vibecode maintains one active workspace. it is a single-project tool by design. the watcher service is intended to run on one repo at a time.
 - **not resource-isolated** — the workspace lives on the host filesystem. if someone reaches the vibecode web ui they are in the same file permissions context as the user running the service. put access controls on the endpoint.
 
-## installation
+<h2 align="center">installation</h2>
+
 
 ```bash
-# prerequisites: python 3.8+, node.js, docker, redis
-# clone
+<h1 align="center">prerequisites: python 3.8+, node.js, docker, redis</h1>
+
+<h1 align="center">clone</h1>
+
 git clone <vibecode-repo-url>
 cd vibecode
 
-# copy env template
-cp .env.example .env
-# edit .env — set workspace path, git config, universe endpoint
+<h1 align="center">copy env template</h1>
 
-# build and start the stack
+cp .env.example .env
+<h1 align="center">edit .env — set workspace path, git config, universe endpoint</h1>
+
+
+<h1 align="center">build and start the stack</h1>
+
 docker compose build
 docker compose up
 
-# install the auto-sync watcher
+<h1 align="center">install the auto-sync watcher</h1>
+
 systemctl --user daemon-reload
 systemctl --user enable --now vibecode-auto-sync.service
 ```
