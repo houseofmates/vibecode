@@ -369,7 +369,7 @@ class JWTAuthManager:
                 payload = jwt.decode(token, options={'verify_signature': False})
                 if payload.get('exp', 0) < now - 86400:  # 24 hours ago
                     old_tokens.append(token)
-            except:
+            except Exception:
                 old_tokens.append(token)
         
         for token in old_tokens:
