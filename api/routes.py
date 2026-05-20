@@ -1177,9 +1177,9 @@ def _handle_remote_session_get(handler, session_id):
                     session_data = json.loads(result.stdout)
                     if isinstance(session_data, dict):
                         return j(handler, {'ok': True, 'session': session_data})
-                except:
+                except (json.JSONDecodeError, TypeError, ValueError):
                     pass
-    except Exception as e:
+    except (OSError, subprocess.SubprocessError):
         pass
     
     return j(handler, {'ok': False, 'error': 'Session not found', 'session_id': session_id}, status=404)

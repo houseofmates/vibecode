@@ -231,7 +231,7 @@ class QueryOptimizer:
                         plan = explain_cursor.fetchone()
                         if plan:
                             index_used = plan[3] if len(plan) > 3 else None
-                    except:
+                    except (sqlite3.Error, IndexError):
                         pass
                 
                 # Execute query
@@ -296,9 +296,9 @@ class QueryOptimizer:
             from api.advanced_cache import get_cache_key, get_cache as get_from_cache
             cache_key_full = get_cache_key('query_result', cache_key)
             return get_from_cache(cache_key_full)
-        except:
+        except (ImportError, KeyError, TypeError):
             return None
-    
+
     def _cache_query_result(self, query: str, params: Tuple, result: List[Dict]):
         """Cache query result."""
         try:
@@ -306,7 +306,7 @@ class QueryOptimizer:
             cache_key = self._get_cache_key(query, params)
             cache_key_full = get_cache_key('query_result', cache_key)
             set_to_cache(cache_key_full, result, ttl=300)  # 5 minutes
-        except:
+        except (ImportError, KeyError, TypeError):
             pass
     
     def _get_cache_key(self, query: str, params: Tuple) -> str:

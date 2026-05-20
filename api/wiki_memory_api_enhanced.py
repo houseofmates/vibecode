@@ -109,7 +109,7 @@ def search_memster_memories(query_text, limit=20):
     try:
         data = json.loads(result.get('output', '[]'))
         return {'memories': data if isinstance(data, list) else []}
-    except:
+    except (json.JSONDecodeError, TypeError, ValueError):
         return {'memories': []}
 
 def run_memster_hybrid_search(query_text, limit=10):
@@ -138,15 +138,15 @@ def get_memster_briefing():
     
     try:
         now = json.loads(now_result.get('output') or '{}')
-    except:
+    except (json.JSONDecodeError, TypeError, ValueError):
         now = None
     try:
         ctx = json.loads(ctx_result.get('output', '[]'))
-    except:
+    except (json.JSONDecodeError, TypeError, ValueError):
         ctx = []
     try:
         recent_count = int(recent_result.get('output', '0').strip() or '0')
-    except:
+    except (ValueError, AttributeError):
         recent_count = 0
     
     return {'now': now, 'briefing': {'contextual': ctx}, 'recent_count': recent_count}
@@ -164,7 +164,7 @@ def get_memster_memory_by_id(mem_id):
     try:
         data = json.loads(result.get('output', '[]'))
         return data[0] if isinstance(data, list) and len(data) > 0 else None
-    except:
+    except (json.JSONDecodeError, TypeError, ValueError, IndexError):
         return None
 
 def create_memster_memory(content, category='observation', tier='L2', tags=None):
@@ -190,12 +190,8 @@ def create_memster_memory(content, category='observation', tier='L2', tags=None)
 
     try:
         mem_id = int(id_result.get('output', '0').strip() or '0')
-    except:
+    except (ValueError, AttributeError):
         mem_id = None
-
-    # Tags aren't supported in memster - add to content as text if needed
-    if mem_id and tags:
-        pass  # Tags stored inline in content or skipped
 
     return {'id': mem_id, 'created': True}
 
