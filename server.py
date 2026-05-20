@@ -672,6 +672,7 @@ class OptimizedHTTPServer(ThreadingHTTPServer):
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
 =======
 =======
@@ -1214,6 +1215,90 @@ class OptimizedHTTPServer(ThreadingHTTPServer):
 =======
 =======
 =======
+=======
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.connections = set()
+        self.start_time = time.time()
+    
+    def process_request(self, handler, *args, **kwargs):
+        """Process request with performance monitoring."""
+        start_time = time.time()
+        
+        # Track connection
+        client_ip = handler.client_address[0] if hasattr(handler, 'client_address') else 'unknown'
+        connection_id = None
+        
+        try:
+            # Add connection to manager
+            connection_id = add_connection(
+                client_ip=client_ip,
+                user_agent=handler.headers.get('User-Agent', 'unknown') if hasattr(handler, 'headers') else 'unknown'
+            )
+            
+            # Process request with monitoring
+            with performance_monitor():
+                result = super().process_request(handler, *args, **kwargs)
+            
+            # Record request metrics
+            response_time = time.time() - start_time
+            status_code = getattr(result, 'status_code', 200)
+            
+            record_request(
+                method=getattr(handler, 'command', 'GET'),
+                path=getattr(handler, 'path', '/'),
+                status_code=status_code,
+                response_time=response_time,
+                user_id=getattr(handler, 'user_id', None),
+                session_id=getattr(handler, 'session_id', None)
+            )
+            
+            return result
+            
+        except Exception as e:
+            # Record error metrics
+            response_time = time.time() - start_time
+            record_request(
+                method=getattr(handler, 'command', 'GET'),
+                path=getattr(handler, 'path', '/'),
+                status_code=500,
+                response_time=response_time,
+                user_id=getattr(handler, 'user_id', None),
+                session_id=getattr(handler, 'session_id', None)
+            )
+            raise
+        
+        finally:
+            # Clean up connection
+            if connection_id:
+                remove_connection(connection_id)
+    
+    def server_bind(self):
+        """Override server bind for optimization."""
+        # Set socket options for better performance
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        
+        # Enable TCP_NODELAY for better latency
+        self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        
+        # Set socket buffer sizes
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 65536)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 65536)
+        
+        super().server_bind()
+    
+    def get_performance_stats(self):
+        """Get server performance statistics."""
+        uptime = time.time() - self.start_time
+        return {
+            'uptime_seconds': uptime,
+            'active_connections': len(self.connections),
+            'total_connections_processed': len(self.connections),
+            'server_type': 'OptimizedHTTPServer'
+        }
+>>>>>>> Stashed changes
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -47038,6 +47123,7 @@ async def main() -> None:
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     # ── Multiplex SSE queue cleanup ─────────────────────────────────────────
     def cleanup_multiplex_queues():
         """Remove empty multiplex queues that haven't been active for 2 minutes."""
@@ -47066,6 +47152,9 @@ async def main() -> None:
     logger.info("Started multiplex queue cleanup background thread")
 
     httpd = QuietHTTPServer((HOST, PORT), Handler)
+=======
+    httpd = ThreadingHTTPServer((HOST, PORT), Handler)
+>>>>>>> Stashed changes
 =======
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
 >>>>>>> Stashed changes
