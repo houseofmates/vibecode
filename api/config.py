@@ -668,10 +668,8 @@ def resolve_model_provider(model_id: str) -> tuple:
             entry_name = (entry.get("name") or "").strip()
             entry_base_url = (entry.get("base_url") or "").strip()
             entry_api_key = (entry.get("api_key") or "").strip()
-            print(f"[DEBUG] Checking custom provider: {entry_name}, model: {entry_model}, base_url: {entry_base_url}", flush=True)
             if entry_model and entry_name and model_id == entry_model:
                 provider_hint = "custom:" + entry_name.lower().replace(" ", "-")
-                print(f"[DEBUG] Custom provider matched! provider_hint: {provider_hint}, base_url: {entry_base_url}, has_api_key: {bool(entry_api_key)}", flush=True)
                 # For custom providers, we need to pass the API key through
                 # Store it in a way that can be retrieved later
                 if entry_api_key:

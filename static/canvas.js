@@ -910,13 +910,6 @@ function initCanvas() {
     tab.onclick = () => setCanvasMode(tab.dataset.mode);
   });
 
-  // Only restore canvas state if user explicitly opened it in this session
-  // Don't auto-restore on page reload to prevent unexpected sidebar appearance
-  // setTimeout(() => {
-  //   if (sessionStorage.getItem('canvas_state')) {
-  //     restoreCanvas();
-  //   }
-  // }, 1000);
 }
 
 // ── expose globally ───────────────────────────────────────────────────────

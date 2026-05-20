@@ -77,7 +77,7 @@ def list_memster_memories(category=None, tier=None, limit=50, offset=0, search=N
     try:
         data = json.loads(result.get('output', '[]'))
         return {'memories': data if isinstance(data, list) else []}
-    except:
+    except (json.JSONDecodeError, TypeError, ValueError):
         return {'memories': [], 'error': 'Invalid JSON from database'}
 
 def get_memster_categories():
@@ -88,7 +88,7 @@ def get_memster_categories():
     try:
         data = json.loads(result.get('output', '[]'))
         return {'categories': data if isinstance(data, list) else []}
-    except:
+    except (json.JSONDecodeError, TypeError, ValueError):
         return {'categories': ['world', 'experience', 'opinion', 'observation']}
 
 def get_memster_tags():

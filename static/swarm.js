@@ -72,8 +72,8 @@ const SwarmApp=(function(){
   if(panel) panel.classList.remove('active');
   const navBtn=document.getElementById('navSwarm');
   if(navBtn) navBtn.classList.remove('active');
-  openView='list';
-  currentId=null;
+  currentView='list';
+  currentSwarmId=null;
   stopPoll(); stopContextPoll();
  }
 
