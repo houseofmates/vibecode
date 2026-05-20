@@ -1,85 +1,200 @@
-<h1 align="center">vibecode</h1>
+<h1 align="center">VibeCode</h1>
 
-a local web workspace for coding, terminal sessions, and ai-enabled development. runs on your machine, keeps your code accessible through a browser, and preserves project structure and git history. built for house because having a browser window open to the terminal is sometimes all the workspace needs to be, and sometimes a ui makes it better.
+<p align="center">
+  <strong>A lightweight browser-based IDE for local development with AI integration</strong>
+</p>
 
-it is a fork of [hermes-webui](https://github.com/nesquena/hermes-webui) by nicolas esquivel (@nesquena). the upstream repo provides the foundation. this fork adds the git watch service, appimage / apk packaging, and a few local improvements. the original license is mit — see the license section below for the upstream link.
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python 3.10+">
+  <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT License">
+  <img src="https://img.shields.io/badge/version-0.50.38-orange.svg" alt="Version">
+</p>
 
-<h2 align="center">made for</h2>
+VibeCode is a local web workspace for coding, terminal sessions, and AI-enabled development. It runs entirely on your machine, keeps your code accessible through any browser, and preserves project structure and git history. Zero cloud dependencies - your code stays local.
 
+Originally forked from [hermes-webui](https://github.com/nesquena/hermes-webui) by Nicolas Esquivel. This fork adds the git auto-sync service, AppImage/APK packaging, multi-provider AI support, and extensive local improvements.
 
-vibecode is built for house so the workspace is there when it needs to be and stays in sync without thinking about it. the auto-sync watcher exists because maintaining a remote branch from a local repo manually is annoying and this setup does it ten seconds after the last file settles.
+## Features
 
-<h2 align="center">what makes it personal</h2>
+### Core Development Environment
+- **Browser Terminal** - Full xterm.js terminal emulation connected to your host shell with PTY support
+- **File Explorer** - Browse, create, rename, delete, and search files and folders with syntax highlighting
+- **Multi-Tab Workspace** - Work across multiple files and terminal sessions simultaneously
+- **Drag-and-Drop Upload** - Drop files and folders directly into the workspace
+- **Session Persistence** - All work persists across browser refreshes and server restarts
 
+### AI Assistant Integration
+- **Multi-Provider Support** - Connect to 20+ AI providers:
+  - Anthropic Claude (claude-4, claude-3.5-sonnet, opus)
+  - OpenAI GPT (gpt-4o, gpt-4-turbo, o1, o3)
+  - Google Gemini (gemini-2.5-pro, gemini-2.5-flash)
+  - DeepSeek, Qwen, Mistral, xAI Grok
+  - OpenRouter (access to 100+ models)
+  - Ollama & LM Studio (local models)
+  - Custom OpenAI-compatible endpoints
+- **Streaming Responses** - Real-time SSE streaming with thinking/reasoning display
+- **Context-Aware Assistance** - AI understands your project structure and codebase
+- **Memory System** - Persistent knowledge base for project-specific context
 
-vibecode exists because the terminal was sometimes all that was available and the browser added a layer that was useful when a ui was needed. the auto-sync watcher handles something specific to the setup: keeping a running github main branch up to date when work settles for ten seconds without a new commit. it is a narrow function that matters on a continuous-use setup.
+### Git Integration
+- **Auto-Sync Watcher** - systemd user service watches for file changes; commits and pushes after 10-second debounce
+- **Branch Management** - Works with your existing git workflow
+- **Commit History** - Full git log visualization in the UI
 
-the vue / django / docker / redis / django-channels stack is standard vibecode. there is a four-service stack that starts with a single compose command and gives you file browsing, terminal, assistant, and a persistent backing data layer.
+### Multi-Platform Deployment
+- **Web Server** - Python HTTP server (zero framework dependencies)
+- **Desktop App** - Tauri 2.0 builds for Linux, Windows, and macOS
+- **Mobile App** - Capacitor 8 for Android APK packaging
+- **AppImage** - Portable Linux distribution
+- **Docker** - Container deployment with compose support
 
-<h2 align="center">features</h2>
+### Security
+- **Optional Password Authentication** - PBKDF2-HMAC-SHA256 password hashing
+- **JWT Token Support** - Secure API authentication
+- **CORS Protection** - Configurable cross-origin policies
+- **CSRF Tokens** - Protection against cross-site request forgery
+- **TLS/HTTPS** - Optional encrypted connections
 
+## Requirements
 
-- **browser terminal** — xterm.js terminal connected to your host shell
-- **file explorer** — browse, create, rename, delete files and folders
-- **drag-and-drop** — drop files and folders into the workspace; they show up with instant state updates
-- **ai assistant** — openweave / cfd integration for code assistance directly in the workspace
-- **auto-sync watcher** — systemd --user service watches for file changes; when things settle for 10 seconds, commits to branch and pushes to remote
-- **docker compose setup** — four services (api, web, worker, redis) started from one command
-- **persistent data** — source code and project files stored under workspace root, not a transient session
-- **vite + vue frontend** — hot reload on change, dev server, css modules
-- **systemd integration** — start at boot, auto-restart, watcher as a user-level systemd service
+- **Python 3.10+**
+- **Git** (for auto-sync features)
+- **Node.js** (only for desktop/mobile builds)
 
-<h2 align="center">what it is not for</h2>
-
-
-- **not a full ide** — there is no debugger integration, no language server protocol, no refactoring engine. this is a browser wrapper around a terminal and a file tree.
-- **not a standalone editor with ai built in** — do not install this expecting cursor or windsurf. the ai features are basic context-aware assistance, not a coding agent.
-- **multi-project support is limited** — vibecode maintains one active workspace. it is a single-project tool by design. the watcher service is intended to run on one repo at a time.
-- **not resource-isolated** — the workspace lives on the host filesystem. if someone reaches the vibecode web ui they are in the same file permissions context as the user running the service. put access controls on the endpoint.
-
-<h2 align="center">installation</h2>
-
+## Quick Start
 
 ```bash
-<h1 align="center">prerequisites: python 3.8+, node.js, docker, redis</h1>
-
-<h1 align="center">clone</h1>
-
-git clone <vibecode-repo-url>
+# Clone the repository
+git clone https://github.com/anomalyco/vibecode.git
 cd vibecode
 
-<h1 align="center">copy env template</h1>
+# Install Python dependencies
+pip install -r requirements.txt
 
-cp .env.example .env
-<h1 align="center">edit .env — set workspace path, git config, universe endpoint</h1>
+# Start the server
+python server.py
+```
 
+The web UI opens at `http://localhost:8786` by default.
 
-<h1 align="center">build and start the stack</h1>
+## Configuration
 
-docker compose build
-docker compose up
+### Environment Variables
 
-<h1 align="center">install the auto-sync watcher</h1>
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `HERMES_WEBUI_HOST` | Server bind address | `127.0.0.1` |
+| `HERMES_WEBUI_PORT` | Server port | `8786` |
+| `HERMES_WEBUI_PASSWORD` | Enable authentication | (none) |
+| `HERMES_WEBUI_WORKSPACE` | Default workspace path | `~/workspace` |
+| `ANTHROPIC_API_KEY` | Anthropic API key | (none) |
+| `OPENAI_API_KEY` | OpenAI API key | (none) |
+| `OPENROUTER_API_KEY` | OpenRouter API key | (none) |
+| `HERMES_WEBUI_TLS_CERT` | TLS certificate path | (none) |
+| `HERMES_WEBUI_TLS_KEY` | TLS private key path | (none) |
 
+### AI Provider Setup
+
+Configure at least one AI provider to enable the assistant:
+
+```bash
+# Anthropic (recommended)
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# OpenAI
+export OPENAI_API_KEY="sk-..."
+
+# OpenRouter (access to many models)
+export OPENROUTER_API_KEY="sk-or-..."
+
+# Custom endpoint
+export OPENAI_API_BASE="https://your-api.com/v1"
+```
+
+## Git Auto-Sync
+
+The auto-sync watcher commits changes to git after files settle for 10 seconds:
+
+```bash
+# Configure git identity
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+
+# Install and enable the systemd user service
 systemctl --user daemon-reload
 systemctl --user enable --now vibecode-auto-sync.service
 ```
 
-the web ui opens at the host and port set in .env. the terminal connects to the host shell through the django-channels websocket. the redis broker is required for the websocket transport.
+## Desktop & Mobile Builds
 
-<h1 align="center">git auto-sync</h1>
-
-the watcher commits to git branch (default main, auto-renamed from master if needed) after a 10-second debounce. configure git before enabling:
+### Tauri Desktop App
 
 ```bash
-git config --global user.name "your name"
-git config --global user.email "you@example.com"
+# Install Tauri CLI
+npm install
+
+# Build for current platform
+npm run tauri build
 ```
 
-then enable the systemd user service. it restarts automatically on failure.
+### Android APK
 
-<h1 align="center">license</h1>
+```bash
+# Initialize Capacitor
+npx cap init
 
-this project is licensed under the mit license — the same license as the original [hermes-webui](https://github.com/nesquena/hermes-webui) repo.
+# Build APK
+./build-apk.sh
+```
 
-see the upstream license at https://github.com/nesquena/hermes-webui/blob/main/license
+### AppImage
+
+```bash
+./build-appimage.sh
+```
+
+## Architecture
+
+```
+vibecode/
+├── server.py          # Main entry point - HTTP server
+├── api/               # Backend modules
+│   ├── routes.py      # Request routing
+│   ├── streaming.py   # SSE streaming & AI agent execution
+│   ├── config.py      # Configuration & provider discovery
+│   ├── models.py      # Session persistence
+│   ├── terminal.py    # PTY terminal sessions
+│   ├── workspace.py   # File system operations
+│   └── auth.py        # Authentication
+├── static/            # Frontend assets
+│   ├── index.html     # SPA shell
+│   ├── panels.js      # Panel system
+│   ├── sessions.js    # Session management
+│   ├── terminal.js    # Terminal integration
+│   └── style.css      # Core styling
+└── src-tauri/         # Tauri desktop config
+```
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Serve web UI |
+| `/api/sessions` | GET/POST | List/create chat sessions |
+| `/api/stream` | POST | SSE streaming for AI responses |
+| `/api/files` | GET/POST | File operations |
+| `/api/terminal` | GET/POST | Terminal sessions |
+| `/api/settings` | GET/POST | User preferences |
+| `/api/workspace` | GET/POST | Workspace management |
+
+## What It Is Not
+
+- **Not a full IDE** - No debugger integration, no LSP, no refactoring engine. This is a browser workspace for terminal and AI-assisted coding.
+- **Not resource-isolated** - The workspace runs with your user permissions. Secure the endpoint appropriately.
+- **Not multi-tenant** - Designed for single-user local development.
+
+## License
+
+MIT License - see [LICENSE](LICENSE)
+
+Based on [hermes-webui](https://github.com/nesquena/hermes-webui) by Nicolas Esquivel.
