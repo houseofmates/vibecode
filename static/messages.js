@@ -425,8 +425,6 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
       return;
     }
 
-    // Don't remove thinking indicator yet - it should stay visible until actual content arrives
-    // removeThinking();
     const tr=$('toolRunningRow');if(tr)tr.remove();
     $('emptyState').style.display='none';
     assistantRow=document.createElement('div');assistantRow.className='msg-row';

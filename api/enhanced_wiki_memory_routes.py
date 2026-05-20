@@ -89,7 +89,7 @@ class MemsterClient:
             return []
         try:
             return json.loads(result)
-        except:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return []
     
     @classmethod
@@ -143,13 +143,13 @@ class MemsterClient:
                                     session_data['created_at'] = data['created_at']
                                 if 'updated_at' in data:
                                     session_data['updated_at'] = data['updated_at']
-                    except:
+                    except (json.JSONDecodeError, KeyError, TypeError):
                         pass
-                    
+
                     all_sessions[session_id] = session_data
-        except:
+        except Exception:
             pass
-        
+
         # Legacy: .233 (add sessions that don't exist in .250)
         try:
             ssh = cls._get_ssh(MEMSTER_HOST_LEGACY)
@@ -188,13 +188,13 @@ class MemsterClient:
                                     session_data['created_at'] = data['created_at']
                                 if 'updated_at' in data:
                                     session_data['updated_at'] = data['updated_at']
-                    except:
+                    except (json.JSONDecodeError, KeyError, TypeError):
                         pass
-                    
+
                     all_sessions[session_id] = session_data
-        except:
+        except Exception:
             pass
-        
+
         sessions = list(all_sessions.values())
         sessions.sort(key=lambda x: x.get('filename', ''), reverse=True)
         return sessions[:100]
@@ -221,9 +221,9 @@ class MemsterClient:
                         if "session_id" not in data:
                             data["session_id"] = session_id
                         return data
-        except:
+        except Exception:
             pass
-        
+
         # Try .233 if not found on .250
         try:
             ssh = cls._get_ssh(MEMSTER_HOST_LEGACY)
@@ -232,7 +232,7 @@ class MemsterClient:
                 cmd = f'cat {filepath} 2>/dev/null || echo ""'
                 stdin, stdout, stderr = ssh.exec_command(cmd)
                 content = stdout.read().decode().strip()
-                
+
                 if content:
                     data = json.loads(content)
                     if isinstance(data, list):
@@ -242,9 +242,9 @@ class MemsterClient:
                         if "session_id" not in data:
                             data["session_id"] = session_id
                         return data
-        except:
+        except Exception:
             pass
-        
+
         return None
 
 

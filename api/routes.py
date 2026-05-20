@@ -42,14 +42,6 @@ from api.config import (
     save_settings,
 )
 
-# Import optimization modules (temporarily disabled for testing)
-# from api.optimization_manager import get_optimization_stats, get_optimization_recommendations
-# from api.performance_monitor import record_request, performance_monitor
-# from api.connection_manager import add_connection, remove_connection, broadcast_to_topic
-# from api.static_optimizer import get_optimized_asset, get_preload_links
-# from api.batch_processor import batch_request
-# from api.query_optimizer import execute_optimized_query, get_query_performance_report
-# from api.memory_leak_detector import track_object_creation
 from api.helpers import (
     require,
     bad,
@@ -1185,9 +1177,9 @@ def _handle_remote_session_get(handler, session_id):
                     session_data = json.loads(result.stdout)
                     if isinstance(session_data, dict):
                         return j(handler, {'ok': True, 'session': session_data})
-                except:
+                except (json.JSONDecodeError, TypeError, ValueError):
                     pass
-    except Exception as e:
+    except (OSError, subprocess.SubprocessError):
         pass
     
     return j(handler, {'ok': False, 'error': 'Session not found', 'session_id': session_id}, status=404)

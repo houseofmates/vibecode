@@ -1,4 +1,4 @@
-# vibecode
+<h1 align="center">vibecode</h1>
 
 vibecode is a local web workspace for coding, terminal sessions, and ai-enabled development flows.
 it is designed to run on your machine and keep your code accessible through a browser while preserving local project structure and git history.
@@ -118,6 +118,4 @@ git config --global user.email "you@example.com"
 
 <h2 align="center">license</h2>
 
-mit
-
-mit
+[mit](license)

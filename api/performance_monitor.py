@@ -170,7 +170,7 @@ class PerformanceMonitor:
             # Network connections (estimate)
             try:
                 active_connections = len(psutil.net_connections())
-            except:
+            except (psutil.AccessDenied, psutil.NoSuchProcess, OSError):
                 active_connections = 0
             
             return SystemMetrics(

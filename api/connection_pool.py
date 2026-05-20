@@ -95,15 +95,15 @@ class ConnectionPool:
             elif hasattr(conn, 'execute'):
                 conn.execute('SELECT 1')
             return True
-        except:
+        except Exception:
             return False
-    
+
     def _close_connection(self, conn):
         """Close a connection."""
         try:
             if hasattr(conn, 'close'):
                 conn.close()
-        except:
+        except Exception:
             pass
     
     def get_stats(self) -> Dict[str, Any]:

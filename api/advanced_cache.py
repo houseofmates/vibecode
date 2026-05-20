@@ -197,7 +197,7 @@ class AdvancedCache:
                 info = self.redis.info()
                 stats['redis_memory'] = info.get('used_memory_human', 'N/A')
                 stats['redis_keys'] = info.get('db0', {}).get('keys', 0)
-            except:
+            except Exception:
                 pass
         
         return stats

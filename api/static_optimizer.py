@@ -10,7 +10,7 @@ import mimetypes
 import time
 import logging
 from pathlib import Path
-from typing import Dict, Tuple, Optional, List
+from typing import Any, Dict, Tuple, Optional, List
 import re
 
 logger = logging.getLogger(__name__)
@@ -254,7 +254,7 @@ class StaticOptimizer:
         except Exception as e:
             logger.error(f"Cache clear error: {e}")
     
-    def get_stats(self) -> Dict[str, any]:
+    def get_stats(self) -> Dict[str, Any]:
         """Get optimization statistics."""
         stats = {
             'cache_enabled': True,
@@ -268,7 +268,7 @@ class StaticOptimizer:
         try:
             cache_size = sum(f.stat().st_size for f in self.cache_dir.glob('*'))
             stats['cache_size_mb'] = round(cache_size / (1024 * 1024), 2)
-        except:
+        except (OSError, IOError):
             stats['cache_size_mb'] = 0
         
         return stats
@@ -299,7 +299,7 @@ def clear_static_cache():
     if _optimizer:
         _optimizer.clear_cache()
 
-def get_optimizer_stats() -> Dict[str, any]:
+def get_optimizer_stats() -> Dict[str, Any]:
     """Get optimizer statistics."""
     if _optimizer:
         return _optimizer.get_stats()
