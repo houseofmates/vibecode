@@ -255,3 +255,4 @@ def _apply_update_inner(target):
         _update_cache['checked_at'] = 0
 
     return {'ok': True, 'message': f'{target} updated successfully', 'target': target}
+WEBUI_VERSION = "1.0.0"

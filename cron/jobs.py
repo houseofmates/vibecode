@@ -302,3 +302,39 @@ def parse_schedule(schedule_str: str) -> str:
         # Assume it's already a cron expression
         return schedule_str
 remove_job = delete_job
+
+# Alias functions for compatibility with cronjob_tools
+def save_job(job_id=None, schedule=None, name=None, prompt=None, repeat=None, deliver=None, skills=None, model=None, script=None, no_agent=None, context_from=None, enabled_toolsets=None, workdir=None, profile=None, status=None):
+    """Create or update a cron job. Alias for create_job/update_job compatibility."""
+    from cron.jobs import create_job, update_job
+    if job_id and get_job(job_id):
+        return update_job(job_id, {'schedule': schedule, 'name': name, 'prompt': prompt, 'repeat': repeat, 'deliver': deliver, 'skills': skills, 'model': model, 'script': script, 'no_agent': no_agent, 'context_from': context_from, 'enabled_toolsets': enabled_toolsets, 'workdir': workdir, 'profile': profile, 'status': status})
+    else:
+        return create_job(schedule, name, prompt, repeat, deliver, skills, model, script, no_agent, context_from, enabled_toolsets, workdir, profile, status)
+
+def resolve_job_ref(job_ref):
+    """Resolve a job reference (ID or name) to a job dictionary."""
+    job = get_job(job_ref)
+    if job:
+        return job
+    # Try matching by name
+    for j in list_jobs():
+        if j.get('name') == job_ref:
+            return j
+    return None
+
+def remove_job(job_id):
+    """Remove a job by ID. Alias for delete_job compatibility."""
+    return delete_job(job_id)
+
+def get_recent_job_runs(limit=50):
+    """Get recent job runs. Alias for get_recent_output compatibility."""
+    return get_recent_output(limit)
+
+class AmbiguousJobReference(Exception):
+    """Exception raised when a job reference matches multiple jobs."""
+    pass
+
+def trigger_job(job_id):
+    """Trigger a job run immediately. Alias for run_job_now compatibility."""
+    return run_job_now(job_id)
