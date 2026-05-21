@@ -8,7 +8,7 @@ it is designed to run on your machine and keep your code accessible through a br
 - provides a browser-based interface for code, terminal, file browsing, and assistant workflows
 - supports local ai assistance for shell commands, code editing, and project automation
 - includes a persistent systemd watcher that syncs repo changes to the github `main` branch after they settle for 10 seconds
-- uses env-based configuration so secrets and local settings stay out of the repo
+- uses env-based configuration
 - supports packaging for linux appimage and android apk
 - works with local or remote code directories and remote access tunnels
 
