@@ -790,9 +790,11 @@ def handle_get(handler, parsed) -> bool:
         if not sid:
             return bad(handler, "session_id required")
         try:
-            s = get_session(sid)
+            s = _get_or_import_session(body["session_id"])
         except KeyError:
             return bad(handler, "Session not found", 404)
+        except Exception as e:
+            return bad(handler, f"Failed to load session: {e}")
         from api.workspace import git_info_for_workspace
 
         info = git_info_for_workspace(Path(s.workspace))
@@ -1300,8 +1302,14 @@ def handle_post(handler, parsed) -> bool:
             return bad(handler, str(e))
         s.workspace = new_ws
         s.model = body.get("model", s.model)
-        s.save()
-        set_last_workspace(new_ws)
+        try:
+            s.save()
+        except Exception as e:
+            return bad(handler, f"Failed to save session: {e}")
+        try:
+            set_last_workspace(new_ws)
+        except Exception:
+            pass
         return j(handler, {"session": s.compact() | {"messages": s.messages}})
 
     if parsed.path == "/api/session/delete":
