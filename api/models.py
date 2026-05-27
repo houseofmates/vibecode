@@ -146,6 +146,7 @@ class Session:
     def save(self, touch_updated_at: bool = True) -> None:
         if touch_updated_at:
             self.updated_at = time.time()
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text(
             json.dumps(self.__dict__, ensure_ascii=False, indent=2),
             encoding='utf-8',
