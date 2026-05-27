@@ -483,6 +483,41 @@
   .composer-model-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .composer-model-icon,.composer-model-chevron{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;}
   .composer-model-select{position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;}
+  .composer-nim-wrap{position:relative;flex:0 0 auto;display:inline-flex;}
+  .composer-nim-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px 6px 8px;border-radius:999px;border:1px solid transparent;background-color:transparent;color:var(--muted);font-weight:500;cursor:pointer;transition:color .15s,background-color .15s,border-color .15s;font-size:12px;}
+  .composer-nim-chip:hover{color:var(--text);background-color:var(--hover-bg);}
+  .composer-nim-chip.active{color:var(--text);background:rgba(124,185,255,.08);border-color:rgba(124,185,255,.22);}
+  .nim-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:background .3s;}
+  .nim-dot.healthy{background:#4caf50;box-shadow:0 0 4px rgba(76,175,80,.5);}
+  .nim-dot.degraded{background:#f6b012;box-shadow:0 0 4px rgba(246,176,18,.5);}
+  .nim-dot.exhausted{background:#e0525c;box-shadow:0 0 4px rgba(224,82,92,.5);}
+  .nim-dot.offline{background:rgba(255,255,255,.2);}
+  .nim-dropdown{display:none;position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);min-width:320px;max-width:min(400px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--border2);border-radius:10px;box-shadow:0 -4px 24px rgba(0,0,0,.4);z-index:200;overflow:hidden;}
+  .nim-dropdown.open{display:block;}
+  .nim-dd-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;border-bottom:1px solid var(--border);gap:8px;}
+  .nim-dd-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+  .nim-dd-health{font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;}
+  .nim-dd-health.green{background:rgba(76,175,80,.15);color:#4caf50;}
+  .nim-dd-health.yellow{background:rgba(246,176,18,.15);color:#f6b012;}
+  .nim-dd-health.red{background:rgba(224,82,92,.15);color:#e0525c;}
+  .nim-dd-body{padding:4px 0;max-height:260px;overflow-y:auto;}
+  .nim-dd-row{display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:12px;transition:background .12s;}
+  .nim-dd-row:hover{background:rgba(255,255,255,.05);}
+  .nim-dd-row.active{background:rgba(124,185,255,.08);}
+  .nim-dd-row-label{font-weight:600;color:var(--text);min-width:28px;text-align:right;}
+  .nim-dd-row-status{font-size:10px;font-weight:600;padding:1px 6px;border-radius:99px;min-width:58px;text-align:center;}
+  .nim-dd-row-status.healthy{background:rgba(76,175,80,.15);color:#4caf50;}
+  .nim-dd-row-status.exhausted{background:rgba(224,82,92,.15);color:#e0525c;}
+  .nim-dd-row-status.cooling{background:rgba(246,176,18,.15);color:#f6b012;}
+  .nim-dd-row-rpm{color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums;}
+  .nim-dd-row-bar{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden;min-width:40px;}
+  .nim-dd-row-bar-fill{height:100%;border-radius:2px;transition:width .3s;}
+  .nim-dd-row-bar-fill.healthy{background:#4caf50;}
+  .nim-dd-row-bar-fill.degraded{background:#f6b012;}
+  .nim-dd-row-bar-fill.exhausted{background:#e0525c;}
+  .nim-dd-footer{padding:8px 14px;border-top:1px solid var(--border);font-size:10px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;}
+  .nim-dd-error{padding:20px 14px;text-align:center;font-size:12px;color:var(--muted);line-height:1.6;}
+  .nim-dd-error code{font-size:11px;background:rgba(255,255,255,.06);padding:1px 5px;border-radius:4px;}
   .composer-right{display:flex;gap:8px;align-items:center;flex-shrink:0;}
   .composer-spinner{display:inline-flex;align-items:center;justify-content:center;color:var(--blue);animation:spin 1s linear infinite;}
   @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
