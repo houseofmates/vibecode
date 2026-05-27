@@ -1,0 +1,12 @@
+/home/house/vibecode-desktop/src-tauri/target/release/deps/state-2ea54f5e53c44683.d: /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/lib.rs /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/ident_hash.rs /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/storage.rs /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/init.rs /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/shim.rs /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/container.rs
+
+/home/house/vibecode-desktop/src-tauri/target/release/deps/libstate-2ea54f5e53c44683.rlib: /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/lib.rs /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/ident_hash.rs /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/storage.rs /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/init.rs /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/shim.rs /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/container.rs
+
+/home/house/vibecode-desktop/src-tauri/target/release/deps/libstate-2ea54f5e53c44683.rmeta: /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/lib.rs /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/ident_hash.rs /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/storage.rs /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/init.rs /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/shim.rs /home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/container.rs
+
+/home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/lib.rs:
+/home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/ident_hash.rs:
+/home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/storage.rs:
+/home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/init.rs:
+/home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/shim.rs:
+/home/house/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/state-0.5.3/src/container.rs:

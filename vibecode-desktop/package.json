@@ -1,0 +1,23 @@
+{
+  "name": "vibecode-desktop",
+  "version": "1.0.0",
+  "description": "VibeCode Desktop - Native desktop app for VibeCode",
+  "main": "index.js",
+  "scripts": {
+    "tauri": "tauri",
+    "build": "tauri build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "vibecode",
+    "desktop",
+    "tauri"
+  ],
+  "author": "houseofmates",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "@tauri-apps/api": "^1.6.0",
+    "@tauri-apps/cli": "^1.6.1"
+  }
+}

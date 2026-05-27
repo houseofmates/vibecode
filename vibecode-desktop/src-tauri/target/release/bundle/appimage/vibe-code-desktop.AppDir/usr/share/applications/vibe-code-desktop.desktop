@@ -1,0 +1,8 @@
+[Desktop Entry]
+Categories=Development;
+Comment=VibeCode Desktop
+Exec=vibe-code-desktop
+Icon=vibe-code-desktop
+Name=VibeCode Desktop
+Terminal=false
+Type=Application

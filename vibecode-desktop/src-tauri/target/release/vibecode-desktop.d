@@ -1,0 +1,1 @@
+/home/house/vibecode-desktop/src-tauri/target/release/vibecode-desktop: /home/house/vibecode-desktop/src-tauri/build.rs /home/house/vibecode-desktop/src-tauri/src/main.rs /home/house/vibecode-desktop/src-tauri/target/release/build/vibecode-desktop-15797a6159ca7c02/out/32x32.png /home/house/vibecode-desktop/src-tauri/tauri.conf.json
