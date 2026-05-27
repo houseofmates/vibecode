@@ -778,6 +778,14 @@ function applyBotName(){
   try{const p=await api('/api/profile/active');S.activeProfile=p.name||'default';}catch(e){S.activeProfile='default';}
   // Fetch available models from server and populate dropdown dynamically
   await populateModelDropdown();
+  // Initial NIM pool status fetch to set dot indicator
+  fetchNimStatus().then(data=>{
+    const dot=$('nimDot');
+    if(!dot) return;
+    if(!data||!data.total_keys){dot.className='nim-dot offline';return;}
+    const hpct=data.healthy_pct||0;
+    dot.className='nim-dot '+(hpct>=50?'healthy':hpct>=20?'degraded':'exhausted');
+  }).catch(()=>{});
   // Restore last-used model preference
   let savedModel = null;
   try { savedModel = localStorage.getItem('hermes-webui-model'); } catch (e) {}

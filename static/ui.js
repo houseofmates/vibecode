@@ -417,8 +417,97 @@ function closeModelDropdown(){
   if(chip) chip.classList.remove('active');
 }
 
+// ── NIM pool status popup ─────────────────────────────────────────────────
+
+async function fetchNimStatus(){
+  try{
+    const r=await fetch('http://localhost:8766/api/status',{signal:AbortSignal.timeout(3000)});
+    if(!r.ok) return null;
+    return await r.json();
+  }catch(e){return null;}
+}
+
+function _nimHealthClass(data){
+  if(!data) return 'offline';
+  const hpct=data.healthy_pct||0;
+  if(hpct>=50) return 'healthy';
+  if(hpct>=20) return 'degraded';
+  return 'exhausted';
+}
+
+function _nimHealthLabel(data){
+  if(!data) return 'offline';
+  const hpct=data.healthy_pct||0;
+  if(hpct>=50) return 'healthy';
+  if(hpct>=20) return 'degraded';
+  return 'critical';
+}
+
+function _nimHealthBadge(data){
+  if(!data) return {cls:'red',label:'offline'};
+  const hpct=data.healthy_pct||0;
+  if(hpct>=50) return {cls:'green',label:`${data.healthy_keys||0}/${data.total_keys||0} ok`};
+  if(hpct>=20) return {cls:'yellow',label:`${data.healthy_keys||0}/${data.total_keys||0} ok`};
+  return {cls:'red',label:'depleted'};
+}
+
+function _renderNimDropdown(data){
+  const dd=$('composerNimDropdown');
+  if(!dd) return;
+  if(!data||!data.total_keys){
+    dd.innerHTML='<div class="nim-dd-error">nim monitor unreachable<br><code>localhost:8766</code></div>';
+    return;
+  }
+  const badge=_nimHealthBadge(data);
+  const rpmCap=data.total_keys*40;
+  let html='';
+  html+=`<div class="nim-dd-header"><span class="nim-dd-title">nim pool</span><span class="nim-dd-health ${badge.cls}">${badge.label}</span></div>`;
+  html+='<div class="nim-dd-body">';
+  const queue=data.rotation_queue||[];
+  for(const k of queue){
+    const pct=k.rpm_utilization||0;
+    const barCls=pct>=90?'exhausted':pct>=70?'degraded':'healthy';
+    const activeCls=k.active?' active':'';
+    html+=`<div class="nim-dd-row${activeCls}">`;
+    html+=`  <span class="nim-dd-row-label">${esc(k.label||'?')}</span>`;
+    html+=`  <span class="nim-dd-row-status ${k.status}">${esc(k.status)}</span>`;
+    html+=`  <div class="nim-dd-row-bar"><div class="nim-dd-row-bar-fill ${barCls}" style="width:${Math.min(pct,100)}%"></div></div>`;
+    html+=`  <span class="nim-dd-row-rpm">${k.request_count||0}/40</span>`;
+    html+=`</div>`;
+  }
+  html+='</div>';
+  html+=`<div class="nim-dd-footer"><span>rpm ${data.estimated_rpm_current||0}/${rpmCap}</span><span>${data.requests_remaining_this_minute||0} remaining</span></div>`;
+  dd.innerHTML=html;
+}
+
+async function toggleNimDropdown(){
+  const dd=$('composerNimDropdown');
+  const chip=$('composerNimChip');
+  if(!dd||!chip) return;
+  const open=dd.classList.contains('open');
+  if(open){closeNimDropdown(); return;}
+  if(typeof closeProfileDropdown==='function') closeProfileDropdown();
+  if(typeof closeWsDropdown==='function') closeWsDropdown();
+  closeModelDropdown();
+  dd.classList.add('open');
+  chip.classList.add('active');
+  dd.innerHTML='<div class="nim-dd-error" style="padding:20px">loading…</div>';
+  const data=await fetchNimStatus();
+  _renderNimDropdown(data);
+  const dot=$('nimDot');
+  if(dot) dot.className='nim-dot '+_nimHealthClass(data);
+}
+
+function closeNimDropdown(){
+  const dd=$('composerNimDropdown');
+  const chip=$('composerNimChip');
+  if(dd) dd.classList.remove('open');
+  if(chip) chip.classList.remove('active');
+}
+
 document.addEventListener('click',e=>{
   if(!e.target.closest('#composerModelChip') && !e.target.closest('#composerModelDropdown')) closeModelDropdown();
+  if(!e.target.closest('#composerNimChip') && !e.target.closest('#composerNimDropdown')) closeNimDropdown();
 });
 window.addEventListener('resize',()=>{
   const dd=$('composerModelDropdown');
