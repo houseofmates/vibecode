@@ -451,9 +451,39 @@ function _nimHealthBadge(data){
   return {cls:'red',label:'depleted'};
 }
 
+function _nimDropdown(){
+  let dd=document.getElementById('composerNimDropdown');
+  if(!dd){
+    dd=document.createElement('div');
+    dd.id='composerNimDropdown';
+    dd.className='nim-dropdown';
+    document.body.appendChild(dd);
+  }
+  return dd;
+}
+
+function _positionNimDropdown(){
+  const dd=_nimDropdown();
+  const chip=$('composerNimChip');
+  if(!dd||!chip) return;
+  const r=chip.getBoundingClientRect();
+  const spaceBelow=window.innerHeight-r.bottom;
+  const spaceAbove=r.top;
+  const ddH=Math.min(360,window.innerHeight-40);
+  if(spaceBelow>=ddH||spaceBelow>spaceAbove){
+    dd.style.top=(r.bottom+6)+'px';
+    dd.style.bottom='auto';
+    dd.style.maxHeight=Math.min(360,spaceBelow-12)+'px';
+  }else{
+    dd.style.bottom=(window.innerHeight-r.top+6)+'px';
+    dd.style.top='auto';
+    dd.style.maxHeight=Math.min(360,spaceAbove-12)+'px';
+  }
+  dd.style.left=Math.max(8,Math.min(r.left+r.width/2-160,window.innerWidth-328))+'px';
+}
+
 function _renderNimDropdown(data){
-  const dd=$('composerNimDropdown');
-  if(!dd) return;
+  const dd=_nimDropdown();
   if(!data||!data.total_keys){
     dd.innerHTML='<div class="nim-dd-error">nim monitor unreachable<br><code>localhost:8766</code></div>';
     return;
@@ -481,33 +511,45 @@ function _renderNimDropdown(data){
 }
 
 async function toggleNimDropdown(){
-  const dd=$('composerNimDropdown');
+  const dd=_nimDropdown();
   const chip=$('composerNimChip');
-  if(!dd||!chip) return;
-  const open=dd.classList.contains('open');
-  if(open){closeNimDropdown(); return;}
+  if(!chip) return;
+  if(dd.classList.contains('open')){closeNimDropdown(); return;}
   if(typeof closeProfileDropdown==='function') closeProfileDropdown();
   if(typeof closeWsDropdown==='function') closeWsDropdown();
   closeModelDropdown();
   dd.classList.add('open');
   chip.classList.add('active');
+  _positionNimDropdown();
   dd.innerHTML='<div class="nim-dd-error" style="padding:20px">loading…</div>';
   const data=await fetchNimStatus();
   _renderNimDropdown(data);
+  _positionNimDropdown();
   const dot=$('nimDot');
   if(dot) dot.className='nim-dot '+_nimHealthClass(data);
 }
 
 function closeNimDropdown(){
-  const dd=$('composerNimDropdown');
+  const dd=document.getElementById('composerNimDropdown');
   const chip=$('composerNimChip');
-  if(dd) dd.classList.remove('open');
+  if(dd){
+    dd.classList.remove('open');
+    dd.style.top='';
+    dd.style.bottom='';
+    dd.style.left='';
+    dd.style.maxHeight='';
+  }
   if(chip) chip.classList.remove('active');
 }
 
 document.addEventListener('click',e=>{
   if(!e.target.closest('#composerModelChip') && !e.target.closest('#composerModelDropdown')) closeModelDropdown();
   if(!e.target.closest('#composerNimChip') && !e.target.closest('#composerNimDropdown')) closeNimDropdown();
+});
+
+window.addEventListener('resize',()=>{
+  const dd=document.getElementById('composerNimDropdown');
+  if(dd&&dd.classList.contains('open')) _positionNimDropdown();
 });
 window.addEventListener('resize',()=>{
   const dd=$('composerModelDropdown');

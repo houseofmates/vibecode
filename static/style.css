@@ -493,7 +493,7 @@
   .nim-dot.degraded{background:#f6b012;box-shadow:0 0 4px rgba(246,176,18,.5);}
   .nim-dot.exhausted{background:#e0525c;box-shadow:0 0 4px rgba(224,82,92,.5);}
   .nim-dot.offline{background:rgba(255,255,255,.2);}
-  .nim-dropdown{display:none;position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);min-width:320px;max-width:min(400px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--border2);border-radius:10px;box-shadow:0 -4px 24px rgba(0,0,0,.4);z-index:200;overflow:hidden;}
+  .nim-dropdown{display:none;position:fixed;min-width:320px;max-width:min(400px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--border2);border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.5);z-index:1200;overflow:hidden;}
   .nim-dropdown.open{display:block;}
   .nim-dd-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;border-bottom:1px solid var(--border);gap:8px;}
   .nim-dd-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
