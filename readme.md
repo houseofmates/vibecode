@@ -1,7 +1,6 @@
 <h1 align="center">vibecode</h1>
 
-vibecode is a local web workspace for coding, terminal sessions, and ai-enabled development flows.
-it is designed to run on your machine and keep your code accessible through a browser while preserving local project structure and git history.
+<p align="center">vibecode is a local web workspace for coding, terminal sessions, and ai-enabled development flows. it is designed to run on your machine and keep your code accessible through a browser while preserving local project structure and git history.</p>
 
 <h2 align="center">what vibecode does</h2>
 
@@ -24,98 +23,94 @@ it is designed to run on your machine and keep your code accessible through a br
 
 <h2 align="center">quick start</h2>
 
-copy the example env and set your preferred values:
+<p align="center">copy the example env and set your preferred values:</p>
 
-```bash
-cp .env.example .env
+<pre align="center"><code>cp .env.example .env
 # edit .env for your environment
-```
+</code></pre>
 
-install the project dependencies and run the server:
+<p align="center">install the project dependencies and run the server:</p>
 
-```bash
-pip install -e .
+<pre align="center"><code>pip install -e .
 python server.py
-```
+</code></pre>
 
-open the interface in your browser at:
+<p align="center">open the interface in your browser at:</p>
 
-```bash
-http://$HERMES_WEBUI_HOST:8786
-```
+<pre align="center"><code>http://$HERMES_WEBUI_HOST:8786
+</code></pre>
 
 <h2 align="center">enable the auto-sync watcher</h2>
 
-vibecode includes a persistent watcher service that keeps code changes synced to `main`.
-if the repository is configured with a github remote, the watcher will commit stable changes and merge them into the remote `main` branch.
+<p align="center">vibecode includes a persistent watcher service that keeps code changes synced to <code>main</code>. if the repository is configured with a github remote, the watcher will commit stable changes and merge them into the remote <code>main</code> branch.</p>
 
-enable it with:
+<p align="center">enable it with:</p>
 
-```bash
-systemctl --user daemon-reload
+<pre align="center"><code>systemctl --user daemon-reload
 systemctl --user enable --now /home/$USER/vibecode/tools/auto_push.service
-```
+</code></pre>
 
-to check status:
+<p align="center">to check status:</p>
 
-```bash
-systemctl --user status auto_push.service
-```
+<pre align="center"><code>systemctl --user status auto_push.service
+</code></pre>
 
 <h2 align="center">configuration</h2>
 
-copy `.env.example` to `.env` and customize the values.
+<p align="center">copy <code>.env.example</code> to <code>.env</code> and customize the values.</p>
 
-### key options
+<h3 align="center">key options</h3>
 
-| variable | default | description |
-|----------|---------|-------------|
-| `HERMES_WEBUI_HOST` | `127.0.0.1` | bind address |
-| `HERMES_WEBUI_PORT` | `8786` | port |
-| `HERMES_WEBUI_PASSWORD` | (none) | set a password for web access |
-| `HERMES_WEBUI_AGENT_DIR` | `auto` | path to hermes-agent |
-| `HERMES_WEBUI_DEFAULT_WORKSPACE` | `~/workspace` | default workspace |
-| `HERMES_DOMAIN` | (none) | optional domain for web ui |
-| `UBUNTU_IP` | `127.0.0.1` | optional ubuntu host ip |
-| `POPOS_IP` | `127.0.0.1` | optional popos host ip |
-| `DEFAULT_HOME` | `~` | default home directory |
+<div align="center">
+<table>
+  <thead>
+    <tr><th>variable</th><th>default</th><th>description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>HERMES_WEBUI_HOST</code></td><td><code>127.0.0.1</code></td><td>bind address</td></tr>
+    <tr><td><code>HERMES_WEBUI_PORT</code></td><td><code>8786</code></td><td>port</td></tr>
+    <tr><td><code>HERMES_WEBUI_PASSWORD</code></td><td>(none)</td><td>set a password for web access</td></tr>
+    <tr><td><code>HERMES_WEBUI_AGENT_DIR</code></td><td><code>auto</code></td><td>path to hermes-agent</td></tr>
+    <tr><td><code>HERMES_WEBUI_DEFAULT_WORKSPACE</code></td><td><code>~/workspace</code></td><td>default workspace</td></tr>
+    <tr><td><code>HERMES_DOMAIN</code></td><td>(none)</td><td>optional domain for web ui</td></tr>
+    <tr><td><code>UBUNTU_IP</code></td><td><code>127.0.0.1</code></td><td>optional ubuntu host ip</td></tr>
+    <tr><td><code>POPOS_IP</code></td><td><code>127.0.0.1</code></td><td>optional popos host ip</td></tr>
+    <tr><td><code>DEFAULT_HOME</code></td><td><code>~</code></td><td>default home directory</td></tr>
+  </tbody>
+</table>
+</div>
 
 <h2 align="center">development</h2>
 
-```bash
-make install
+<pre align="center"><code>make install
 make run
 make dev
 make test
 make clean
-```
+</code></pre>
 
 <h2 align="center">packaging</h2>
 
-### linux appimage
+<h3 align="center">linux appimage</h3>
 
-```bash
-make appimage
-```
+<pre align="center"><code>make appimage
+</code></pre>
 
-### android apk
+<h3 align="center">android apk</h3>
 
-```bash
-make apk
-```
+<pre align="center"><code>make apk
+</code></pre>
 
 <h2 align="center">branch and git sync</h2>
 
-vibecode is built to sync changes into the `main` branch.
-if the repository still has a local `master` branch, the watcher will rename it to `main` and keep the repository on `main`.
+<p align="center">vibecode is built to sync changes into the <code>main</code> branch. if the repository still has a local <code>master</code> branch, the watcher will rename it to <code>main</code> and keep the repository on <code>main</code>.</p>
 
-if git user config is not set, configure it before enabling the watcher:
+<p align="center">if git user config is not set, configure it before enabling the watcher:</p>
 
-```bash
-git config --global user.name "your name"
+<pre align="center"><code>git config --global user.name "your name"
 git config --global user.email "you@example.com"
-```
+</code></pre>
 
 <h2 align="center">license</h2>
 
-[mit](license); forked from [hermes webui](https://github.com/nesquena/hermes-webui)
+<p align="center"><a href="license">mit</a>; forked from <a href="https://github.com/nesquena/hermes-webui">hermes webui</a></p>
