@@ -286,7 +286,7 @@ def _discover_default_workspace() -> Path:
 
 
 DEFAULT_WORKSPACE = _discover_default_workspace()
-DEFAULT_MODEL = os.getenv("HERMES_WEBUI_DEFAULT_MODEL", "deepseek-ai/deepseek-v4-pro")
+DEFAULT_MODEL = os.getenv("HERMES_WEBUI_DEFAULT_MODEL", "@kilocode:nvidia/nemotron-3-super-120b-a12b:free")
 
 
 # ── Startup diagnostics ───────────────────────────────────────────────────────
