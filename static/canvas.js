@@ -280,6 +280,22 @@ function renderCanvasContent() {
     case 'mermaid': renderCanvasMermaid(body, content); break;
     default:      renderCanvasCode(body, content, 'text'); break;
   }
+
+  // make body focusable for keyboard shortcut (Ctrl+C)
+  if (renderType !== 'code' && renderType !== 'json' && renderType !== 'csv') {
+    body.setAttribute('tabindex', '0');
+    body.setAttribute('aria-label', 'canvas content — press Ctrl+C to copy source');
+  } else {
+    body.removeAttribute('tabindex');
+  }
+
+  // add a subtle copy hint for visual content (html, svg, mermaid)
+  if (renderType === 'html' || renderType === 'svg' || renderType === 'mermaid') {
+    const hint = document.createElement('div');
+    hint.className = 'canvas-copy-hint';
+    hint.textContent = '\u2318C to copy source';
+    body.appendChild(hint);
+  }
 }
 
 // ── html renderer ─────────────────────────────────────────────────────────
@@ -288,13 +304,52 @@ function renderCanvasHTML(container, html) {
   const wrap = document.createElement('div');
   wrap.className = 'canvas-html-wrap';
 
+  // inject Ctrl+C handler into the iframe content so users can copy
+  // when focused inside the rendered preview
+  const copyHandler = `
+<script>
+(function(){
+  var hint = document.createElement('div');
+  hint.id = '__copy_hint';
+  hint.textContent = '\u2318C to copy source';
+  Object.assign(hint.style, {
+    position:'fixed', bottom:'8px', right:'8px',
+    padding:'4px 10px', borderRadius:'6px',
+    background:'rgba(0,0,0,.65)', color:'#ccc',
+    fontSize:'11px', fontFamily:'sans-serif',
+    pointerEvents:'none', zIndex:999999,
+    opacity:'0', transition:'opacity .2s',
+  });
+  document.body.appendChild(hint);
+  var timer;
+  document.addEventListener('keydown', function(e){
+    if((e.ctrlKey||e.metaKey)&&e.key==='c'){
+      if(window.parent&&typeof window.parent.copyCanvasContent==='function'){
+        e.preventDefault();
+        window.parent.copyCanvasContent();
+      }
+    }
+  });
+  document.addEventListener('mouseenter', function(){ hint.style.opacity='1'; clearTimeout(timer); });
+  document.addEventListener('mouseleave', function(){ timer=setTimeout(function(){ hint.style.opacity='0'; },1200); });
+})();
+<\/script>`;
+
+  let modifiedHtml = html;
+  if (modifiedHtml.includes('</html>')) {
+    modifiedHtml = modifiedHtml.replace('</html>', copyHandler + '</html>');
+  } else if (modifiedHtml.includes('</body>')) {
+    modifiedHtml = modifiedHtml.replace('</body>', copyHandler + '</body>');
+  } else {
+    modifiedHtml = modifiedHtml + copyHandler;
+  }
+
   const iframe = document.createElement('iframe');
   iframe.className = 'canvas-html-frame';
   iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
   iframe.setAttribute('loading', 'lazy');
 
-  // write content into iframe via srcdoc
-  iframe.srcdoc = html;
+  iframe.srcdoc = modifiedHtml;
   wrap.appendChild(iframe);
   container.appendChild(wrap);
 }
@@ -704,16 +759,17 @@ function createCanvasInlineCard(type, title, content) {
   preview.className = 'canvas-inline-preview';
 
   if (type === 'html') {
-    // tiny iframe preview scaled down
+    // larger iframe preview — scaled down to show more context
     const iframe = document.createElement('iframe');
     iframe.srcdoc = content;
-    iframe.style.cssText = 'width:480px;height:240px;transform:scale(0.5);transform-origin:top left;pointer-events:none;border:none;';
+    iframe.style.cssText = 'width:480px;height:320px;transform:scale(0.5);transform-origin:top left;pointer-events:none;border:none;';
     iframe.setAttribute('sandbox', 'allow-scripts');
+    preview.style.cssText = 'height:160px;';
     preview.appendChild(iframe);
   } else if (type === 'svg') {
     preview.innerHTML = content.startsWith('<svg') ? content : '';
     const svg = preview.querySelector('svg');
-    if (svg) { svg.style.cssText = 'max-width:100%;max-height:120px;'; }
+    if (svg) { svg.style.cssText = 'max-width:100%;max-height:140px;'; }
   } else {
     // code preview
     const code = document.createElement('code');
@@ -771,6 +827,15 @@ function injectCanvasCards(messageEl) {
   const msgBody = messageEl.querySelector('.msg-body');
   if (!msgBody) return;
 
+  // check if this is the last (most recent) assistant message row
+  const row = messageEl.closest('.msg-row');
+  const msgContainer = messageEl.closest('#msgInner');
+  let isLatest = false;
+  if (row && msgContainer) {
+    const allRows = msgContainer.querySelectorAll('.msg-row');
+    isLatest = row === allRows[allRows.length - 1];
+  }
+
   // find fenced code blocks
   const codeBlocks = msgBody.querySelectorAll('pre code');
   if (codeBlocks.length === 0) return;
@@ -799,6 +864,11 @@ function injectCanvasCards(messageEl) {
    pre.insertAdjacentElement('afterend', card);
    // hide the original code block to avoid duplication
    pre.style.display = 'none';
+
+   // auto-open canvas panel for visualizable content in the latest message
+   if (isLatest && isSpecial) {
+     openCanvas(type, title, code);
+   }
   });
 }
 
@@ -910,6 +980,33 @@ function initCanvas() {
     tab.onclick = () => setCanvasMode(tab.dataset.mode);
   });
 
+  // keyboard shortcut: Ctrl+C / Cmd+C to copy canvas content
+  // Works for focus in the canvas body area or inside the iframe
+  const body = $c('canvasBody');
+  if (body) {
+    body.addEventListener('keydown', function(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        if (Canvas._open) {
+          copyCanvasContent();
+          e.preventDefault();
+        }
+      }
+    });
+  }
+
+  // also catch Ctrl+C when focus is inside an iframe within the canvas
+  document.addEventListener('keydown', function(e) {
+    if (!Canvas._open) return;
+    if (!(e.ctrlKey || e.metaKey) || e.key !== 'c') return;
+    // check if focus is within the canvas panel (including iframes)
+    const panel = $c('canvasPanel');
+    if (!panel) return;
+    // If activeElement is inside the panel or is an iframe inside the panel
+    if (panel.contains(document.activeElement)) {
+      copyCanvasContent();
+      e.preventDefault();
+    }
+  });
 }
 
 // ── expose globally ───────────────────────────────────────────────────────
