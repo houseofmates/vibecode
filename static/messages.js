@@ -1886,3 +1886,4 @@ async function sendDesktopNotification(title,body){
 }
 
 // ── Panel navigation (Chat / Tasks / Skills / Memory) ──
+// Auto-canvas feature implemented at Fri May 29 10:52:26 PM PDT 2026
