@@ -917,6 +917,26 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
         const lastAsst=[...S.messages].reverse().find(m=>m.role==='assistant');
         // Persist reasoning trace so thinking card survives page reload
         if(reasoningText&&lastAsst&&!lastAsst.reasoning) lastAsst.reasoning=reasoningText;
+        // If the last assistant message contains likely HTML/SVG content, open it in the canvas
+        if (S.session && S.session.session_id === activeSid) {
+          const isLikelyHTML = (str) => {
+            if (typeof str !== 'string') return false;
+            const lower = str.toLowerCase();
+            return lower.includes('<html') || lower.includes('<body') || lower.includes('<div') || lower.includes('<p>') || lower.includes('<br>') || lower.includes('<svg') || lower.includes('<path ') || lower.includes('<circle') || lower.includes('<rect') || lower.includes('<!doctype') || (lower.startsWith('<') && lower.endsWith('>'));
+          };
+          const lastAssistantIdx = S.messages.findLastIndex(m => m.role === 'assistant');
+          if (lastAssistantIdx >= 0) {
+            const lastMsg = S.messages[lastAssistantIdx];
+            if (typeof lastMsg.content === 'string' && isLikelyHTML(lastMsg.content)) {
+              // Determine type: HTML or SVG
+              const type = lastMsg.content.trim().startsWith('<svg') || lastMsg.content.includes('<svg') ? 'svg' : 'html';
+              const title = 'Assistant Output';
+              openCanvas(type, title, lastMsg.content);
+              // Replace the message content with a note so the chat doesn't show raw HTML
+              S.messages[lastAssistantIdx] = { ...lastMsg, content: `*[${type.toUpperCase()} output opened in canvas]*` };
+            }
+          }
+        }
         // Stamp _ts on the last assistant message if it has no timestamp
         if(lastAsst&&!lastAsst._ts&&!lastAsst.timestamp) lastAsst._ts=Date.now()/1000;
         if(d.usage){S.lastUsage=d.usage;_syncCtxIndicator(d.usage);}
