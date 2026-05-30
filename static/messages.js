@@ -917,23 +917,96 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
         const lastAsst=[...S.messages].reverse().find(m=>m.role==='assistant');
         // Persist reasoning trace so thinking card survives page reload
         if(reasoningText&&lastAsst&&!lastAsst.reasoning) lastAsst.reasoning=reasoningText;
-        // If the last assistant message contains likely HTML/SVG content, open it in the canvas
+        // If the last assistant message contains visualizable content, open it in the canvas
         if (S.session && S.session.session_id === activeSid) {
+          // Helper: check if string looks like HTML/SVG
           const isLikelyHTML = (str) => {
             if (typeof str !== 'string') return false;
             const lower = str.toLowerCase();
             return lower.includes('<html') || lower.includes('<body') || lower.includes('<div') || lower.includes('<p>') || lower.includes('<br>') || lower.includes('<svg') || lower.includes('<path ') || lower.includes('<circle') || lower.includes('<rect') || lower.includes('<!doctype') || (lower.startsWith('<') && lower.endsWith('>'));
           };
-          const lastAssistantIdx = S.messages.findLastIndex(m => m.role === 'assistant');
-          if (lastAssistantIdx >= 0) {
-            const lastMsg = S.messages[lastAssistantIdx];
-            if (typeof lastMsg.content === 'string' && isLikelyHTML(lastMsg.content)) {
-              // Determine type: HTML or SVG
-              const type = lastMsg.content.trim().startsWith('<svg') || lastMsg.content.includes('<svg') ? 'svg' : 'html';
-              const title = 'Assistant Output';
-              openCanvas(type, title, lastMsg.content);
-              // Replace the message content with a note so the chat doesn't show raw HTML
-              S.messages[lastAssistantIdx] = { ...lastMsg, content: `*[${type.toUpperCase()} output opened in canvas]*` };
+          
+          // Helper: extract fenced code blocks
+          const extractFencedCodeBlocks = (text) => {
+            const blocks = [];
+            const regex = /```(\w+)\n([\s\S]*?)\n```/g;
+            let match;
+            while ((match = regex.exec(text)) !== null) {
+              blocks.push({
+                lang: match[1],
+                content: match[2]
+              });
+            }
+            return blocks;
+          };
+          
+          // Helper: map language to canvas type (simplified from canvas.js)
+          const canvasTypeForLang = (lang) => {
+            const l = (lang || '').toLowerCase().trim();
+            const CANVAS_FENCED_LANGS = {
+              html: 'html', htm: 'html', svg: 'svg',
+              mermaid: 'mermaid',
+            };
+            if (CANVAS_FENCED_LANGS[l]) return CANVAS_FENCED_LANGS[l];
+            if (l === 'markdown' || l === 'md') return 'md';
+            if (l === 'json' || l === 'jsonl' || l === 'yaml' || l === 'yml' || l === 'toml') return 'json';
+            if (l === 'csv' || l === 'tsv') return 'csv';
+            if (l === 'python' || l === 'py' || l === 'javascript' || l === 'js' || l === 'typescript' || l === 'ts') return 'code';
+            return 'code'; // fallback
+          };
+          
+          // Find the last assistant message
+          let lastAssistantMsg = null;
+          let lastAssistantIdx = -1;
+          for (let i = S.messages.length - 1; i >= 0; i--) {
+            if (S.messages[i] && S.messages[i].role === 'assistant') {
+              lastAssistantMsg = S.messages[i];
+              lastAssistantIdx = i;
+              break;
+            }
+          }
+          
+          if (lastAssistantMsg && typeof lastAssistantMsg.content === 'string') {
+            const content = lastAssistantMsg.content;
+            let canvasType = null;
+            let canvasContent = null;
+            
+            // First, check for unfenced HTML/SVG
+            if (isLikelyHTML(content)) {
+              if (content.trim().startsWith('<svg') || content.includes('<svg')) {
+                canvasType = 'svg';
+              } else {
+                canvasType = 'html';
+              }
+              canvasContent = content;
+            } else {
+              // Second, check for fenced code blocks
+              const blocks = extractFencedCodeBlocks(content);
+              if (blocks.length > 0) {
+                // Find the best block: longest one that's sufficiently large
+                let bestBlock = null;
+                let bestLength = 0;
+                const MIN_LENGTH = 50; // ignore trivial snippets
+                for (const block of blocks) {
+                  if (block.content.length >= MIN_LENGTH) {
+                    if (block.content.length > bestLength) {
+                      bestLength = block.content.length;
+                      bestBlock = block;
+                    }
+                  }
+                }
+                if (bestBlock) {
+                  canvasType = canvasTypeForLang(bestBlock.lang);
+                  canvasContent = bestBlock.content;
+                }
+              }
+            }
+            
+            // If we found canvas-worthy content, open it and replace the message with a note
+            if (canvasType !== null && canvasContent !== null) {
+              openCanvas(canvasType, 'Assistant Output', canvasContent);
+              // Replace the message content with a note so the chat doesn't show raw content
+              S.messages[lastAssistantIdx] = { ...lastAssistantMsg, content: `*[${canvasType.toUpperCase()} output opened in canvas]*` };
             }
           }
         }
