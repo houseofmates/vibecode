@@ -2448,10 +2448,10 @@ async function loadSettingsPanel(){
       mistralOpt.value='@nvidia:mistralai/mistral-medium-3.5-128b'; mistralOpt.textContent='mistral';
       nimGroup.appendChild(mistralOpt);
       const glmOpt=document.createElement('option');
-      glmOpt.value='@zai:glm-5.1'; glmOpt.textContent='glm';
+      glmOpt.value='@nvidia:z-ai/glm-5.1'; glmOpt.textContent='glm';
       nimGroup.appendChild(glmOpt);
       const minimaxOpt=document.createElement('option');
-      minimaxOpt.value='@minimax:MiniMax-M2.7'; minimaxOpt.textContent='minimax';
+      minimaxOpt.value='@nvidia:minimaxai/minimax-m2.7'; minimaxOpt.textContent='minimax';
       nimGroup.appendChild(minimaxOpt);
       modelSel.appendChild(nimGroup);
       // kilo/kilocode group

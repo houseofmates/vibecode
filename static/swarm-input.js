@@ -53,8 +53,8 @@ const SwarmInput=(function(){
       <select id="swarmModel" class="swarm-select">
        <option value="">default</option>
         <option value="@nvidia:deepseek-ai/deepseek-v4-pro">deepseek</option>
-        <option value="@zai:glm-5.1">glm</option>
-        <option value="@minimax:MiniMax-M2.7">minimax</option>
+        <option value="@nvidia:z-ai/glm-5.1">glm</option>
+        <option value="@nvidia:minimaxai/minimax-m2.7">minimax</option>
         <option value="@nvidia:mistralai/mistral-medium-3.5-128b">mistral</option>
       </select>
      </div>

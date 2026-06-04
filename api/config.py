@@ -618,6 +618,7 @@ _PROVIDER_MODELS = {
     # NVIDIA NIM — direct API endpoint
     "nvidia": [
         {"id": "deepseek-ai/deepseek-v4-pro", "label": "DeepSeek V4 Pro"},
+        {"id": "deepseek-ai/deepseek-v4-flash", "label": "DeepSeek V4 Flash"},
         {"id": "meta/llama-4-maverick", "label": "Llama 4 Maverick"},
         {"id": "meta/llama-4-scout", "label": "Llama 4 Scout"},
         {"id": "mistralai/mistral-medium-3.5-128b", "label": "Mistral Medium 3.5 128B"},
